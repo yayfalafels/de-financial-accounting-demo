@@ -1,0 +1,30 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "schema_id": "as-02-finance-transactions-schema",
+  "assignment": "Assessment 2 - Financial Accounting and General Ledger Reconciliation",
+  "layer": "bronze",
+  "description": "Bronze-layer finance transactions feeding finance.gl_balance.",
+  "tables": [
+    {
+      "table_name": "bronze.finance_transactions",
+      "description": "Transaction-level accounting entries, one row per posted transaction.",
+      "business_key": ["transaction_id"],
+      "columns": [
+        { "name": "transaction_id", "type": "string", "nullable": false, "description": "Unique transaction identifier" },
+        { "name": "account_id", "type": "string", "nullable": false, "description": "Customer/account identifier" },
+        { "name": "transaction_date", "type": "date", "nullable": false, "description": "Business transaction date" },
+        { "name": "posting_date", "type": "date", "nullable": false, "description": "Accounting posting date" },
+        { "name": "transaction_amount", "type": "decimal", "precision": 18, "scale": 2, "nullable": false, "description": "Transaction amount" },
+        { "name": "currency", "type": "string", "length": 3, "nullable": false, "description": "ISO currency" },
+        { "name": "exchange_rate", "type": "decimal", "precision": 18, "scale": 8, "nullable": false, "description": "FX conversion rate" },
+        { "name": "local_amount", "type": "decimal", "precision": 18, "scale": 2, "nullable": false, "description": "Amount converted to local currency" },
+        { "name": "debit_credit_indicator", "type": "string", "nullable": false, "description": "DEBIT / CREDIT", "allowed_values": ["DEBIT", "CREDIT"] },
+        { "name": "product_code", "type": "string", "nullable": false, "description": "Banking product" },
+        { "name": "branch_code", "type": "string", "nullable": false, "description": "Booking branch" },
+        { "name": "gl_account", "type": "string", "nullable": false, "description": "Posted general ledger account" },
+        { "name": "cost_center", "type": "string", "nullable": false, "description": "Posted cost center" },
+        { "name": "legal_entity", "type": "string", "nullable": false, "description": "Posted legal entity" }
+      ]
+    }
+  ]
+}

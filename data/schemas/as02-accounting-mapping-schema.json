@@ -1,0 +1,22 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "schema_id": "as-02-accounting-mapping-schema",
+  "assignment": "Assessment 2 - Financial Accounting and General Ledger Reconciliation",
+  "layer": "ref",
+  "description": "Effective-dated mapping from product/transaction_type to expected GL account and cost center.",
+  "tables": [
+    {
+      "table_name": "ref.accounting_mapping",
+      "description": "Deliberately not unique on product_code+transaction_type alone - overlapping effective-date ranges are one of Task 2's injected issues.",
+      "business_key": ["product_code", "transaction_type", "effective_start_date"],
+      "columns": [
+        { "name": "product_code", "type": "string", "nullable": false, "description": "Banking product" },
+        { "name": "transaction_type", "type": "string", "nullable": false, "description": "DEBIT / CREDIT", "allowed_values": ["DEBIT", "CREDIT"] },
+        { "name": "expected_gl_account", "type": "string", "nullable": false, "description": "Expected general ledger account" },
+        { "name": "expected_cost_center", "type": "string", "nullable": false, "description": "Expected cost center" },
+        { "name": "effective_start_date", "type": "date", "nullable": false, "description": "Mapping effective start date" },
+        { "name": "effective_end_date", "type": "date", "nullable": true, "description": "Mapping effective end date, null = open-ended" }
+      ]
+    }
+  ]
+}

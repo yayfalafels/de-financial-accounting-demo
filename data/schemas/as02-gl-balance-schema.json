@@ -1,0 +1,25 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "schema_id": "as-02-gl-balance-schema",
+  "assignment": "Assessment 2 - Financial Accounting and General Ledger Reconciliation",
+  "layer": "finance",
+  "description": "General Ledger balances aggregated by accounting date / legal entity / GL account / cost center / currency.",
+  "tables": [
+    {
+      "table_name": "finance.gl_balance",
+      "description": "One row per dimension combination per accounting date - a genuine aggregate table, not a transaction feed.",
+      "business_key": ["accounting_date", "legal_entity", "gl_account", "cost_center", "currency"],
+      "columns": [
+        { "name": "accounting_date", "type": "date", "nullable": false, "description": "GL accounting date" },
+        { "name": "legal_entity", "type": "string", "nullable": false, "description": "Legal entity" },
+        { "name": "gl_account", "type": "string", "nullable": false, "description": "General ledger account" },
+        { "name": "cost_center", "type": "string", "nullable": false, "description": "Cost center" },
+        { "name": "currency", "type": "string", "length": 3, "nullable": false, "description": "ISO currency" },
+        { "name": "opening_balance", "type": "decimal", "precision": 20, "scale": 2, "nullable": false, "description": "Opening balance" },
+        { "name": "debit_movement", "type": "decimal", "precision": 20, "scale": 2, "nullable": false, "description": "Sum of debit movements" },
+        { "name": "credit_movement", "type": "decimal", "precision": 20, "scale": 2, "nullable": false, "description": "Sum of credit movements" },
+        { "name": "closing_balance", "type": "decimal", "precision": 20, "scale": 2, "nullable": false, "description": "Closing balance", "notes": "Expected: opening_balance + debit_movement - credit_movement = closing_balance." }
+      ]
+    }
+  ]
+}

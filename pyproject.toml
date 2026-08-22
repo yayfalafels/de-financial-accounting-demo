@@ -1,0 +1,16 @@
+[project]
+name = "de-financial-accounting-demo"
+version = "0.1.0"
+description = "Dev env + data engineering scripts for the banking data ingestion & reconciliation assignment"
+requires-python = ">=3.11"
+# Feature 02 (dev env setup - postgresql db) needs no third-party packages -
+# scripts/utils/*.py are stdlib-only (json, subprocess, pathlib) by design,
+# to avoid DB-driver/interpreter compatibility issues. Add pinned deps here
+# as later milestones need them.
+#
+# Feature 04 (seed mock data) turned out not to need Faker either - none of
+# the 9 seeded tables carry free-text fields (customer name, address, etc.),
+# only codes/IDs/dates/amounts, so stdlib `random` + deterministic pools
+# cover it. scripts/utils/data-generators.py stays stdlib-only, same as
+# sql-generators.py, avoiding a DB driver via `psql \copy` too.
+dependencies = []

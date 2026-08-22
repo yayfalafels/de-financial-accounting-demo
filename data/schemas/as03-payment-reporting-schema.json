@@ -1,0 +1,24 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "schema_id": "as-03-payment-reporting-schema",
+  "assignment": "Assessment 3 - Regulatory / Transaction Banking Data Quality, Lineage and Executive Dashboard",
+  "layer": "regulatory",
+  "description": "Regulatory payment reporting mart, aggregated from bronze.payment_transactions joined to bronze.customer_master.",
+  "tables": [
+    {
+      "table_name": "regulatory.payment_reporting",
+      "description": "Matches the naive (non-effective-dated) join the regulatory pipeline is built on, so the join-fan-out issue is representable as data. domestic_crossborder_flag is part of the key (not just an attribute) because the naive join can legitimately attach two different flag values to the same underlying (date, customer, type, entity) grouping when a customer has more than one active reference row - that is exactly how the fan-out surfaces as genuine duplicate regulatory records rather than a merged/inflated single row.",
+      "business_key": ["reporting_date", "customer_id", "payment_type", "legal_entity", "domestic_crossborder_flag"],
+      "columns": [
+        { "name": "reporting_date", "type": "date", "nullable": false, "description": "Regulatory reporting date" },
+        { "name": "customer_id", "type": "string", "nullable": false, "description": "Customer identifier" },
+        { "name": "payment_type", "type": "string", "nullable": false, "description": "WIRE / GIRO / CARD / INTERNAL / INSTANT" },
+        { "name": "domestic_crossborder_flag", "type": "string", "nullable": false, "description": "DOMESTIC / CROSSBORDER", "allowed_values": ["DOMESTIC", "CROSSBORDER"] },
+        { "name": "transaction_count", "type": "decimal", "precision": 12, "scale": 0, "nullable": false, "description": "Count of payments in this group" },
+        { "name": "total_transaction_amount", "type": "decimal", "precision": 20, "scale": 2, "nullable": false, "description": "Sum of payment amounts in this group" },
+        { "name": "reporting_currency", "type": "string", "length": 3, "nullable": false, "description": "ISO currency" },
+        { "name": "legal_entity", "type": "string", "nullable": false, "description": "Legal entity" }
+      ]
+    }
+  ]
+}

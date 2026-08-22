@@ -1,0 +1,34 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "schema_id": "as-03-bronze-payment-schema",
+  "assignment": "Assessment 3 - Regulatory / Transaction Banking Data Quality, Lineage and Executive Dashboard",
+  "layer": "bronze",
+  "description": "Bronze landing table for source.payment_transactions - same fields plus ingestion metadata.",
+  "tables": [
+    {
+      "table_name": "bronze.payment_transactions",
+      "description": "Bronze-layer copy of source.payment_transactions plus ingestion metadata.",
+      "enforce_constraints": false,
+      "enforce_constraints_notes": "Raw landing table - must accept a duplicate file reload under a second batch_id (Task 3's duplicate-processing issue). See docs/features/04-seed-mock-data.md.",
+      "business_key": ["payment_id", "batch_id"],
+      "columns": [
+        { "name": "payment_id", "type": "string", "nullable": false, "description": "Unique payment identifier" },
+        { "name": "customer_id", "type": "string", "nullable": false, "description": "Customer identifier" },
+        { "name": "account_id", "type": "string", "nullable": false, "description": "Debited/credited account identifier" },
+        { "name": "payment_date", "type": "date", "nullable": false, "description": "Business payment date" },
+        { "name": "payment_timestamp", "type": "timestamp", "nullable": false, "description": "Payment processing timestamp" },
+        { "name": "payment_type", "type": "string", "nullable": false, "description": "WIRE / GIRO / CARD / INTERNAL / INSTANT" },
+        { "name": "payment_channel", "type": "string", "nullable": false, "description": "BRANCH / MOBILE / INTERNET / API" },
+        { "name": "beneficiary_country", "type": "string", "length": 2, "nullable": false, "description": "Beneficiary country, ISO 3166-1 alpha-2" },
+        { "name": "currency", "type": "string", "length": 3, "nullable": false, "description": "ISO currency" },
+        { "name": "amount", "type": "decimal", "precision": 18, "scale": 2, "nullable": false, "description": "Payment amount" },
+        { "name": "status", "type": "string", "nullable": false, "description": "COMPLETED / PENDING / FAILED / REJECTED" },
+        { "name": "legal_entity", "type": "string", "nullable": false, "description": "Booking legal entity" },
+        { "name": "ingestion_timestamp", "type": "timestamp", "nullable": false, "description": "Bronze ingestion timestamp" },
+        { "name": "batch_id", "type": "string", "nullable": false, "description": "Ingestion batch identifier" },
+        { "name": "record_hash", "type": "string", "length": 64, "nullable": false, "description": "SHA-256 hash of business fields" },
+        { "name": "source_file_name", "type": "string", "nullable": false, "description": "Name of the file this row was ingested from" }
+      ]
+    }
+  ]
+}

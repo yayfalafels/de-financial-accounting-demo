@@ -1,0 +1,121 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "schema_id": "as-01-source-schema",
+  "assignment": "Assessment 1 - Source-to-Bronze Data Profiling and Reconciliation",
+  "layer": "source",
+  "source_system": "Core Banking",
+  "description": "Source schema for the daily transaction extract produced by the Core Banking system, ingested into the Bronze layer as bronze.transaction_daily.",
+  "tables": [
+    {
+      "table_name": "src_transaction_daily",
+      "description": "Daily transaction extract from the Core Banking source system, approximately 25 million records per day.",
+      "enforce_constraints": false,
+      "enforce_constraints_notes": "Raw landing table - profiling is supposed to find duplicate transaction_id, invalid transaction_type, and null critical fields, so this table must not reject them at insert time. See docs/features/04-seed-mock-data.md -> Design -> constraint relaxation for realistic dirty data.",
+      "business_key": ["transaction_id"],
+      "columns": [
+        {
+          "name": "transaction_id",
+          "type": "string",
+          "nullable": false,
+          "description": "Unique transaction identifier",
+          "notes": "Primary business key; used to detect duplicates and to join source to Bronze."
+        },
+        {
+          "name": "account_id",
+          "type": "string",
+          "nullable": false,
+          "description": "Customer/account identifier"
+        },
+        {
+          "name": "transaction_date",
+          "type": "date",
+          "format": "yyyy-MM-dd",
+          "nullable": false,
+          "description": "Business transaction date"
+        },
+        {
+          "name": "posting_date",
+          "type": "date",
+          "format": "yyyy-MM-dd",
+          "nullable": false,
+          "description": "Accounting posting date",
+          "notes": "Expected posting_date >= transaction_date; flag exceptions."
+        },
+        {
+          "name": "transaction_type",
+          "type": "string",
+          "nullable": false,
+          "description": "CREDIT / DEBIT",
+          "allowed_values": ["CREDIT", "DEBIT"]
+        },
+        {
+          "name": "currency_code",
+          "type": "string",
+          "length": 3,
+          "nullable": false,
+          "description": "ISO currency",
+          "format": "ISO 4217 alpha-3"
+        },
+        {
+          "name": "transaction_amount",
+          "type": "decimal",
+          "precision": 18,
+          "scale": 2,
+          "nullable": false,
+          "description": "Transaction amount",
+          "notes": "Expect positive, non-zero values; flag negative or zero amounts."
+        },
+        {
+          "name": "local_currency_amount",
+          "type": "decimal",
+          "precision": 18,
+          "scale": 2,
+          "nullable": false,
+          "description": "Amount converted to local currency",
+          "notes": "Expected: local_currency_amount = transaction_amount * exchange_rate, within tolerance."
+        },
+        {
+          "name": "exchange_rate",
+          "type": "decimal",
+          "precision": 18,
+          "scale": 8,
+          "nullable": false,
+          "description": "FX conversion rate"
+        },
+        {
+          "name": "branch_code",
+          "type": "string",
+          "nullable": false,
+          "description": "Booking branch"
+        },
+        {
+          "name": "product_code",
+          "type": "string",
+          "nullable": false,
+          "description": "Banking product"
+        },
+        {
+          "name": "source_system",
+          "type": "string",
+          "nullable": false,
+          "description": "Source application"
+        },
+        {
+          "name": "ingestion_file",
+          "type": "string",
+          "nullable": false,
+          "description": "Source file name",
+          "notes": "Used to trace late-arriving/missing files during root-cause analysis."
+        },
+        {
+          "name": "source_extract_ts",
+          "type": "timestamp",
+          "format": "yyyy-MM-dd'T'HH:mm:ssXXX",
+          "nullable": false,
+          "description": "Source extraction timestamp",
+          "notes": "Some source timestamps are UTC while ingestion uses Singapore business dates; a known root cause of missing records near midnight."
+        }
+      ]
+    }
+  ]
+}

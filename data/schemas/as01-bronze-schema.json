@@ -1,0 +1,36 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "schema_id": "as-01-bronze-schema",
+  "assignment": "Assessment 1 - Source-to-Bronze Data Profiling and Reconciliation",
+  "layer": "bronze",
+  "description": "Bronze landing table for src_transaction_daily - same business fields plus ingestion metadata.",
+  "tables": [
+    {
+      "table_name": "bronze.transaction_daily",
+      "description": "Bronze-layer copy of src_transaction_daily plus ingestion metadata.",
+      "enforce_constraints": false,
+      "enforce_constraints_notes": "Raw landing table - must accept duplicate/malformed rows inherited from source plus its own reprocessing-induced duplicates (Task 2's 'duplicate in Bronze' classification). See docs/features/04-seed-mock-data.md.",
+      "business_key": ["transaction_id"],
+      "columns": [
+        { "name": "transaction_id", "type": "string", "nullable": false, "description": "Unique transaction identifier" },
+        { "name": "account_id", "type": "string", "nullable": false, "description": "Customer/account identifier" },
+        { "name": "transaction_date", "type": "date", "format": "yyyy-MM-dd", "nullable": false, "description": "Business transaction date" },
+        { "name": "posting_date", "type": "date", "format": "yyyy-MM-dd", "nullable": false, "description": "Accounting posting date" },
+        { "name": "transaction_type", "type": "string", "nullable": false, "description": "CREDIT / DEBIT", "allowed_values": ["CREDIT", "DEBIT"] },
+        { "name": "currency_code", "type": "string", "length": 3, "nullable": false, "description": "ISO currency" },
+        { "name": "transaction_amount", "type": "decimal", "precision": 18, "scale": 2, "nullable": false, "description": "Transaction amount" },
+        { "name": "local_currency_amount", "type": "decimal", "precision": 18, "scale": 2, "nullable": false, "description": "Amount converted to local currency" },
+        { "name": "exchange_rate", "type": "decimal", "precision": 18, "scale": 8, "nullable": false, "description": "FX conversion rate" },
+        { "name": "branch_code", "type": "string", "nullable": false, "description": "Booking branch" },
+        { "name": "product_code", "type": "string", "nullable": false, "description": "Banking product" },
+        { "name": "source_system", "type": "string", "nullable": false, "description": "Source application" },
+        { "name": "ingestion_file", "type": "string", "nullable": false, "description": "Source file name" },
+        { "name": "source_extract_ts", "type": "timestamp", "format": "yyyy-MM-dd'T'HH:mm:ssXXX", "nullable": false, "description": "Source extraction timestamp" },
+        { "name": "ingestion_timestamp", "type": "timestamp", "nullable": false, "description": "Bronze ingestion timestamp" },
+        { "name": "batch_id", "type": "string", "nullable": false, "description": "Ingestion batch identifier" },
+        { "name": "record_hash", "type": "string", "length": 64, "nullable": false, "description": "SHA-256 hash of business fields" },
+        { "name": "source_file_name", "type": "string", "nullable": false, "description": "Name of the file this row was ingested from" }
+      ]
+    }
+  ]
+}

@@ -39,31 +39,31 @@ This document describes a complete development environment for implementing and 
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
-│                    Development Workflow                      │
+│                    Development Workflow                     │
 ├─────────────────────────────────────────────────────────────┤
-│                                                               │
-│  VS Code Terminal (Local or Remote)                          │
-│        ↓                                                      │
-│  AI Agent (Copilot/Claude) Scripts Generation                │
-│        ↓                                                      │
-│  ┌─────────────────────────────────────────────────────┐     │
-│  │           Docker Compose Orchestration              │     │
-│  │  ┌──────────────┐  ┌──────────────┐  ┌─────────┐  │     │
-│  │  │ Spark Master │  │ PostgreSQL   │  │ Python  │  │     │
-│  │  │ + Workers    │  │ (Metadata)   │  │ Worker  │  │     │
-│  │  └──────────────┘  └──────────────┘  └─────────┘  │     │
-│  │        ↓                  ↓                ↓        │     │
-│  │  Parquet/Delta Data    Control DB    Transform    │     │
-│  └─────────────────────────────────────────────────────┘     │
-│        ↓                                                      │
-│  Validation & Reconciliation Layer                           │
-│  (SQL, PySpark Notebooks, Python Scripts)                    │
-│        ↓                                                      │
-│  Feedback Loop                                               │
-│  (Metrics, Exception Reports, Data Quality Scores)           │
-│        ↓                                                      │
-│  VS Code Output / Dashboard                                  │
-│                                                               │
+│                                                             │
+│  VS Code Terminal                                           │
+│        ↓                                                    │
+│  AI Agent Scripts Generation                                │
+│        ↓                                                    │
+│  ┌─────────────────────────────────────────────────────┐    │
+│  │           Docker Compose Orchestration              │    │
+│  │  ┌──────────────┐  ┌──────────────┐  ┌─────────┐    │    │
+│  │  │ Spark Master │  │ PostgreSQL   │  │ Python  │    │    │
+│  │  │ + Workers    │  │ (Metadata)   │  │ Worker  │    │    │
+│  │  └──────────────┘  └──────────────┘  └─────────┘    │    │
+│  │        ↓                  ↓                ↓        │    │
+│  │  Parquet/Delta Data    Control DB    Transform      │    │
+│  └─────────────────────────────────────────────────────┘    │
+│        ↓                                                    │
+│  Validation & Reconciliation Layer                          │
+│  (SQL, PySpark Notebooks, Python Scripts)                   │
+│        ↓                                                    │
+│  Feedback Loop                                              │
+│  (Metrics, Exception Reports, Data Quality Scores)          │
+│        ↓                                                    │
+│  VS Code Output / Dashboard                                 │
+│                                                             │
 └─────────────────────────────────────────────────────────────┘
 ```
 
@@ -103,16 +103,16 @@ This document describes a complete development environment for implementing and 
 
 ---
 
-## Option 1: Docker-Based Spark Environment (Recommended)
+## Option 1: Docker-Based Spark Environment 
 
 ### 1.1 Prerequisites
 
 ```bash
 - Docker Desktop (v4.0+) or Docker Engine + Docker Compose
-- VS Code (with Docker extension recommended)
+- VS Code with Docker extension
 - Git
 - 8GB RAM minimum, 50GB disk space
-- Python 3.11+ (for local script generation)
+- Python 3.11+ 
 ```
 
 ### 1.2 Directory Structure
@@ -120,11 +120,14 @@ This document describes a complete development environment for implementing and 
 ```
 ambition-take-home/
 ├── docs/
-│   ├── assignment.md
-│   └── development-environment.md (this file)
+│   ├── design/                   # design documents
+│   │  ├── assignment.md          # overall requirements
+│   │  └── development-environment.md (this file)
+│   ├── features/                 # feature trackers
+│   │  ├── 02-setup-dev-env.md    # feature tracker to setup dev env
+│   └── milestones.md             # milestones tracker
 ├── docker/
 │   ├── Dockerfile.spark          # Custom Spark image
-│   ├── Dockerfile.postgres       # PostgreSQL image
 │   ├── docker-compose.yml        # Orchestration
 │   └── entrypoint.sh             # Spark startup
 ├── data/
@@ -133,28 +136,40 @@ ambition-take-home/
 │   │   ├── bronze/
 │   │   └── staging/
 │   ├── schemas/                  # Data definitions
-│   │   ├── source_schema.json
-│   │   ├── bronze_schema.json
-│   │   └── reference_schema.json
+│   │   ├── as01-source-schema.json
+│   │   ├── as01-bronze-schema.json
+│   │   └── reference-schema.json
 │   └── samples/                  # Sample datasets for testing
 ├── notebooks/
 │   ├── assessment1_profiling.ipynb
 │   ├── assessment2_gl_reconciliation.ipynb
 │   └── assessment3_regulatory.ipynb
+├── postgresql/
+│   └── as01-source-create-table.sql
 ├── scripts/
-│   ├── setup_dev_env.sh          # Initial setup
-│   ├── generate_mock_data.py     # Mock data generator
-│   ├── run_reconciliation.py     # Validation runner
-│   ├── feedback_loop.py          # Metrics & monitoring
-│   └── utils/                    # Helper functions
-│       ├── data_generators.py
-│       ├── reconciliation_rules.py
-│       └── control_tables.py
+│   ├── 01-dev-env-setup.sh                        # Initial setup
+│   ├── 02-mock-data-generate.py                   # Mock data generator
+│   ├── 03-reconciliation-run.py                   # Validation runner
+│   ├── 04-feedback-loop.py                        # Metrics & monitoring
+│   ├── 05-postgre-sql-db-setup.py                 # setup postgresql tables
+│   ├── 06-postgre-sql-container-setup.py          # setup postgresql container
+│   └── utils/                                     # Helper functions
+│       ├── data-generators.py
+│       ├── sql-generators.py
+│       ├── reconciliation-rules.py
+│       └── control-tables.py
 ├── results/
-│   ├── reconciliation_reports/
-│   ├── exception_tables/
+│   ├── reconciliation-reports/
+│   ├── exception-tables/
 │   └── metrics.json
-└── README.md
+├── .env                            # environment variables
+├── .gitignore
+├── .secrets
+├── env                             # python virtual env
+├── pyproject.toml                  # python dependencies specification
+├── LICENSE
+├── README.md
+└── VERSION
 ```
 
 ### 1.3 Docker Compose Configuration

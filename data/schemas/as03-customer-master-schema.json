@@ -1,0 +1,24 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "schema_id": "as-03-customer-master-schema",
+  "assignment": "Assessment 3 - Regulatory / Transaction Banking Data Quality, Lineage and Executive Dashboard",
+  "layer": "bronze",
+  "description": "Effective-dated customer reference data.",
+  "tables": [
+    {
+      "table_name": "bronze.customer_master",
+      "description": "SCD2-style customer reference - customers with an effective-dated history carry more than one row.",
+      "business_key": ["customer_id", "effective_start_date"],
+      "columns": [
+        { "name": "customer_id", "type": "string", "nullable": false, "description": "Customer identifier" },
+        { "name": "customer_type", "type": "string", "nullable": false, "description": "INDIVIDUAL / CORPORATE", "allowed_values": ["INDIVIDUAL", "CORPORATE"] },
+        { "name": "residence_country", "type": "string", "length": 2, "nullable": false, "description": "Residence country, ISO 3166-1 alpha-2" },
+        { "name": "risk_rating", "type": "string", "nullable": false, "description": "LOW / MEDIUM / HIGH", "allowed_values": ["LOW", "MEDIUM", "HIGH"] },
+        { "name": "segment", "type": "string", "nullable": false, "description": "RETAIL / PRIVATE / CORPORATE / SME", "allowed_values": ["RETAIL", "PRIVATE", "CORPORATE", "SME"] },
+        { "name": "legal_entity", "type": "string", "nullable": false, "description": "Legal entity" },
+        { "name": "effective_start_date", "type": "date", "nullable": false, "description": "Effective start date" },
+        { "name": "effective_end_date", "type": "date", "nullable": true, "description": "Effective end date, null = currently active" }
+      ]
+    }
+  ]
+}

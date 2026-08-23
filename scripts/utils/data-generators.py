@@ -98,9 +98,25 @@ AS01_BRONZE_COLUMNS = AS01_SOURCE_COLUMNS + [
 ]
 
 CURRENCIES = ["SGD", "USD", "EUR", "GBP", "JPY"]
+FX_RATE_ANCHORS = {"SGD": 1.0, "USD": 1.34, "EUR": 1.46, "GBP": 1.71, "JPY": 0.0088}
+FX_JITTER_PCT = 0.015  # +/-1.5% day-to-day movement perturbed around each anchor
 BRANCHES = [f"BR{n:03d}" for n in range(1, 21)]
 AS01_PRODUCTS = ["SAVINGS", "CURRENT", "INVESTMENT", "LOAN"]
 ACCOUNTS = [f"ACC-{n:07d}" for n in range(1000000, 1000500)]
+
+
+def fx_rate(currency: str) -> Decimal:
+    """SGD-equivalent exchange rate for `currency`, perturbed around its FX_RATE_ANCHORS anchor.
+
+    Modeling day-to-day FX movement as a small jitter around a realistic anchor,
+    rather than one currency-blind rng.uniform(0.6, 1.5) draw, keeps every currency's
+    rate in a plausible range - a JPY rate never lands anywhere near a USD/EUR/GBP one.
+    """
+    if currency == "SGD":
+        return Decimal("1.00000000")
+    anchor = FX_RATE_ANCHORS[currency]
+    jitter = 1 + rng.uniform(-FX_JITTER_PCT, FX_JITTER_PCT)
+    return Decimal(str(round(anchor * jitter, 8)))
 
 
 def gen_assessment1(out_dir: Path) -> None:
@@ -113,7 +129,7 @@ def gen_assessment1(out_dir: Path) -> None:
             seq += 1
             txn_id = f"TXN-{seq:07d}"
             currency = rng.choices(CURRENCIES, weights=[55, 20, 10, 10, 5])[0]
-            rate = Decimal("1.00000000") if currency == "SGD" else Decimal(str(round(rng.uniform(0.6, 1.5), 8)))
+            rate = fx_rate(currency)
             amount = Decimal(str(round(rng.uniform(10, 50000), 2)))
             local_amount = (amount * rate).quantize(Decimal("0.01"))
             posting_date = txn_date + timedelta(days=rng.choice([0, 0, 0, 1, 2]))
@@ -406,7 +422,7 @@ def gen_assessment2(out_dir: Path) -> None:
             product = rng.choice(AS02_PRODUCTS)
             ttype = rng.choice(["DEBIT", "CREDIT"])
             currency = rng.choices(CURRENCIES[:3], weights=[70, 20, 10])[0]
-            rate = Decimal("1.00000000") if currency == "SGD" else Decimal(str(round(rng.uniform(0.6, 1.5), 8)))
+            rate = fx_rate(currency)
             amount = Decimal(str(round(rng.uniform(50, 20000), 2)))
             local = (amount * rate).quantize(Decimal("0.01"))
             gl, cc = gl_by_combo.get((product, ttype), (SUSPENSE_GL, SUSPENSE_CC))

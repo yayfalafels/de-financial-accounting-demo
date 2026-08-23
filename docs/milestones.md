@@ -2,17 +2,17 @@
 
 | id | seq | status  | milestone                                        | 
 | -- | --- | ------- | ------------------------------------------------- | 
-| 02 | 01  | closed  | dev env setup postgresql db                      | 
-| 03 | 02  | open    | dev env setup spark container                    | 
-| 04 | 03  | open    | seed mock data                                   | 
-| 01 | 04  | open    | scope requirements tasks                         | 
+| 01 | 01  | closed  | scope requirements tasks                         | 
+| 02 | 02  | closed  | dev env setup postgresql db                      | 
+| 04 | 03  | closed  | seed mock data                                   | 
+| 03 | 03  | open    | dev env setup spark container                    | 
 | 05 | 05  | open    | ai closed loop develop and validation            | 
-| 09 | 06  | open    | power bi dashboard setup                         | 
-| 10 | 07  | open    | jupyter notebook workspace setup                 | 
-| 11 | 08  | open    | assessment deliverables conventions              | 
-| 06 | 09  | pending | assessment 1 - source-to-bronze profiling recon  | 
-| 07 | 10  | pending | assessment 2 - financial accounting gl recon     | 
-| 08 | 11  | pending | assessment 3 - regulatory dq lineage dashboard   | 
+| 06 | 06  | pending | power bi dashboard setup                         | 
+| 07 | 07  | pending | jupyter notebook workspace setup                 | 
+| 08 | 08  | pending | assessment deliverables conventions              | 
+| 09 | 09  | pending | assessment 1 - source-to-bronze profiling recon  | 
+| 10 | 10  | pending | assessment 2 - financial accounting gl recon     | 
+| 11 | 11  | pending | assessment 3 - regulatory dq lineage dashboard   | 
 
 **01. scope requirements tasks** — read `docs/design/asssignment.md` and `docs/design/development-environment.md` and lay out / maintain this table: dev env build-out sequenced ahead of the three graded assessments, each producing its own `docs/features/<id>-<name>.md` tracker when work on it starts. 
 

@@ -1,0 +1,123 @@
+# docker/docker-compose.yml
+# Merged compose file for feature 03 (dev env setup - spark container):
+# postgres + spark-master + spark-worker-1/2 + jupyter, brought up together
+# with a single `docker compose up -d`.
+#
+# The `postgres` service, the `name:` project field, and the
+# `postgres_as01_data` volume are carried over unchanged from feature 02's
+# docker-compose.postgres.yml - this is what lets the merge reuse the
+# existing container/volume instead of recreating it. See
+# docs/features/03-dev-env-setup-spark-container.md -> Design -> docker compose.
+#
+# Credentials are read from environment (.env / .secrets), never hardcoded.
+# Invoke with the repo root .env explicitly, e.g.:
+#   docker compose --env-file .env -f docker/docker-compose.yml up -d
+name: postgres-as01
+
+services:
+  postgres:
+    image: postgres:15-alpine
+    container_name: ${POSTGRES_CONTAINER_NAME:-postgres-as01}
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+    volumes:
+      - postgres_as01_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  spark-master:
+    build:
+      context: .
+      dockerfile: Dockerfile.spark
+      args:
+        JDBC_DRIVER_VERSION: ${JDBC_DRIVER_VERSION:-42.7.3}
+    container_name: spark-master
+    environment:
+      SPARK_MODE: master
+    ports:
+      - "${SPARK_MASTER_PORT:-7077}:7077"
+      - "${SPARK_MASTER_UI_PORT:-8080}:8080"
+      - "4040:4040"
+    volumes:
+      - ../data:/data
+      - ../notebooks:/notebooks
+      - ../scripts:/scripts
+      - ../src:/src
+
+  spark-worker-1:
+    build:
+      context: .
+      dockerfile: Dockerfile.spark
+      args:
+        JDBC_DRIVER_VERSION: ${JDBC_DRIVER_VERSION:-42.7.3}
+    container_name: spark-worker-1
+    environment:
+      SPARK_MODE: worker
+      SPARK_MASTER_URL: spark://spark-master:7077
+      SPARK_WORKER_MEMORY: ${SPARK_WORKER_MEMORY:-2G}
+      SPARK_WORKER_CORES: ${SPARK_WORKER_CORES:-2}
+    depends_on:
+      - spark-master
+    ports:
+      - "8081:8081"
+    volumes:
+      - ../data:/data
+      - ../notebooks:/notebooks
+
+  spark-worker-2:
+    build:
+      context: .
+      dockerfile: Dockerfile.spark
+      args:
+        JDBC_DRIVER_VERSION: ${JDBC_DRIVER_VERSION:-42.7.3}
+    container_name: spark-worker-2
+    environment:
+      SPARK_MODE: worker
+      SPARK_MASTER_URL: spark://spark-master:7077
+      SPARK_WORKER_MEMORY: ${SPARK_WORKER_MEMORY:-2G}
+      SPARK_WORKER_CORES: ${SPARK_WORKER_CORES:-2}
+    depends_on:
+      - spark-master
+    ports:
+      - "8082:8082"
+    volumes:
+      - ../data:/data
+      - ../notebooks:/notebooks
+
+  jupyter:
+    build:
+      context: .
+      dockerfile: Dockerfile.spark
+      args:
+        JDBC_DRIVER_VERSION: ${JDBC_DRIVER_VERSION:-42.7.3}
+    container_name: jupyter-notebook
+    command:
+      - jupyter
+      - notebook
+      - --ServerApp.ip=0.0.0.0
+      - --ServerApp.port=8888
+      - --no-browser
+      - --allow-root
+      - --ServerApp.token=
+      - --ServerApp.password=
+    depends_on:
+      - spark-master
+      - postgres
+    ports:
+      - "${JUPYTER_PORT:-8888}:8888"
+    volumes:
+      - ../notebooks:/notebooks
+      - ../data:/data
+      - ../scripts:/scripts
+      - ../src:/src
+    working_dir: /notebooks
+
+volumes:
+  postgres_as01_data:

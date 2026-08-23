@@ -1,11 +1,14 @@
 #!/usr/bin/env bash
 # 01-dev-env-setup.sh
-# Setup orchestrator for feature 02 (dev env setup - postgresql db):
-#   venv -> generate DDL -> docker compose up -> apply DDL to the container.
+# Setup orchestrator, extended by feature 03 (dev env setup - spark
+# container):
+#   venv -> generate DDL -> docker compose up -> apply DDL to the container
+#   -> bring up the spark cluster + jupyter -> wait for worker registration.
 # Every sub-step checks current state before acting (verify-or-create),
 # so reruns are safe and cheap.
 #
 # See docs/features/02-dev-env-setup-postgresql-db.md -> Design
+# See docs/features/03-dev-env-setup-spark-container.md -> Design
 
 set -uo pipefail
 
@@ -22,7 +25,7 @@ TIMEZONE="${TIMEZONE:-UTC}"
 TIMESTAMP_FORMAT="${TIMESTAMP_FORMAT:-%Y%m%d%H%M%S}"
 
 VENV_DIR="${VENV_DIR:-.venv}"
-COMPOSE_FILE="docker/docker-compose.postgres.yml"
+COMPOSE_FILE="docker/docker-compose.yml"
 SCHEMA_JSON="data/schemas/as01-source-schema.json"
 DDL_FILE="postgresql/as01-source-create-table.sql"
 GENERATOR_SCRIPT="scripts/utils/sql-generators.py"
@@ -31,6 +34,9 @@ POSTGRES_CONTAINER_NAME="${POSTGRES_CONTAINER_NAME:-postgres-as01}"
 POSTGRES_USER="${POSTGRES_USER:?POSTGRES_USER must be set in .env}"
 POSTGRES_DB="${POSTGRES_DB:?POSTGRES_DB must be set in .env}"
 POSTGRES_PASSWORD="${POSTGRES_PASSWORD:?POSTGRES_PASSWORD must be set in .secrets}"
+
+SPARK_MASTER_UI_PORT="${SPARK_MASTER_UI_PORT:-8080}"
+SPARK_WORKER_COUNT="${SPARK_WORKER_COUNT:-2}"
 
 FEATURE_ID="02.06"
 TASK_NAME="dev-env-setup"
@@ -125,6 +131,37 @@ step_apply_ddl() {
     return 1
 }
 
+step_spark_up() {
+    log "[INFO] [03.04] checking spark containers"
+    local running
+    running="$(docker ps --filter 'name=spark-' --format '{{.Names}}' | sort | tr '\n' ' ')"
+    if [ "$(echo "$running" | tr ' ' '\n' | grep -c '^spark-')" -ge 3 ]; then
+        log "[PASS] [03.04] spark containers already running: $running"
+    else
+        log "[INFO] [03.04] bringing up spark + jupyter via docker compose (merged file)"
+        if ! docker compose --env-file "$ENV_FILE" -f "$COMPOSE_FILE" up -d >>"$LOG_PATH" 2>&1; then
+            log "[FAIL] [03.04] docker compose up failed - see output above"
+            return 1
+        fi
+        log "[PASS] [03.04] docker compose up completed"
+    fi
+
+    log "[INFO] [03.04] polling spark-master UI for $SPARK_WORKER_COUNT worker(s)"
+    local attempt=0 max_attempts=60 alive=-1
+    while [ "$attempt" -lt "$max_attempts" ]; do
+        alive="$(curl -s "http://localhost:${SPARK_MASTER_UI_PORT}/json/" 2>/dev/null \
+            | python3 -c 'import json,sys; print(json.load(sys.stdin).get("aliveworkers",0))' 2>/dev/null)"
+        if [ -n "$alive" ] && [ "$alive" -ge "$SPARK_WORKER_COUNT" ] 2>/dev/null; then
+            log "[PASS] [03.04] worker registration: $alive/$SPARK_WORKER_COUNT alive workers"
+            return 0
+        fi
+        attempt=$((attempt + 1))
+        sleep 1
+    done
+    log "[FAIL] [03.04] worker registration did not reach $SPARK_WORKER_COUNT within ${max_attempts}s (last seen: ${alive:-0})"
+    return 1
+}
+
 main() {
     log "[INFO] === 01-dev-env-setup start (feature $FEATURE_ID) ==="
 
@@ -132,6 +169,7 @@ main() {
     step_generate_ddl || { log "[FAIL] setup aborted at DDL generation step"; exit 1; }
     step_container_up || { log "[FAIL] setup aborted at container step"; exit 1; }
     step_apply_ddl || { log "[FAIL] setup aborted at DDL apply step"; exit 1; }
+    step_spark_up || { log "[FAIL] setup aborted at spark stage"; exit 1; }
 
     log "[PASS] dev env setup completed successfully"
     log "[INFO] log written to $LOG_PATH"

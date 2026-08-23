@@ -1,0 +1,57 @@
+# Dockerfile.spark
+# Custom Spark image for feature 03 (dev env setup - spark container).
+#
+# DEVIATION from the Design doc's reference image: bitnami/spark:3.5.0 is no
+# longer published as a free image on Docker Hub (Bitnami moved it behind a
+# paid "Bitnami Secure Images" subscription - confirmed via `docker pull`
+# returning "not found" and the Docker Hub API describing the repo as
+# subscription-only). Base image swapped to python:3.11-slim + a JRE +
+# `pip install pyspark`, which bundles Spark's own standalone-cluster
+# scripts (`spark-class`) under site-packages/pyspark - same Spark 3.5.0
+# binaries, no proprietary distribution. See
+# docs/features/03-dev-env-setup-spark-container.md -> Implement for the
+# recorded deviation.
+#
+# Adds only what the notebooks/scripts need: pyspark, delta-spark, faker,
+# the postgresql-client (matching feature 02's inspect-script pattern), and
+# a Postgres JDBC driver jar baked into pyspark's jars/ dir so every
+# spark-submit/pyspark session can reach the postgres service without a
+# --jars flag. Reused as-is for spark-master, each spark-worker-*, and
+# jupyter - role is selected at runtime via SPARK_MODE (see entrypoint.sh).
+
+FROM python:3.11-slim-bookworm
+# Pinned to the bookworm (Debian 12) variant rather than plain `slim`: newer
+# Debian trixie base images only carry openjdk-21, but Spark 3.5.0 officially
+# supports Java 8/11/17 - bookworm still carries openjdk-17-jre-headless.
+
+ARG JDBC_DRIVER_VERSION=42.7.3
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+      openjdk-17-jre-headless \
+      postgresql-client \
+      curl \
+      procps \
+    && rm -rf /var/lib/apt/lists/*
+
+RUN pip install --no-cache-dir \
+    pyspark==3.5.0 \
+    delta-spark==3.0.0 \
+    faker==19.0.0 \
+    notebook==7.0.6
+
+ENV SPARK_HOME=/usr/local/lib/python3.11/site-packages/pyspark
+ENV PATH="${SPARK_HOME}/bin:${SPARK_HOME}/sbin:${PATH}"
+ENV PYSPARK_PYTHON=python3
+ENV PYSPARK_DRIVER_PYTHON=python3
+
+# Postgres JDBC driver, baked onto Spark's classpath - no --jars needed
+RUN curl -fsSL -o "${SPARK_HOME}/jars/postgresql-${JDBC_DRIVER_VERSION}.jar" \
+    "https://repo1.maven.org/maven2/org/postgresql/postgresql/${JDBC_DRIVER_VERSION}/postgresql-${JDBC_DRIVER_VERSION}.jar"
+
+RUN mkdir -p /data /notebooks /scripts && chmod -R 777 /data /notebooks /scripts
+
+COPY entrypoint.sh /entrypoint.sh
+RUN chmod +x /entrypoint.sh
+
+WORKDIR /
+ENTRYPOINT ["/entrypoint.sh"]

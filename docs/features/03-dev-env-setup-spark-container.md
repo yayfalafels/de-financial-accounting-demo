@@ -1,7 +1,7 @@
 # Setup Spark development environment - Feature tracker
 >Review the guidelines before performing any actions including edits on the document
 
-## 03 (open) dev env setup spark container
+## 03 (closed) dev env setup spark container
 
 ## Contents
 

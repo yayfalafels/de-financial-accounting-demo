@@ -1,0 +1,26 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "schema_id": "rc-reconciliation-results-schema",
+  "description": "One row per dimension checked in a batch.",
+  "tables": [
+    {
+      "table_name": "reconciliation.rc_reconciliation_results",
+      "description": "Child of rc_batch_control - one row per dimension checked ('row_count', 'amount').",
+      "business_key": ["result_id"],
+      "foreign_keys": [
+        { "columns": ["batch_id"], "references_table": "reconciliation.rc_batch_control", "references_columns": ["batch_id"] }
+      ],
+      "columns": [
+        { "name": "result_id", "type": "serial", "nullable": false, "description": "Auto-increment result row id" },
+        { "name": "batch_id", "type": "integer", "nullable": false, "description": "FK to rc_batch_control.batch_id" },
+        { "name": "dimension", "type": "string", "nullable": false, "allowed_values": ["row_count", "amount"], "description": "Which check this row is" },
+        { "name": "source_value", "type": "decimal", "precision": 20, "scale": 4, "nullable": false, "description": "Measured value on the source side" },
+        { "name": "target_value", "type": "decimal", "precision": 20, "scale": 4, "nullable": false, "description": "Measured value on the Bronze side" },
+        { "name": "variance", "type": "decimal", "precision": 20, "scale": 4, "nullable": false, "description": "target_value - source_value" },
+        { "name": "variance_pct", "type": "decimal", "precision": 10, "scale": 4, "nullable": false, "description": "variance / source_value * 100" },
+        { "name": "reconciliation_status", "type": "string", "nullable": false, "allowed_values": ["PASS", "WARNING", "FAIL"], "description": "PASS <0.1%, WARNING <1%, FAIL >=1% of |variance_pct|" },
+        { "name": "created_at", "type": "timestamp", "nullable": false, "default": "now()", "description": "Row insert time" }
+      ]
+    }
+  ]
+}

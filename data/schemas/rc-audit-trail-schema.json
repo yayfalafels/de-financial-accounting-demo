@@ -1,0 +1,22 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "schema_id": "rc-audit-trail-schema",
+  "description": "One row per feedback action/decision - the ground-truth cross-check outcome.",
+  "tables": [
+    {
+      "table_name": "reconciliation.rc_audit_trail",
+      "description": "Child of rc_batch_control - records the feedback step's comparison outcome.",
+      "business_key": ["audit_id"],
+      "foreign_keys": [
+        { "columns": ["batch_id"], "references_table": "reconciliation.rc_batch_control", "references_columns": ["batch_id"] }
+      ],
+      "columns": [
+        { "name": "audit_id", "type": "serial", "nullable": false, "description": "Auto-increment audit row id" },
+        { "name": "batch_id", "type": "integer", "nullable": false, "description": "FK to rc_batch_control.batch_id" },
+        { "name": "action", "type": "string", "nullable": false, "allowed_values": ["NOTIFY", "INVESTIGATE"], "description": "INVESTIGATE if the ground-truth cross-check disagrees, NOTIFY otherwise" },
+        { "name": "actor", "type": "string", "nullable": false, "description": "What produced this row, e.g. 'feedback-report.py'" },
+        { "name": "created_at", "type": "timestamp", "nullable": false, "default": "now()", "description": "Row insert time" }
+      ]
+    }
+  ]
+}

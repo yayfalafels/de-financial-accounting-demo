@@ -52,6 +52,10 @@ def pg_type(column: dict) -> str:
                 "'precision' and 'scale'"
             )
         return f"NUMERIC({precision},{scale})"
+    if json_type == "serial":
+        return "SERIAL"
+    if json_type == "integer":
+        return "INTEGER"
 
     raise ValueError(f"column '{column['name']}': unsupported json type '{json_type}'")
 
@@ -83,6 +87,9 @@ def column_ddl(column: dict, business_key: list, enforce_constraints: bool) -> s
     if not_null:
         parts.append("NOT NULL")
 
+    if default := column.get("default"):
+        parts.append(f"DEFAULT {default}")
+
     if enforce_constraints and (allowed := column.get("allowed_values")):
         values_sql = ", ".join(f"'{v}'" for v in allowed)
         parts.append(f'CHECK ("{column["name"]}" IN ({values_sql}))')
@@ -106,6 +113,13 @@ def generate_table_ddl(table: dict) -> str:
     if enforce_constraints and business_key:
         quoted_key = ", ".join(f'"{col}"' for col in business_key)
         lines.append(f"    PRIMARY KEY ({quoted_key})")
+
+    for fk in table.get("foreign_keys", []):
+        cols = ", ".join(f'"{c}"' for c in fk["columns"])
+        ref_schema, ref_name = qualify_table_name(fk["references_table"])
+        ref_qualified = f'"{ref_schema}"."{ref_name}"' if ref_schema else f'"{ref_name}"'
+        ref_cols = ", ".join(f'"{c}"' for c in fk["references_columns"])
+        lines.append(f"    FOREIGN KEY ({cols}) REFERENCES {ref_qualified} ({ref_cols})")
 
     columns_sql = ",\n".join(lines)
     ddl = ""

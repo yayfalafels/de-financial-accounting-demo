@@ -1,0 +1,19 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "schema_id": "rc-batch-control-schema",
+  "description": "Control table: one row per closed-loop reconciliation run.",
+  "tables": [
+    {
+      "table_name": "reconciliation.rc_batch_control",
+      "description": "One row per closed-loop run; parent of rc_reconciliation_results and rc_audit_trail.",
+      "business_key": ["batch_id"],
+      "columns": [
+        { "name": "batch_id", "type": "serial", "nullable": false, "description": "Auto-increment run id" },
+        { "name": "batch_date", "type": "date", "nullable": false, "description": "Business date the batch reconciles" },
+        { "name": "assessment_id", "type": "string", "nullable": false, "description": "Which assessment's check this batch runs, e.g. 'assessment-1'" },
+        { "name": "status", "type": "string", "nullable": false, "default": "'RUNNING'", "allowed_values": ["RUNNING", "PASS", "WARNING", "FAIL"], "description": "RUNNING until the runner finishes, then worst status across its dimension rows" },
+        { "name": "created_at", "type": "timestamp", "nullable": false, "default": "now()", "description": "Row insert time" }
+      ]
+    }
+  ]
+}

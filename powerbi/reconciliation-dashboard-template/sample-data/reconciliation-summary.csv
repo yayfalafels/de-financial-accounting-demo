@@ -1,0 +1,9 @@
+batch_id,dimension,source_value,target_value,variance,variance_pct,reconciliation_status
+1,source_count,2010,2010,0,0.00,PASS
+1,source_amount,48210582.30,48210582.30,0.00,0.00,PASS
+2,source_count,2010,2006,-4,-0.20,WARNING
+2,source_amount,48210582.30,48114230.10,-96352.20,-0.20,WARNING
+3,source_count,2010,1985,-25,-1.24,FAIL
+3,source_amount,48210582.30,44987456.00,-3223126.30,-6.69,FAIL
+4,source_count,2010,2010,0,0.00,PASS
+4,source_amount,48210582.30,48210582.30,0.00,0.00,PASS

@@ -1,15 +1,15 @@
 # assessment milestones
 
 | id | seq | status  | milestone                                        | 
-| -- | --- | ------- | ------------------------------------------------- | 
+| -- | --- | ------- | ------------------------------------------------ | 
 | 01 | 01  | closed  | scope requirements tasks                         | 
 | 02 | 02  | closed  | dev env setup postgresql db                      | 
 | 04 | 03  | closed  | seed mock data                                   | 
-| 03 | 03  | open    | dev env setup spark container                    | 
-| 05 | 05  | open    | ai closed loop develop and validation            | 
-| 06 | 06  | pending | power bi dashboard setup                         | 
-| 07 | 07  | pending | jupyter notebook workspace setup                 | 
-| 08 | 08  | pending | assessment deliverables conventions              | 
+| 03 | 03  | closed  | dev env setup spark container                    | 
+| 05 | 05  | closed  | ai closed loop develop and validation            | 
+| 06 | 06  | open    | power bi dashboard setup                         | 
+| 07 | 07  | open    | jupyter notebook workspace setup                 | 
+| 08 | 08  | open    | assessment deliverables conventions              | 
 | 09 | 09  | pending | assessment 1 - source-to-bronze profiling recon  | 
 | 10 | 10  | pending | assessment 2 - financial accounting gl recon     | 
 | 11 | 11  | pending | assessment 3 - regulatory dq lineage dashboard   | 
@@ -34,15 +34,15 @@
 
 **Closure**: `04-closed-loop-run.sh` passes, inserting a batch/result/audit row set whose measured variance matches the expected variance derived from `issue-log.csv` within tolerance.
 
-**09. power bi dashboard setup** — set up a git-tracked, version-controlled Power BI workspace using `.pbip` (Power BI Project) template files, plus a sync script keeping them mirrored between the Windows-side `/mnt/...` path (where Power BI Desktop actually runs — it's Windows-only and can't run inside this Linux/Docker sandbox) and this repo's `/home/...` working copy. 
+**06. power bi dashboard setup** — set up a git-tracked, version-controlled Power BI workspace using `.pbip` (Power BI Project) template files, plus a sync script keeping them mirrored between the Windows-side `/mnt/...` path (where Power BI Desktop actually runs — it's Windows-only and can't run inside this Linux/Docker sandbox) and this repo's `/home/...` working copy. 
 
 **Closure**: a `.pbip` template exists in the repo, the sync script round-trips a change made on the `/mnt` side back into the git-tracked copy without data loss, and the workflow is documented well enough that assessments (both need a dashboard deliverable) can open the template and start building.
 
-**10. jupyter notebook workspace setup** — define the notebook workspace conventions: one notebook per assessment (matching the assessment's own naming, e.g. `assessment1_profiling.ipynb`), a template notebook proving it reaches both postgres (JDBC/psycopg2) and the Spark cluster from inside the Jupyter container, and where notebook outputs get committed. 
+**07. jupyter notebook workspace setup** — define the notebook workspace conventions: one notebook per assessment (matching the assessment's own naming, e.g. `assessment1_profiling.ipynb`), a template notebook proving it reaches both postgres (JDBC/psycopg2) and the Spark cluster from inside the Jupyter container, and where notebook outputs get committed. 
 
 **Closure**: the template notebook runs cleanly end to end inside the Jupyter container that gets standed up, successfully querying both postgres and Spark, and the convention for where each assessment's working notebook lives is written down.
 
-**11. assessment deliverables conventions** — decide, once, where every assessment's non-code deliverables live and in what format: profiling summaries, exception datasets, root-cause write-ups, lineage documentation, dashboard mock-ups — defaulting to git-tracked markdown (plus the `.pbip` dashboard) under a consistent per-assessment path, so the assessments aren't each inventing their own layout. 
+**08. assessment deliverables conventions** — decide, once, where every assessment's non-code deliverables live and in what format: profiling summaries, exception datasets, root-cause write-ups, lineage documentation, dashboard mock-ups — defaulting to git-tracked markdown (plus the `.pbip` dashboard) under a consistent per-assessment path, so the assessments aren't each inventing their own layout. 
 
 **Closure**: a documented directory convention exists (e.g. `results/<assessment-id>/...` or equivalent) and is referenced from each of the assessments own feature scope once those trackers are created.
 

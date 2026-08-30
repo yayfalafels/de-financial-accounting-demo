@@ -280,10 +280,13 @@ The deliverables scaffolded by [08](../features/08-assessment-deliverables-conve
 
 ### profiling - task 1
 
-- **checks** - one row per profiling statistic named in Task 1, with its SQL/PySpark expression, the table(s) it runs against, and the seeded issue-log row(s) it is expected to surface
+- **checks** - one row per profiling statistic named in Task 1, with its SQL/PySpark expression and the table(s) it runs against
 - **critical data elements** - the nominated CDE list with the justification for each, stated as a table rather than prose so the reasoning is auditable per column
 - **presentation** - how each statistic is rendered in the notebook (single-row summary vs. distribution table) and which of those carry through into the profiling summary write-up
-- **expected findings** - the assessment 1 issue counts from [04](../features/04-seed-mock-data.md#injected-issue-catalog--assessment-1) that each check must reproduce
+- **blind-analyst framing [01]** - the notebook and every deliverable except `audit` reads as an analyst inspecting the data with no knowledge of how it was generated or which defects were intentionally injected; findings state what this level of analysis can deduce and the open question it raises for the next level, never a seed-generator issue-type name or an explanation of how a defect was mechanically produced
+- **expected findings** - the assessment 1 issue counts from [04](../features/04-seed-mock-data.md#injected-issue-catalog--assessment-1) that each check must reproduce, verified only in `assessment-1-audit.md` (09.DM.12) - the one deliverable allowed to know the ground truth
+
+01. added during 09.04 review - see [08](../features/08-assessment-deliverables-conventions.md#deliverable-type-taxonomy)'s `audit` taxonomy row for where the ground-truth-aware content belongs instead.
 
 ### reconciliation - task 2
 

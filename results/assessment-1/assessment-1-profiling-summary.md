@@ -34,10 +34,12 @@ See [overview](assessment-1-overview.md) for the scenario, source/Bronze table s
 
 **09.CK.04** transaction_date range 2026-08-17 to 2026-08-21, posting_date range 2026-08-15 to 2026-08-23 - identical on both tables.
 
-01. **09.CK.02** bronze's 18 duplicate groups split into 10 inherited from source (same `transaction_id`s as source's own 10 duplicates, carried through unchanged) plus 8 seeded `duplicate_in_bronze_reprocessed` rows unique to Bronze. Full record-level classification is task 2 level 3, not this deliverable.
-02. **09.CK.07** src's 20 near-midnight rows sit in five `*_MIDNIGHT.dat` files (2-7 rows each); none of those five files appear in Bronze's distribution at all - the visible fingerprint of the `utc_sgt_midnight_boundary` issue this assessment's Task 3 investigates.
-03. **09.CK.10** src's 27 breaches split into the 15 seeded `fx_mismatch` rows plus 12 rows that also carry the `negative_or_zero_amount` mutation - flipping `transaction_amount`'s sign without recomputing `local_currency_amount` mechanically breaches the tolerance too, confirmed by exact `transaction_id` overlap with the 09.CK.06 rows.
-04. **09.CK.10** bronze's 37 breaches include the 27 inherited from source plus rows carrying the seeded `bronze_amount_mismatch` (10) and `bronze_currency_mismatch` (4) issues, net of overlaps and the rows dropped from Bronze entirely - full row-level attribution is task 2 level 3 / the exception dataset, not this deliverable.
+Notes below report what this level of analysis can deduce and the open question it raises for the next level - task 1 profiles each table on its own terms, not against an expected answer.
+
+01. **09.CK.02** bronze shows 18 duplicate `transaction_id` groups (18 extra rows) against source's 10. At this profiling stage that is only a count difference on each table taken alone; whether the same IDs are duplicated in both tables, Bronze carries additional duplicates of its own, or both, is an open question for task 2's source-to-Bronze record-level comparison.
+02. **09.CK.07** source's `ingestion_file` distribution shows five low-volume files (2-7 rows each, named with a `MIDNIGHT` suffix) well below the other fifteen files' 120-150 row range - a distributional outlier worth flagging. Bronze shows only fifteen distinct `ingestion_file` values against source's twenty. Whether Bronze's five missing values are those same five low-volume files, and why, is an open question for task 2's reconciliation.
+03. **09.CK.10** source: 27 rows breach the FX tolerance, of which 12 also fail the negative/zero amount check (09.CK.06) on the same `transaction_id` - two independent checks flagging the same rows is worth carrying forward as one population rather than two separate counts. The remaining 15 raise no other flag in this profiling pass.
+04. **09.CK.10** bronze: 37 rows breach the same tolerance, more than source's 27. Whether this is the source rows carrying through plus additional Bronze-only breaches, or a different population, is an open question for task 2's reconciliation - not resolved by profiling alone.
 
 ## Critical data elements
 

@@ -127,9 +127,9 @@ results/
 Every deliverable file (the `README.md` index is a separate, derived shape - see [per-assessment deliverable manifest](#per-assessment-deliverable-manifest)) opens with the same two-part shape, so a reader lands in a known structure regardless of which assessment or deliverable-type they open:
 
 - an H1 title combining the assessment id and the taxonomy row's deliverable title
-- a **Sources** section, always present, naming exactly which executable/queryable artifact the write-up is derived from - a notebook path, a `batch_id`, a `.pbip` page - per [relationship to existing artifact conventions](#relationship-to-existing-artifact-conventions)
+- a **Sources** section, always present, naming exactly which executable/queryable artifact the write-up is derived from - a notebook path, a `batch_id`, a `.pbip` page - per [relationship to existing artifact conventions](#relationship-to-existing-artifact-conventions). A source that is a tracked repo file links to its actual GitHub blob URL rather than naming a bare local path [01], so the published site's reader can open it directly; an untracked/gitignored artifact (e.g. `data/mock/issue-log.csv`) stays a plain path with a note that it isn't in the repo.
 
-The page itself carries no status marker [01] - status lives only in the per-assessment manifest, see [per-assessment deliverable manifest](#per-assessment-deliverable-manifest).
+The page itself carries no status marker [02] - status lives only in the per-assessment manifest, see [per-assessment deliverable manifest](#per-assessment-deliverable-manifest).
 
 Illustrative shape only, not a literal stub file this feature ships - `results/assessment-1/assessment-1-profiling-summary.md`:
 
@@ -138,11 +138,13 @@ Illustrative shape only, not a literal stub file this feature ships - `results/a
 
 ## Sources
 
-- notebook: `notebooks/assessment1_profiling.ipynb`
+- notebook: [assessment1_profiling.ipynb](https://github.com/<org>/<repo>/blob/main/notebooks/assessment1_profiling.ipynb)
 - batch: `reconciliation.rc_batch_control.batch_id = <n>`
 ```
 
-01. amended during AS01 task 1 ([09](../assessments/09-as01-data-profiling-reconciliation.md)): the original design put a plain-text `status: draft`/`final` line directly under the title. That duplicated the manifest's own status column and drifted out of sync in practice, and a two-state vocabulary couldn't express a deliverable that answers one task of several while the file overall stays unfinished - the manifest's `status` column is now the single place this is tracked, with a third value, `open`, for exactly that in-process case.
+01. amended alongside AS01 task 1 ([09](../assessments/09-as01-data-profiling-reconciliation.md)) - `scripts/07-deliverables-scaffold.sh` derives the blob base from `git remote get-url origin` plus `GITHUB_DEFAULT_BRANCH` (default `main`) rather than hard-coding the org/repo, so a stub it creates is portable across forks/clones.
+
+02. amended during AS01 task 1 ([09](../assessments/09-as01-data-profiling-reconciliation.md)): the original design put a plain-text `status: draft`/`final` line directly under the title. That duplicated the manifest's own status column and drifted out of sync in practice, and a two-state vocabulary couldn't express a deliverable that answers one task of several while the file overall stays unfinished - the manifest's `status` column is now the single place this is tracked, with a third value, `open`, for exactly that in-process case.
 
 ### relationship to existing artifact conventions
 

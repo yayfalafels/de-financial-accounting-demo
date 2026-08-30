@@ -11,10 +11,22 @@ ENV_FILE="$REPO_ROOT/.env"
 LOGS_DIR="${LOGS_DIR:-.dev/logs}"
 TIMEZONE="${TIMEZONE:-UTC}"
 TIMESTAMP_FORMAT="${TIMESTAMP_FORMAT:-%Y%m%d%H%M%S}"
+GITHUB_DEFAULT_BRANCH="${GITHUB_DEFAULT_BRANCH:-main}"
 FEATURE_ID="08.03"
 TASK_NAME="deliverables-scaffold"
 MODE="write"
 FAILURES=0
+
+# derived, not hard-coded - a Sources line links to the actual file on
+# GitHub rather than naming a bare local path, per 09.IS.03
+github_blob_base() {
+    local url
+    url="$(git remote get-url origin 2>/dev/null)" || { echo ""; return; }
+    url="${url%.git}"
+    url="${url/git@github.com:/https:\/\/github.com\/}"
+    echo "$url/blob/$GITHUB_DEFAULT_BRANCH"
+}
+GITHUB_BLOB_BASE="$(github_blob_base)"
 
 if [[ $# -gt 1 || ( $# -eq 1 && "$1" != "--check" ) ]]; then
     echo "usage: $0 [--check]" >&2
@@ -63,6 +75,17 @@ notebook_path() {
     esac
 }
 
+notebook_link() {
+    local rel_path filename
+    rel_path="$(notebook_path "$1")"
+    filename="$(basename "$rel_path")"
+    if [[ -n "$GITHUB_BLOB_BASE" ]]; then
+        echo "[$filename]($GITHUB_BLOB_BASE/$rel_path)"
+    else
+        echo "\`$rel_path\`"
+    fi
+}
+
 create_stub() {
     local assessment_id="$1" slug="$2" title="$3" path="$4"
     local assessment_no
@@ -72,7 +95,7 @@ create_stub() {
 
 ## Sources
 
-- notebook: \`$(notebook_path "$assessment_id")\`
+- notebook: $(notebook_link "$assessment_id")
 - batch: \`reconciliation.rc_batch_control.batch_id = <n>\`
 EOF
 }

@@ -8,7 +8,7 @@
         
         
         <link rel="shortcut icon" href="../../img/favicon.ico">
-        <title>Assessment 1 - Data Profiling Summary - Financial Accounting Assessments</title>
+        <title>Assessment 1 - Overview - Financial Accounting Assessments</title>
         <link href="../../css/bootstrap.min.css" rel="stylesheet">
         <link href="../../css/fontawesome.min.css" rel="stylesheet">
         <link href="../../css/brands.min.css" rel="stylesheet">
@@ -72,25 +72,29 @@
     <div id="toc-collapse" class="navbar-collapse collapse card bg-body-tertiary">
         <ul class="nav flex-column">
             
-            <li class="nav-item" data-bs-level="1"><a href="#assessment-1-data-profiling-summary" class="nav-link">Assessment 1 - Data Profiling Summary</a>
+            <li class="nav-item" data-bs-level="1"><a href="#assessment-1-overview" class="nav-link">Assessment 1 - Overview</a>
               <ul class="nav flex-column">
-            <li class="nav-item" data-bs-level="2"><a href="#sources" class="nav-link">Sources</a>
-              <ul class="nav flex-column">
-              </ul>
-            </li>
-            <li class="nav-item" data-bs-level="2"><a href="#definitions" class="nav-link">Definitions</a>
+            <li class="nav-item" data-bs-level="2"><a href="#scenario" class="nav-link">Scenario</a>
               <ul class="nav flex-column">
               </ul>
             </li>
-            <li class="nav-item" data-bs-level="2"><a href="#findings" class="nav-link">Findings</a>
+            <li class="nav-item" data-bs-level="2"><a href="#source-table-src_transaction_daily" class="nav-link">Source table - src_transaction_daily</a>
               <ul class="nav flex-column">
               </ul>
             </li>
-            <li class="nav-item" data-bs-level="2"><a href="#critical-data-elements" class="nav-link">Critical data elements</a>
+            <li class="nav-item" data-bs-level="2"><a href="#bronze-table-bronzetransaction_daily" class="nav-link">Bronze table - bronze.transaction_daily</a>
               <ul class="nav flex-column">
               </ul>
             </li>
-            <li class="nav-item" data-bs-level="2"><a href="#ground-truth-cross-check" class="nav-link">Ground-truth cross-check</a>
+            <li class="nav-item" data-bs-level="2"><a href="#tasks" class="nav-link">Tasks</a>
+              <ul class="nav flex-column">
+              </ul>
+            </li>
+            <li class="nav-item" data-bs-level="2"><a href="#expected-deliverables" class="nav-link">Expected deliverables</a>
+              <ul class="nav flex-column">
+              </ul>
+            </li>
+            <li class="nav-item" data-bs-level="2"><a href="#scale-statement" class="nav-link">Scale statement</a>
               <ul class="nav flex-column">
               </ul>
             </li>
@@ -101,178 +105,114 @@
 </div></div>
                     <div class="col-md-9" role="main">
 
-<h1 id="assessment-1-data-profiling-summary">Assessment 1 - Data Profiling Summary</h1>
-<p>status: draft</p>
-<p><strong>Task 1 - Data Profiling</strong></p>
-<p>See <a href="../assessment-1-overview/">overview</a> for the scenario, source/Bronze table shapes, and the seeded-vs-production scale statement.</p>
-<h2 id="sources">Sources</h2>
-<ul>
-<li>notebook: <code>notebooks/assessment1_profiling.ipynb</code> -&gt; "Task 1 - Data Profiling" section</li>
-<li>checks implemented: <code>09.CK.01</code>-<code>09.CK.10</code> (task refs <code>01.01</code>-<code>01.10</code>) - all ten task 1 checks. Profiling statistics stop at the notebook-cell stage (no <code>rc_*</code> control-table write for this deliverable type)</li>
-</ul>
-<h2 id="definitions">Definitions</h2>
-<ul>
-<li><strong>valid currency codes</strong>: <code>SGD, USD, EUR, GBP, JPY</code></li>
-<li><strong>valid transaction types</strong>: <code>CREDIT, DEBIT</code></li>
-<li><strong>FX tolerance (09.CK.10)</strong>: <code>abs(local_currency_amount - transaction_amount * exchange_rate) &gt; 0.01</code> (absolute, cents)</li>
-<li><strong>late-arriving (09.CK.08)</strong>: <code>date(source_extract_ts) &gt; transaction_date</code></li>
-</ul>
-<h2 id="findings">Findings</h2>
+<h1 id="assessment-1-overview">Assessment 1 - Overview</h1>
+<h2 id="scenario">Scenario</h2>
+<p>A bank is migrating transaction and accounting data from multiple source systems into a Databricks-based lakehouse. The daily ingestion under test moves a Core Banking transaction extract into the Bronze layer. Finance reports that the Bronze total local-currency balance does not match source - the reconciliation gap this assessment traces to a record-level cause.</p>
+<h2 id="source-table-src_transaction_daily">Source table - <code>src_transaction_daily</code></h2>
 <table>
 <thead>
 <tr>
-<th>id</th>
-<th>check</th>
-<th>src</th>
-<th>bronze</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td>09.CK.01</td>
-<td>record / distinct transaction_id</td>
-<td>2010 / 2000 (gap 10)</td>
-<td>1993 / 1975 (gap 18)</td>
-</tr>
-<tr>
-<td>09.CK.02</td>
-<td>duplicate id groups</td>
-<td>10 / 10 extra</td>
-<td>18 / 18 extra [01]</td>
-</tr>
-<tr>
-<td>09.CK.03</td>
-<td>null account_id / currency_code</td>
-<td>5 (0.25%) / 5 (0.25%)</td>
-<td>5 (0.25%) / 5 (0.25%)</td>
-</tr>
-<tr>
-<td>09.CK.05</td>
-<td>currency_code distinct / invalid</td>
-<td>10 / 8</td>
-<td>10 / 8</td>
-</tr>
-<tr>
-<td>09.CK.05</td>
-<td>transaction_type distinct / invalid</td>
-<td>5 / 5</td>
-<td>5 / 5</td>
-</tr>
-<tr>
-<td>09.CK.06</td>
-<td>negative/zero amount count</td>
-<td>12</td>
-<td>12</td>
-</tr>
-<tr>
-<td>09.CK.07</td>
-<td>branch/product/file distribution</td>
-<td>see notebook [02]</td>
-<td>see notebook [02]</td>
-</tr>
-<tr>
-<td>09.CK.08</td>
-<td>late-arriving records</td>
-<td>10</td>
-<td>10</td>
-</tr>
-<tr>
-<td>09.CK.09</td>
-<td>posting before transaction date</td>
-<td>6</td>
-<td>6</td>
-</tr>
-<tr>
-<td>09.CK.10</td>
-<td>FX tolerance breach</td>
-<td>27 [03]</td>
-<td>37 [04]</td>
-</tr>
-</tbody>
-</table>
-<p><strong>09.CK.04</strong> transaction_date range 2026-08-17 to 2026-08-21, posting_date range 2026-08-15 to 2026-08-23 - identical on both tables.</p>
-<ol>
-<li><strong>09.CK.02</strong> bronze's 18 duplicate groups split into 10 inherited from source (same <code>transaction_id</code>s as source's own 10 duplicates, carried through unchanged) plus 8 seeded <code>duplicate_in_bronze_reprocessed</code> rows unique to Bronze. Full record-level classification is task 2 level 3, not this deliverable.</li>
-<li><strong>09.CK.07</strong> src's 20 near-midnight rows sit in five <code>*_MIDNIGHT.dat</code> files (2-7 rows each); none of those five files appear in Bronze's distribution at all - the visible fingerprint of the <code>utc_sgt_midnight_boundary</code> issue this assessment's Task 3 investigates.</li>
-<li><strong>09.CK.10</strong> src's 27 breaches split into the 15 seeded <code>fx_mismatch</code> rows plus 12 rows that also carry the <code>negative_or_zero_amount</code> mutation - flipping <code>transaction_amount</code>'s sign without recomputing <code>local_currency_amount</code> mechanically breaches the tolerance too, confirmed by exact <code>transaction_id</code> overlap with the 09.CK.06 rows.</li>
-<li><strong>09.CK.10</strong> bronze's 37 breaches include the 27 inherited from source plus rows carrying the seeded <code>bronze_amount_mismatch</code> (10) and <code>bronze_currency_mismatch</code> (4) issues, net of overlaps and the rows dropped from Bronze entirely - full row-level attribution is task 2 level 3 / the exception dataset, not this deliverable.</li>
-</ol>
-<h2 id="critical-data-elements">Critical data elements</h2>
-<p>Nominated against the checks and joins actually exercised by this assessment's three tasks - a column earns the label because a specific check, reconciliation cut, or root-cause step depends on it, not because it appears in the schema.</p>
-<table>
-<thead>
-<tr>
-<th>id</th>
 <th>column</th>
-<th>why critical</th>
+<th>description</th>
 </tr>
 </thead>
 <tbody>
 <tr>
-<td>01</td>
 <td>transaction_id</td>
-<td>business key - drives 09.CK.02 dedup and the source-to-Bronze join</td>
+<td>unique transaction identifier</td>
 </tr>
 <tr>
-<td>02</td>
-<td>transaction_amount</td>
-<td>feeds task 2 level 1 batch totals and the sign check 09.CK.06</td>
+<td>account_id</td>
+<td>customer/account identifier</td>
 </tr>
 <tr>
-<td>03</td>
-<td>local_currency_amount</td>
-<td>the balance Finance reported broken - task 2's reconciled measure</td>
-</tr>
-<tr>
-<td>04</td>
-<td>exchange_rate</td>
-<td>ties amount to local_currency_amount - the 09.CK.10 tolerance check</td>
-</tr>
-<tr>
-<td>05</td>
-<td>currency_code</td>
-<td>dimensional reconciliation cut plus the 09.CK.05 validity check</td>
-</tr>
-<tr>
-<td>06</td>
-<td>transaction_type</td>
-<td>debit/credit split for level 1 totals plus the 09.CK.05 validity check</td>
-</tr>
-<tr>
-<td>07</td>
 <td>transaction_date</td>
-<td>task 2 dimensional cut and task 3's business-date boundary</td>
+<td>business transaction date</td>
 </tr>
 <tr>
-<td>08</td>
 <td>posting_date</td>
-<td>09.CK.09 ordering check plus accounting-date reconciliation</td>
+<td>accounting posting date</td>
 </tr>
 <tr>
-<td>09</td>
+<td>transaction_type</td>
+<td>CREDIT / DEBIT</td>
+</tr>
+<tr>
+<td>currency_code</td>
+<td>ISO currency</td>
+</tr>
+<tr>
+<td>transaction_amount</td>
+<td>transaction amount</td>
+</tr>
+<tr>
+<td>local_currency_amount</td>
+<td>amount converted to local currency</td>
+</tr>
+<tr>
+<td>exchange_rate</td>
+<td>FX conversion rate</td>
+</tr>
+<tr>
 <td>branch_code</td>
-<td>task 2 level 2 dimensional reconciliation cut</td>
+<td>booking branch</td>
 </tr>
 <tr>
-<td>10</td>
 <td>product_code</td>
-<td>task 2 level 2 dimensional reconciliation cut</td>
+<td>banking product</td>
 </tr>
 <tr>
-<td>11</td>
+<td>source_system</td>
+<td>source application</td>
+</tr>
+<tr>
 <td>ingestion_file</td>
-<td>09.CK.07 source-file distribution and task 3's root-cause trace</td>
+<td>source file name</td>
 </tr>
 <tr>
-<td>12</td>
 <td>source_extract_ts</td>
-<td>09.CK.08 late-arriving check and task 3's UTC/SGT boundary evidence</td>
+<td>source extraction timestamp</td>
 </tr>
 </tbody>
 </table>
-<p><code>account_id</code> and <code>source_system</code> are excluded - neither is read by any Task 1-3 check, reconciliation cut, or root-cause step in this assessment's scope.</p>
-<h2 id="ground-truth-cross-check">Ground-truth cross-check</h2>
-<p>Every count above reproduces its expected value from <code>data/mock/issue-log.csv</code> exactly: <code>duplicate_transaction_id</code>=10, <code>null_account_id</code>=5, <code>null_currency_code</code>=5, <code>invalid_currency_code</code>=8, <code>invalid_transaction_type</code>=5, <code>negative_or_zero_amount</code>=12, <code>posting_before_transaction</code>=6, <code>fx_mismatch</code>=15 (within the 27 total breaches), <code>late_arriving</code>=10. All counts are read live via PySpark JDBC against postgres, not hand-typed - see the notebook section cited above.</p></div>
+<h2 id="bronze-table-bronzetransaction_daily">Bronze table - <code>bronze.transaction_daily</code></h2>
+<p>Same business fields as source, plus:</p>
+<table>
+<thead>
+<tr>
+<th>column</th>
+<th>description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>ingestion_timestamp</td>
+<td>when the record landed Bronze</td>
+</tr>
+<tr>
+<td>batch_id</td>
+<td>ingestion batch identifier</td>
+</tr>
+<tr>
+<td>record_hash</td>
+<td>row-level hash for dedup/audit</td>
+</tr>
+<tr>
+<td>source_file_name</td>
+<td>Bronze-side source-file name</td>
+</tr>
+</tbody>
+</table>
+<h2 id="tasks">Tasks</h2>
+<ul>
+<li><strong>task 1 - data profiling</strong> - profile both datasets against the assignment's stated checks (record/distinct counts, duplicate ids, null percentages, date ranges, currency/type validity, negative/zero amounts, branch/product/source-file distributions, late arrivals, posting-date ordering, and FX tolerance), and nominate and justify the critical data elements</li>
+<li><strong>task 2 - source-to-bronze reconciliation</strong> - level 1 batch totals, level 2 dimensional reconciliation with the largest-variance combinations identified, and level 3 record-level classification into exact match, missing in Bronze, unexpected in Bronze, amount/currency/posting-date mismatch, and duplicates on either side</li>
+<li><strong>task 3 - root cause</strong> - explain, evidence, and quantify the missing-record population concentrated in near-midnight source files where UTC source timestamps meet Singapore business-date ingestion, then recommend remediation plus permanent preventive controls</li>
+</ul>
+<h2 id="expected-deliverables">Expected deliverables</h2>
+<p>notebook, profiling summary, reconciliation results, exception dataset, root-cause analysis, DQ-control recommendations, and a short reconciliation dashboard or mock-up - see <a href="../">results/assessment-1/README.md</a> for current submission status.</p>
+<h2 id="scale-statement">Scale statement</h2>
+<p>The assignment scenario states the Core Banking extract runs at approximately <strong>25 million records per day</strong> in production. This demo's seeded volume budget is far smaller by design (<code>MOCK_DATA_DAYS=5</code>, <code>MOCK_DATA_TXN_PER_DAY=400</code>), producing 2,010 <code>src_transaction_daily</code> rows against 1,993 <code>bronze.transaction_daily</code> rows for the most recent seed run - a 17-row / 0.85% gap engineered to be traceable, not a scaled-down replica of the production symptom's absolute size. Every measurement published in this assessment's deliverables is a finding against that seeded volume, with the production figure cited here only as the scenario framing that motivated the check - never mistaken for a production-scale result.</p></div>
             </div>
         </div>
 

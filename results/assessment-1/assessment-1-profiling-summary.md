@@ -2,7 +2,7 @@
 
 **Task 1 - Data Profiling**
 
-See [overview](assessment-1-overview.md) for the scenario, source/Bronze table shapes, and the seeded-vs-production scale statement.
+See [overview](assessment-1-overview.md) for the scenario, source/Bronze table shapes, and the seeded-vs-production scale statement. This analysis assumes that the reported high-level local currency gap has already been reproduced and confirmed direct query of the databases.
 
 ## Sources
 
@@ -34,7 +34,7 @@ See [overview](assessment-1-overview.md) for the scenario, source/Bronze table s
 
 **09.CK.04** transaction_date range 2026-08-17 to 2026-08-21, posting_date range 2026-08-15 to 2026-08-23 - identical on both tables.
 
-Notes below report what this level of analysis can deduce and the open question it raises for the next level - task 1 profiles each table on its own terms, not against an expected answer.
+Notes below report what this level of analysis can deduce and the open question it raises for the next level 
 
 01. **09.CK.02** bronze shows 18 duplicate `transaction_id` groups (18 extra rows) against source's 10. At this profiling stage that is only a count difference on each table taken alone; whether the same IDs are duplicated in both tables, Bronze carries additional duplicates of its own, or both, is an open question for task 2's source-to-Bronze record-level comparison.
 02. **09.CK.07** source's `ingestion_file` distribution shows five low-volume files (2-7 rows each, named with a `MIDNIGHT` suffix) well below the other fifteen files' 120-150 row range - a distributional outlier worth flagging. Bronze shows only fifteen distinct `ingestion_file` values against source's twenty. Whether Bronze's five missing values are those same five low-volume files, and why, is an open question for task 2's reconciliation.

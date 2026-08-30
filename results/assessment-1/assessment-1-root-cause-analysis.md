@@ -1,7 +1,5 @@
 # Assessment 1 - Root-Cause Analysis
 
-status: draft
-
 ## Sources
 
 - notebook: `notebooks/assessment1_profiling.ipynb`

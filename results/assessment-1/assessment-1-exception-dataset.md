@@ -1,7 +1,5 @@
 # Assessment 1 - Exception Dataset
 
-status: draft
-
 ## Sources
 
 - notebook: `notebooks/assessment1_profiling.ipynb`

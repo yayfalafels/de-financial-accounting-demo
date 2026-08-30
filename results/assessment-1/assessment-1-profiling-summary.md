@@ -1,7 +1,5 @@
 # Assessment 1 - Data Profiling Summary
 
-status: draft
-
 **Task 1 - Data Profiling**
 
 See [overview](assessment-1-overview.md) for the scenario, source/Bronze table shapes, and the seeded-vs-production scale statement.
@@ -9,7 +7,7 @@ See [overview](assessment-1-overview.md) for the scenario, source/Bronze table s
 ## Sources
 
 - notebook: `notebooks/assessment1_profiling.ipynb` -> "Task 1 - Data Profiling" section
-- checks implemented: `09.CK.01`-`09.CK.10` (task refs `01.01`-`01.10`) - all ten task 1 checks. Profiling statistics stop at the notebook-cell stage (no `rc_*` control-table write for this deliverable type)
+- checks implemented: `09.CK.01`-`09.CK.10` (task refs `01.01`-`01.10`) - all ten task 1 checks.
 
 ## Definitions
 

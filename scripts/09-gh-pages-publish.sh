@@ -54,13 +54,17 @@ check_pat_file() {
     log "[PASS] [$FEATURE_ID] PAT file present: $GITHUB_PAT_FILE"
 }
 
+ASKPASS_FILE=""
+cleanup() { [ -n "$ASKPASS_FILE" ] && rm -f "$ASKPASS_FILE"; }
+trap cleanup EXIT
+
 main() {
     check_clean_tree || exit 1
     check_pat_file || exit 1
 
     local askpass
     askpass="$(mktemp)"
-    trap 'rm -f "$askpass"' EXIT
+    ASKPASS_FILE="$askpass"
     cat > "$askpass" <<EOF
 #!/usr/bin/env bash
 case "\$1" in

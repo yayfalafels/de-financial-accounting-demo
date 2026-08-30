@@ -4,6 +4,10 @@
 
 A bank is migrating transaction and accounting data from multiple source systems into a Databricks-based lakehouse. The daily ingestion under test moves a Core Banking transaction extract into the Bronze layer. Finance reports that the Bronze total local-currency balance does not match source - the reconciliation gap this assessment traces to a record-level cause.
 
+>DISCLAIMER: Scaled down mock demo
+
+The assignment scenario states the Core Banking extract runs at approximately **25 million records per day** in production. This demo's seeded volume budget is far smaller by design (`MOCK_DATA_DAYS=5`, `MOCK_DATA_TXN_PER_DAY=400`), producing 2,010 `src_transaction_daily` rows against 1,993 `bronze.transaction_daily` rows for the most recent seed run - a 17-row / 0.85% gap engineered to be traceable, not a scaled-down replica of the production symptom's absolute size. Every measurement published in this assessment's deliverables is a finding against that seeded volume, with the production figure cited here only as the scenario framing that motivated the check - never mistaken for a production-scale result.
+
 ## Source table - `src_transaction_daily`
 
 | column                | description                         |
@@ -42,8 +46,11 @@ Same business fields as source, plus:
 
 ## Expected deliverables
 
-notebook, profiling summary, reconciliation results, exception dataset, root-cause analysis, DQ-control recommendations, and a short reconciliation dashboard or mock-up - see [results/assessment-1/README.md](README.md) for current submission status.
+- notebook
+- profiling summary
+- reconciliation results
+- exception dataset
+- root-cause analysis
+- data quality control recommendations
 
-## Scale statement
-
-The assignment scenario states the Core Banking extract runs at approximately **25 million records per day** in production. This demo's seeded volume budget is far smaller by design (`MOCK_DATA_DAYS=5`, `MOCK_DATA_TXN_PER_DAY=400`), producing 2,010 `src_transaction_daily` rows against 1,993 `bronze.transaction_daily` rows for the most recent seed run - a 17-row / 0.85% gap engineered to be traceable, not a scaled-down replica of the production symptom's absolute size. Every measurement published in this assessment's deliverables is a finding against that seeded volume, with the production figure cited here only as the scenario framing that motivated the check - never mistaken for a production-scale result.
+and a short reconciliation dashboard or mock-up - see [README.md](README.md) for current submission status.

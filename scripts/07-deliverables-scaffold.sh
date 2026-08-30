@@ -70,8 +70,6 @@ create_stub() {
     cat >"$path" <<EOF
 # Assessment ${assessment_no} - ${title}
 
-status: draft
-
 ## Sources
 
 - notebook: \`$(notebook_path "$assessment_id")\`
@@ -86,12 +84,7 @@ process_deliverables() {
         [[ "$parsed_assessment" == "$assessment_id" ]] || continue
         path="results/$assessment_id/$assessment_id-$slug.md"
         if [[ -f "$path" ]]; then
-            if grep -qxE 'status: (draft|final)' "$path"; then
-                log "[PASS] [$FEATURE_ID] preserved $path"
-            else
-                log "[FAIL] [$FEATURE_ID] invalid status marker in $path"
-                FAILURES=1
-            fi
+            log "[PASS] [$FEATURE_ID] preserved $path"
         elif [[ "$MODE" == "write" ]]; then
             mkdir -p "$(dirname "$path")"
             create_stub "$assessment_id" "$slug" "$title" "$path"
@@ -106,6 +99,18 @@ process_deliverables() {
 write_manifest() {
     local assessment_id="$1" readme="results/$assessment_id/README.md"
     local temporary entry parsed_assessment slug title path status row=1
+    # status lives only in this manifest (draft|open|final), never on the
+    # deliverable page itself - carry forward whatever is already recorded
+    # for a path, so a hand-set "open"/"final" survives a rerun; brand new
+    # rows default to "draft".
+    declare -A existing_status
+    if [[ -f "$readme" ]]; then
+        while IFS= read -r line; do
+            if [[ "$line" =~ \]\(([^\)]+\.md)\)[[:space:]]*\|[[:space:]]*([a-zA-Z]+)[[:space:]]*\|[[:space:]]*$ ]]; then
+                existing_status["${BASH_REMATCH[1]}"]="${BASH_REMATCH[2]}"
+            fi
+        done <"$readme"
+    fi
     temporary="$(mktemp)"
     {
         echo "# Assessment $(assessment_number "$assessment_id") Deliverables"
@@ -118,7 +123,7 @@ write_manifest() {
             IFS='|' read -r parsed_assessment slug title <<<"$entry"
             [[ "$parsed_assessment" == "$assessment_id" ]] || continue
             path="$assessment_id-$slug.md"
-            status="$(sed -n 's/^status: \(draft\|final\)$/\1/p' "results/$assessment_id/$path")"
+            status="${existing_status[$path]:-draft}"
             printf '| %02d | [%s](%s) | %s |\n' "$row" "$title" "$path" "$status"
             row=$((row + 1))
         done

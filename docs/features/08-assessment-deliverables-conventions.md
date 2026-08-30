@@ -124,24 +124,25 @@ results/
 
 ### deliverable markdown template
 
-Every deliverable file (the `README.md` index is a separate, derived shape - see [per-assessment deliverable manifest](#per-assessment-deliverable-manifest)) opens with the same three-part shape, so a reader lands in a known structure regardless of which assessment or deliverable-type they open:
+Every deliverable file (the `README.md` index is a separate, derived shape - see [per-assessment deliverable manifest](#per-assessment-deliverable-manifest)) opens with the same two-part shape, so a reader lands in a known structure regardless of which assessment or deliverable-type they open:
 
 - an H1 title combining the assessment id and the taxonomy row's deliverable title
-- a one-line plain-text status marker directly under the title - `draft` while still being worked, `final` once submitted - no YAML front matter, since no other markdown doc in this repo uses one and a plain line keeps the file readable as-is
 - a **Sources** section, always present, naming exactly which executable/queryable artifact the write-up is derived from - a notebook path, a `batch_id`, a `.pbip` page - per [relationship to existing artifact conventions](#relationship-to-existing-artifact-conventions)
+
+The page itself carries no status marker [01] - status lives only in the per-assessment manifest, see [per-assessment deliverable manifest](#per-assessment-deliverable-manifest).
 
 Illustrative shape only, not a literal stub file this feature ships - `results/assessment-1/assessment-1-profiling-summary.md`:
 
 ```markdown
 # Assessment 1 - Data Profiling Summary
 
-status: draft
-
 ## Sources
 
 - notebook: `notebooks/assessment1_profiling.ipynb`
 - batch: `reconciliation.rc_batch_control.batch_id = <n>`
 ```
+
+01. amended during AS01 task 1 ([09](../assessments/09-as01-data-profiling-reconciliation.md)): the original design put a plain-text `status: draft`/`final` line directly under the title. That duplicated the manifest's own status column and drifted out of sync in practice, and a two-state vocabulary couldn't express a deliverable that answers one task of several while the file overall stays unfinished - the manifest's `status` column is now the single place this is tracked, with a third value, `open`, for exactly that in-process case.
 
 ### relationship to existing artifact conventions
 
@@ -155,12 +156,12 @@ This closes the deferral [07](07-jupyter-notebook-workspace-setup.md#notebook-ou
 
 ### per-assessment deliverable manifest
 
-Each `results/<assessment-id>/README.md` is the concrete artifact [milestones.md](../milestones.md)'s closure line asks for ("referenced from each of the assessments own feature scope"): it lists exactly the [deliverable-type taxonomy](#deliverable-type-taxonomy) rows checked for that assessment, each linked to its file and carrying that file's current `status:` line, plus the notebook and dashboard paths as reference-only rows owned by 07/06. Once an assessment's own tracker (09, 10, or 11) exists, its Scope section links this README instead of re-listing the deliverable set - one statement of what an assessment must produce, not two that can drift apart.
+Each `results/<assessment-id>/README.md` is the concrete artifact [milestones.md](../milestones.md)'s closure line asks for ("referenced from each of the assessments own feature scope"): it lists exactly the [deliverable-type taxonomy](#deliverable-type-taxonomy) rows checked for that assessment, each linked to its file, plus the notebook and dashboard paths as reference-only rows owned by 07/06. `status` is one of `draft` (not started or a stub), `open` (in-process - answers some but not all of what the deliverable type expects), or `final` (complete and reviewed); it is authored directly in this manifest and carried forward unchanged on every scaffold rerun, never derived from the deliverable page itself (see the [deliverable markdown template](#deliverable-markdown-template) amendment). Once an assessment's own tracker (09, 10, or 11) exists, its Scope section links this README instead of re-listing the deliverable set - one statement of what an assessment must produce, not two that can drift apart.
 
 ### idempotency / rerun-safety
 
-- **deliverable files**: verify-or-create, the same convention [07](07-jupyter-notebook-workspace-setup.md#idempotency--rerun-safety) already used for notebook stubs - created with the [template](#deliverable-markdown-template) skeleton and `status: draft` only if missing at its expected path; a file already started is never touched or overwritten.
-- **README**: regenerated in full on every scaffold run, since it's a derived index rather than authored content - but only after confirming the checked-off set it would report cannot shrink relative to what's actually on disk.
+- **deliverable files**: verify-or-create, the same convention [07](07-jupyter-notebook-workspace-setup.md#idempotency--rerun-safety) already used for notebook stubs - created with the [template](#deliverable-markdown-template) skeleton only if missing at its expected path; a file already started is never touched or overwritten.
+- **README**: regenerated in full on every scaffold run, since it's a derived index rather than authored content - but each row's `status` value already on disk is read back and carried forward before the file is rewritten, so a hand-set `open`/`final` survives the regeneration; a brand new row defaults to `draft`.
 
 ### environment & secrets
 
@@ -171,7 +172,7 @@ No new variables and no secrets - the scaffold script only creates and lists loc
 `scripts/07-deliverables-scaffold.sh` (next free script number after `06-notebook-validate.sh`) turns [milestones.md](../milestones.md)'s closure line into something rerunnable rather than a one-time manual folder creation:
 
 1. For each assessment id, creates any missing deliverable file from [deliverable-type taxonomy](#deliverable-type-taxonomy)'s checked rows, per [idempotency / rerun-safety](#idempotency--rerun-safety) - never touching a file that already exists.
-2. Regenerates each `results/<assessment-id>/README.md` from the taxonomy table plus each file's own `status:` line, so the manifest always reflects the files actually on disk rather than being hand-maintained prose.
+2. Regenerates each `results/<assessment-id>/README.md` from the taxonomy table, carrying forward each row's `status` already recorded in the existing manifest (`draft` for a new row), so the manifest always reflects the deliverable set actually on disk while `status` stays authored, not derived.
 3. Runs in a `--check` mode too - reports missing files or a stale README without writing anything, the mode a later assessment milestone's own validation step calls before declaring its deliverables closed.
 4. Logs its run under `.dev/logs/`, per the `feature-implementation-guide` skill's `<ts>-<task-id>-<name>.log` naming convention, printing one `[PASS]`/`[FAIL]` line per assessment id plus an overall summary.
 
@@ -221,7 +222,7 @@ _test cases_
 | 08.TC.14 | 08.05 | deployment | `gh-deploy` updates `gh-pages` [03]        |
 
 01. **08.TC.02** expects five Assessment 1 files, six Assessment 2 files, and seven Assessment 3 files; the three README manifests are checked separately.
-02. **08.TC.04** requires the notebook and dashboard reference rows, the checked taxonomy rows only, relative links to existing deliverables, and the current `status:` value read from each linked file.
+02. **08.TC.04** requires the notebook and dashboard reference rows, the checked taxonomy rows only, relative links to existing deliverables, and each row's `status` value carried forward from the existing manifest.
 03. **08.TC.14** requires a reviewed clean worktree, valid GitHub authentication, and the Pages source configured to `gh-pages` root. Check the deployed commit with `git ls-remote origin gh-pages`, then open the repository Pages URL and confirm its assessment navigation matches the local build.
 
 **tools**
@@ -233,7 +234,7 @@ cd /home/taylor-hickem/repos/de-financial-accounting-demo
 python -m pip install '.[docs]'
 ./scripts/08-assessment-site.sh build
 find results -type f | sort
-grep -R --line-number '^status: \(draft\|final\)$' results
+grep -RE '\| (draft|open|final) +\|$' results/*/README.md
 awk '/^\|/ && length($0) >= 115 { print FILENAME ":" FNR ": table row is too long"; bad = 1 } END { exit bad }' results/**/*.md
 ```
 
@@ -290,13 +291,13 @@ Implement `log()` to timestamp and `tee -a` every message to the log. Parse only
 
 Represent the taxonomy as explicit assessment/slug/title triples in the script. Use exactly the 18 deliverables in `08.EL.03-08.EL.07`, `08.EL.09-08.EL.14`, and `08.EL.16-08.EL.22`; no dashboard slug is created because Dashboard ownership remains with Feature 06. Keep title strings in the script so both stubs and manifests draw from the same source.
 
-For each triple, derive `results/<assessment-id>/<assessment-id>-<slug>.md`. In write mode, `mkdir -p` its parent and create the file only when absent. Each new stub contains the H1 `# Assessment N - <deliverable title>`, a blank line, `status: draft`, a blank line, and `## Sources`; then include a notebook source for its assessment and a `reconciliation.rc_batch_control.batch_id = <n>` source when reconciliation output is relevant. Log `[PASS]` for both created and preserved files, using distinct action text. In check mode, missing files log `[FAIL]` and set an accumulated failure status; existing files log `[PASS]` and are never modified. Create `results/index.md` only when absent with an H1 and relative links to the three manifests, giving MkDocs its site root without overwriting authored landing-page content.
+For each triple, derive `results/<assessment-id>/<assessment-id>-<slug>.md`. In write mode, `mkdir -p` its parent and create the file only when absent. Each new stub contains the H1 `# Assessment N - <deliverable title>`, a blank line, and `## Sources` (no status line on the page - see the [deliverable markdown template](#deliverable-markdown-template) amendment); then include a notebook source for its assessment and a `reconciliation.rc_batch_control.batch_id = <n>` source when reconciliation output is relevant. Log `[PASS]` for both created and preserved files, using distinct action text. In check mode, missing files log `[FAIL]` and set an accumulated failure status; existing files log `[PASS]` and are never modified. Create `results/index.md` only when absent with an H1 and relative links to the three manifests, giving MkDocs its site root without overwriting authored landing-page content.
 
 ### 2. Manifest generation
 
 edit locations: `08.EL.02, 08.EL.08, 08.EL.15`
 
-After all required deliverables for one assessment have been checked, generate its README content in a temporary file. Use an H1 naming the assessment, a brief single-line statement, and one fixed-width Markdown table with `id` as its first column. Include one row for each taxonomy deliverable with its relative link and the exact `status:` value read from the target file. Add notebook and dashboard rows as reference-only entries that point to the Feature 07 notebook path and Feature 06 Power BI template path without claiming the scaffold owns either artifact.
+After all required deliverables for one assessment have been checked, generate its README content in a temporary file. Use an H1 naming the assessment, a brief single-line statement, and one fixed-width Markdown table with `id` as its first column. Include one row for each taxonomy deliverable with its relative link and the `status` value already recorded for that row in the existing manifest, carried forward unchanged (`draft` for a row with no prior manifest entry). Add notebook and dashboard rows as reference-only entries that point to the Feature 07 notebook path and Feature 06 Power BI template path without claiming the scaffold owns either artifact.
 
 In write mode, replace the README atomically with `mv` only when the generated temporary file differs from the existing README. Before replacement, compare the expected slug set to the deliverable files already on disk and fail if replacement would omit a required taxonomy file; extra authored files may remain on disk but must not be presented as taxonomy deliverables. In check mode, compare the generated content with the checked-in README using `cmp -s`; a missing or different README logs `[FAIL]` and is not written.
 
@@ -304,7 +305,7 @@ In write mode, replace the README atomically with `mv` only when the generated t
 
 edit locations: `08.EL.01`
 
-Continue checking all three assessments after an individual failure so a single `--check` run inventories every missing or stale artifact. Print one assessment-level `[PASS]` or `[FAIL]` summary, followed by an overall summary and the log path. Exit zero only when no missing stub, malformed status marker, or stale manifest was found; otherwise exit non-zero. A normal write run must also fail when it cannot create a path or regenerate a manifest.
+Continue checking all three assessments after an individual failure so a single `--check` run inventories every missing or stale artifact. Print one assessment-level `[PASS]` or `[FAIL]` summary, followed by an overall summary and the log path. Exit zero only when no missing stub or stale manifest was found; otherwise exit non-zero. A normal write run must also fail when it cannot create a path or regenerate a manifest.
 
 ### 4. Execute acceptance checks
 

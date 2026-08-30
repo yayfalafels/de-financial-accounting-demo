@@ -94,10 +94,6 @@
               <ul class="nav flex-column">
               </ul>
             </li>
-            <li class="nav-item" data-bs-level="2"><a href="#scale-statement" class="nav-link">Scale statement</a>
-              <ul class="nav flex-column">
-              </ul>
-            </li>
               </ul>
             </li>
         </ul>
@@ -108,6 +104,10 @@
 <h1 id="assessment-1-overview">Assessment 1 - Overview</h1>
 <h2 id="scenario">Scenario</h2>
 <p>A bank is migrating transaction and accounting data from multiple source systems into a Databricks-based lakehouse. The daily ingestion under test moves a Core Banking transaction extract into the Bronze layer. Finance reports that the Bronze total local-currency balance does not match source - the reconciliation gap this assessment traces to a record-level cause.</p>
+<blockquote>
+<p>DISCLAIMER: Scaled down mock demo</p>
+</blockquote>
+<p>The assignment scenario states the Core Banking extract runs at approximately <strong>25 million records per day</strong> in production. This demo's seeded volume budget is far smaller by design (<code>MOCK_DATA_DAYS=5</code>, <code>MOCK_DATA_TXN_PER_DAY=400</code>), producing 2,010 <code>src_transaction_daily</code> rows against 1,993 <code>bronze.transaction_daily</code> rows for the most recent seed run - a 17-row / 0.85% gap engineered to be traceable, not a scaled-down replica of the production symptom's absolute size. Every measurement published in this assessment's deliverables is a finding against that seeded volume, with the production figure cited here only as the scenario framing that motivated the check - never mistaken for a production-scale result.</p>
 <h2 id="source-table-src_transaction_daily">Source table - <code>src_transaction_daily</code></h2>
 <table>
 <thead>
@@ -210,9 +210,15 @@
 <li><strong>task 3 - root cause</strong> - explain, evidence, and quantify the missing-record population concentrated in near-midnight source files where UTC source timestamps meet Singapore business-date ingestion, then recommend remediation plus permanent preventive controls</li>
 </ul>
 <h2 id="expected-deliverables">Expected deliverables</h2>
-<p>notebook, profiling summary, reconciliation results, exception dataset, root-cause analysis, DQ-control recommendations, and a short reconciliation dashboard or mock-up - see <a href="../">results/assessment-1/README.md</a> for current submission status.</p>
-<h2 id="scale-statement">Scale statement</h2>
-<p>The assignment scenario states the Core Banking extract runs at approximately <strong>25 million records per day</strong> in production. This demo's seeded volume budget is far smaller by design (<code>MOCK_DATA_DAYS=5</code>, <code>MOCK_DATA_TXN_PER_DAY=400</code>), producing 2,010 <code>src_transaction_daily</code> rows against 1,993 <code>bronze.transaction_daily</code> rows for the most recent seed run - a 17-row / 0.85% gap engineered to be traceable, not a scaled-down replica of the production symptom's absolute size. Every measurement published in this assessment's deliverables is a finding against that seeded volume, with the production figure cited here only as the scenario framing that motivated the check - never mistaken for a production-scale result.</p></div>
+<ul>
+<li>notebook</li>
+<li>profiling summary</li>
+<li>reconciliation results</li>
+<li>exception dataset</li>
+<li>root-cause analysis</li>
+<li>data quality control recommendations</li>
+</ul>
+<p>and a short reconciliation dashboard or mock-up - see <a href="../">README.md</a> for current submission status.</p></div>
             </div>
         </div>
 

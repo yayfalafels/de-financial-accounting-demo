@@ -34,10 +34,10 @@
 
 | id    | seq | status  | milestone                                |
 | ----- | --- | ------- | ---------------------------------------- |
-| 09.01 | 01  | pending | design                                   |
-| 09.02 | 02  | pending | prerequisites and seed data readiness    |
-| 09.03 | 03  | pending | assessment scope and context write-up    |
-| 09.04 | 04  | pending | task 1 - data profiling                  |
+| 09.01 | 01  | closed  | design                                   |
+| 09.02 | 02  | closed  | prerequisites and seed data readiness    |
+| 09.03 | 03  | closed  | assessment scope and context write-up    |
+| 09.04 | 04  | open    | task 1 - data profiling                  |
 | 09.05 | 05  | pending | task 2 - source-to-bronze reconciliation |
 | 09.06 | 06  | pending | exception dataset                        |
 | 09.07 | 07  | pending | task 3 - root-cause investigation        |
@@ -52,16 +52,123 @@
 
 answer Assessment 1 of the **assignment design doc** end to end - profile `src_transaction_daily` and `bronze.transaction_daily`, reconcile source to Bronze at batch, dimensional, and record level, explain the missing-record symptom, and publish the resulting deliverable set together with the assignment context that motivated it - see [milestones.md](../milestones.md)'s `assessment 1` entry for the milestone-level statement this tracker executes.
 
-**assessment scope** (condensed from the **assignment design doc**'s Assessment 1 section)
+**assessment scope** 
 
-- **scenario** - a daily Core Banking extract lands in a Databricks-style Bronze layer; Finance reports the Bronze total local-currency balance does not match source
-- **task 1 - data profiling** - profile both datasets for record/distinct counts, duplicate transaction ids, per-field null percentage, min/max transaction and posting dates, distinct and invalid currency codes and transaction types, negative/zero amounts, branch/product/source-file distributions, late-arriving records, posting date preceding transaction date, and FX rows breaching `local_currency_amount != transaction_amount * exchange_rate` tolerance; nominate and justify the critical data elements
-- **task 2 - source-to-bronze reconciliation** - level 1 batch totals (record count, distinct count, debit sum, credit sum, net amount, local-currency sum), level 2 dimensional reconciliation by transaction date, branch, currency, product, transaction type, and source file with the largest-variance combinations identified, and level 3 record-level classification into exact match, missing in Bronze, unexpected in Bronze, amount, currency, and posting-date mismatch, and duplicates on either side
-- **task 3 - root cause** - explain the missing-record population concentrated in near-midnight source files where UTC source timestamps meet Singapore business-date ingestion, evidence the hypothesis with queries, quantify financial impact, identify affected branches/products/currencies/accounting dates, and recommend remediation plus permanent preventive controls
+condensed from the **assignment design doc**'s Assessment 1 section
+
+- **scenario** a daily Core Banking extract lands in a Databricks-style Bronze layer.
+- **the problem** Finance reports that the Bronze total local-currency balance does not match source
+- **checks to perform**
+
+| id       | task ref | scope             | check                                         |
+| -------- | -------- | ----------------- | --------------------------------------------- |
+| 09.CK.01 | 01.01    | datasets profiles | record/distinct counts                        |
+| 09.CK.02 | 01.02    | datasets profiles | duplicate transaction ids                     |
+| 09.CK.03 | 01.03    | datasets profiles | per-field null percentage                     |
+| 09.CK.04 | 01.04    | datasets profiles | min/max transaction and posting dates         |
+| 09.CK.05 | 01.05    | datasets profiles | distinct and invalid fx codes and txn types   |
+| 09.CK.06 | 01.06    | datasets profiles | negative/zero amounts                         |
+| 09.CK.07 | 01.07    | datasets profiles | branch/product/source-file distributions      |
+| 09.CK.08 | 01.08    | datasets profiles | late-arriving records                         |
+| 09.CK.09 | 01.09    | datasets profiles | posting date preceding transaction date       |
+| 09.CK.10 | 01.10    | datasets profiles | FX rows breaching amt exchange-rate tolerance |
+| 09.CK.11 | 02.01.01 | batch totals      | record count                                  |
+| 09.CK.12 | 02.01.02 | batch totals      | distinct count                                |
+| 09.CK.13 | 02.01.03 | batch totals      | debit sum                                     |
+| 09.CK.14 | 02.01.04 | batch totals      | credit sum                                    |
+| 09.CK.15 | 02.01.05 | batch totals      | net amount                                    |
+| 09.CK.16 | 02.01.06 | batch totals      | local-currency sum                            |
+| 09.CK.17 | 02.02.01 | dim reconcile     | transaction date                              |
+| 09.CK.18 | 02.02.02 | dim reconcile     | branch                                        |
+| 09.CK.19 | 02.02.03 | dim reconcile     | currency                                      |
+| 09.CK.20 | 02.02.04 | dim reconcile     | product                                       |
+| 09.CK.21 | 02.02.05 | dim reconcile     | transaction type                              |
+| 09.CK.22 | 02.02.06 | dim reconcile     | source file                                   |
+| 09.CK.23 | 02.03.01 | record classify   | exact match                                   |
+| 09.CK.24 | 02.03.02 | record classify   | missing in Bronze                             |
+| 09.CK.25 | 02.03.03 | record classify   | unexpected in Bronze                          |
+| 09.CK.26 | 02.03.04 | record classify   | amount mismatch                               |
+| 09.CK.27 | 02.03.05 | record classify   | currency mismatch                             |
+| 09.CK.28 | 02.03.06 | record classify   | posting-date mismatch                         |
+| 09.CK.29 | 02.03.07 | record classify   | duplicate in source                           |
+| 09.CK.30 | 02.03.08 | record classify   | duplicate in Bronze                           |
+
+- **task 1 - data profiling** - profile both datasets: nominate and justify the critical data elements
+
+**task 1 checks**
+
+| id       | check                                         |
+| -------- | --------------------------------------------- |
+| 09.CK.01 | record/distinct counts                        |
+| 09.CK.02 | duplicate transaction ids                     |
+| 09.CK.03 | per-field null percentage                     |
+| 09.CK.04 | min/max transaction and posting dates         |
+| 09.CK.05 | distinct and invalid fx codes and txn types   |
+| 09.CK.06 | negative/zero amounts                         |
+| 09.CK.07 | branch/product/source-file distributions      |
+| 09.CK.08 | late-arriving records                         |
+| 09.CK.09 | posting date preceding transaction date       |
+| 09.CK.10 | FX rows breaching amt exchange-rate tolerance |
+
+01. **09.CK.10** tolerance check: `local_currency_amount != transaction_amount * exchange_rate`.
+
+- **task 2 - source-to-bronze reconciliation** 
+  - level 1 batch totals
+  - level 2 dimensional reconciliation with the largest-variance combinations identified
+  - level 3 record-level classification
+
+**task 2 - level 1 batch totals**
+
+| id       | batch total        |
+| -------- | ------------------ |
+| 09.CK.11 | record count       |
+| 09.CK.12 | distinct count     |
+| 09.CK.13 | debit sum          |
+| 09.CK.14 | credit sum         |
+| 09.CK.15 | net amount         |
+| 09.CK.16 | local-currency sum |
+
+**task 2 - level 2 dimensional reconciliation dimensions** 
+
+reconciled across every combination of these six dimensions, with the largest-variance combinations identified and reported.
+
+| id       | dimension        |
+| -------- | ---------------- |
+| 09.CK.17 | transaction date |
+| 09.CK.18 | branch           |
+| 09.CK.19 | currency         |
+| 09.CK.20 | product          |
+| 09.CK.21 | transaction type |
+| 09.CK.22 | source file      |
+
+**task 2 - level 3 record-level classification**
+
+| id       | record class          |
+| -------- | --------------------- |
+| 09.CK.23 | exact match           |
+| 09.CK.24 | missing in Bronze     |
+| 09.CK.25 | unexpected in Bronze  |
+| 09.CK.26 | amount mismatch       |
+| 09.CK.27 | currency mismatch     |
+| 09.CK.28 | posting-date mismatch |
+| 09.CK.29 | duplicate in source   |
+| 09.CK.30 | duplicate in Bronze   |
+
+- **task 3 - root cause** - explain the hypothesis:
+
+  missing-record population concentrated in near-midnight source files where UTC source timestamps meet Singapore business-date ingestion
+
+  - evidence the hypothesis with queries
+  - quantify financial impact
+  - identify affected branches/products/currencies/accounting dates
+  - recommend remediation plus permanent preventive controls
+
 - **expected deliverables** - notebook, profiling summary, reconciliation results, exception dataset, root-cause analysis, DQ-control recommendations, and a short reconciliation dashboard or mock-up
 - **assessment context** - the published results must state the assignment scenario, tasks, and scale framing they answer, so a reader is not handed measurements without the question they respond to - see [assessment context documentation](#assessment-context-documentation)
 
-**prerequisite scope** (already-closed infrastructure this assessment consumes, not re-decided here)
+**prerequisite scope** 
+
+already-closed infrastructure this assessment consumes, not re-decided here
 
 - **postgres db** ([02](../features/02-dev-env-setup-postgresql-db.md)) running with `src_transaction_daily` created, via `scripts/01-dev-env-setup.sh`
 - **spark + jupyter containers** ([03](../features/03-dev-env-setup-spark-container.md)) up, so the notebook can reach both postgres over JDBC and the Spark master
@@ -94,7 +201,7 @@ Every deliverable listed in [results/assessment-1/README.md](../../results/asses
 - **jupyter notebook workspace tracker** `docs/features/07-jupyter-notebook-workspace-setup.md`
 - **deliverables conventions tracker** `docs/features/08-assessment-deliverables-conventions.md`
 - **deliverable manifest** `results/assessment-1/README.md`
-- **issue log** `data/mock/issue-log.csv` (gitignored, regenerated every seed run)
+- **issue log** `data/mock/issue-log.csv` gitignored, regenerated every seed run
 
 ## Design
 
@@ -102,40 +209,40 @@ Every deliverable listed in [results/assessment-1/README.md](../../results/asses
 
 Ordered, rerunnable setup steps that must pass before any analysis task starts. Each is an existing script from a closed feature; this tracker only fixes the order and the evidence each step must leave behind.
 
-| id | step                        | command                          | evidence            |
-| -- | --------------------------- | -------------------------------- | ------------------- |
-| 01 | host prerequisites          | `scripts/00-prereq-check.sh`     | `[PASS]` log        |
-| 02 | postgres + tables           | `scripts/01-dev-env-setup.sh`    | 9 tables exist [01] |
-| 03 | spark + jupyter containers  | `docker compose` full profile    | `docker ps` [02]    |
-| 04 | seed mock data              | `scripts/03-mock-data-seed.sh`   | `issue-log.csv`     |
-| 05 | seed validation             | `scripts/04-mock-data-validate.sh` | row/issue counts  |
-| 06 | notebook connectivity       | `scripts/06-notebook-validate.sh`  | template passes   |
-| 07 | control-table smoke run     | `scripts/04-closed-loop-run.sh`  | one `batch_id`      |
-| 08 | deliverable scaffold check  | `scripts/07-deliverables-scaffold.sh --check` | current  |
+| id       | step                        | command                                       | evidence         |
+| -------- | --------------------------- | --------------------------------------------- | ---------------- |
+| 09.PR.01 | host prerequisites          | `scripts/00-prereq-check.sh`                  | `[PASS]` log     |
+| 09.PR.02 | postgres + tables           | `scripts/01-dev-env-setup.sh`                 | 9 tables exist   |
+| 09.PR.03 | spark + jupyter containers  | `docker compose` full profile                 | `docker ps`      |
+| 09.PR.04 | seed mock data              | `scripts/03-mock-data-seed.sh`                | `issue-log.csv`  |
+| 09.PR.05 | seed validation             | `scripts/04-mock-data-validate.sh`            | row/issue counts |
+| 09.PR.06 | notebook connectivity       | `scripts/06-notebook-validate.sh`             | template passes  |
+| 09.PR.07 | control-table smoke run     | `scripts/04-closed-loop-run.sh`               | one `batch_id`   |
+| 09.PR.08 | deliverable scaffold check  | `scripts/07-deliverables-scaffold.sh --check` | current          |
 
-01. step 02 covers only DDL; a fresh clone must still run step 04 before any profiling query returns rows.
-02. step 03 uses `docker/docker-compose.full.yml`; the master, both workers, and the Jupyter container must all be `Up` before the notebook is executed.
+01. **09.PR.02** covers only DDL; a fresh clone must still run step 04 before any profiling query returns rows.
+02. **09.PR.03** uses `docker/docker-compose.full.yml`; the master, both workers, and the Jupyter container must all be `Up` before the notebook is executed.
 
 ### assessment task to deliverable map
 
 One row per assignment task, naming the deliverable file it lands in and the executable artifact it is derived from. This is the traceability contract every write-up's **Sources** section must satisfy.
 
-| id | assignment task              | deliverable file [01]     | artifact           |
-| -- | ---------------------------- | ------------------------- | ------------------ |
-| 01 | task 1 profiling             | `profiling-summary`       | notebook           |
-| 02 | task 1 critical data elements | `profiling-summary`      | notebook           |
-| 03 | task 2 level 1 batch          | `reconciliation-results`  | `rc_*` + notebook  |
-| 04 | task 2 level 2 dimensional    | `reconciliation-results`  | notebook           |
-| 05 | task 2 level 3 record-level   | `exception-dataset`       | notebook           |
-| 06 | task 3 root cause             | `root-cause-analysis`     | notebook           |
-| 07 | task 3 remediation            | `root-cause-analysis`     | narrative          |
-| 08 | task 3 permanent controls     | `dq-recommendations`      | narrative          |
-| 09 | dashboard mock-up             | manifest reference row    | `.pbip` template   |
-| 10 | notebook                      | manifest reference row    | notebook           |
-| 11 | scenario and task context     | `overview` [02]           | assignment doc     |
+| id       | assignment task              | deliverable file [01]     | artifact           |
+| -------- | ---------------------------- | ------------------------- | ------------------ |
+| 09.DM.01 | task 1 profiling             | `profiling-summary`       | notebook           |
+| 09.DM.02 | task 1 critical data elements | `profiling-summary`      | notebook           |
+| 09.DM.03 | task 2 level 1 batch          | `reconciliation-results`  | `rc_*` + notebook  |
+| 09.DM.04 | task 2 level 2 dimensional    | `reconciliation-results`  | notebook           |
+| 09.DM.05 | task 2 level 3 record-level   | `exception-dataset`       | notebook           |
+| 09.DM.06 | task 3 root cause             | `root-cause-analysis`     | notebook           |
+| 09.DM.07 | task 3 remediation            | `root-cause-analysis`     | narrative          |
+| 09.DM.08 | task 3 permanent controls     | `dq-recommendations`      | narrative          |
+| 09.DM.09 | dashboard mock-up             | manifest reference row    | `.pbip` template   |
+| 09.DM.10 | notebook                      | manifest reference row    | notebook           |
+| 09.DM.11 | scenario and task context     | `overview`                | assignment doc     |
 
 01. file names are `results/assessment-1/assessment-1-<slug>.md` per [08](../features/08-assessment-deliverables-conventions.md#directory-and-naming-convention).
-02. row 11 is the authored context page introduced by this tracker, outside feature 08's generated taxonomy - see [assessment context documentation](#assessment-context-documentation).
+02. **09.DM.11** is the authored context page introduced by this tracker, outside feature 08's generated taxonomy - see [assessment context documentation](#assessment-context-documentation).
 
 ### workflow cycle
 
@@ -147,17 +254,17 @@ seed db  ->  notebook / spark  ->  rc_* control tables  ->  results markdown  ->
    |_____________________________ rerun on any change ___________________________________|
 ```
 
-| id | stage             | action                                                   |
-| -- | ----------------- | -------------------------------------------------------- |
-| 01 | seed db           | confirm seeded state, capture the seed run's `issue-log`  |
-| 02 | notebook / spark  | add or update the task's cells, execute top to bottom     |
-| 03 | control tables    | write measured results to `reconciliation.rc_*`           |
-| 04 | results markdown  | update the mapped deliverable and its **Sources** section |
-| 05 | validation run    | rerun the scripted checks and record `[PASS]`/`[FAIL]`    |
+| id       | stage             | action                                                   |
+| -------- | ----------------- | -------------------------------------------------------- |
+| 09.WS.01 | seed db           | confirm seeded state, capture the seed run's `issue-log`  |
+| 09.WS.02 | notebook / spark  | add or update the task's cells, execute top to bottom     |
+| 09.WS.03 | control tables    | write measured results to `reconciliation.rc_*`           |
+| 09.WS.04 | results markdown  | update the mapped deliverable and its **Sources** section |
+| 09.WS.05 | validation run    | rerun the scripted checks and record `[PASS]`/`[FAIL]`    |
 
-01. stage 03 applies to measurable reconciliation output only; profiling statistics and narrative findings stop at stage 02 and are cited by notebook cell rather than `batch_id`.
-02. stage 04 never restates a number the notebook did not produce in the same run - a changed measurement means the deliverable is edited in the same cycle, not the next one.
-03. the Power BI substitute for stage 04 is a `.pbip` edit plus `scripts/05-powerbi-sync.sh`; a dashboard change is treated as a deliverable change and re-enters the cycle at stage 05.
+01. **09.WS.03** applies to measurable reconciliation output only; profiling statistics and narrative findings stop at **09.WS.02** and are cited by notebook cell rather than `batch_id`.
+02. **09.WS.04** never restates a number the notebook did not produce in the same run - a changed measurement means the deliverable is edited in the same cycle, not the next one.
+03. the Power BI substitute for **09.WS.04** is a `.pbip` edit plus `scripts/05-powerbi-sync.sh`. a dashboard change is treated as a deliverable change and re-enters the cycle at **09.WS.05**.
 
 ### assessment context documentation
 
@@ -169,18 +276,14 @@ The deliverables scaffolded by [08](../features/08-assessment-deliverables-conve
 - **linkage** - the overview is authored content outside feature 08's generated taxonomy, so it is linked from `results/index.md` and from each deliverable rather than from the generated manifest; promoting it to a taxonomy row is a change raised in [08](../features/08-assessment-deliverables-conventions.md), not made here
 - **no restatement of findings** - the overview carries assignment context only; measured results stay in their own deliverables so there is one place a number can change
 
-### profiling design - task 1
-
-_boilerplate - complete during 09.01/09.04_
+### profiling - task 1
 
 - **checks** - one row per profiling statistic named in Task 1, with its SQL/PySpark expression, the table(s) it runs against, and the seeded issue-log row(s) it is expected to surface
 - **critical data elements** - the nominated CDE list with the justification for each, stated as a table rather than prose so the reasoning is auditable per column
 - **presentation** - how each statistic is rendered in the notebook (single-row summary vs. distribution table) and which of those carry through into the profiling summary write-up
 - **expected findings** - the assessment 1 issue counts from [04](../features/04-seed-mock-data.md#injected-issue-catalog--assessment-1) that each check must reproduce
 
-### reconciliation design - task 2
-
-_boilerplate - complete during 09.01/09.05_
+### reconciliation - task 2
 
 - **level 1 batch** - the six batch totals, their tolerance, and the mapping onto `rc_reconciliation_results` rows already established by [05](../features/05-ai-closed-loop-validation.md)
 - **level 2 dimensional** - the six reconciliation dimensions, the variance measure used to rank combinations, and the cut-off for what counts as a reported largest mismatch
@@ -189,16 +292,12 @@ _boilerplate - complete during 09.01/09.05_
 
 ### exception dataset
 
-_boilerplate - complete during 09.06_
-
 - **schema** - at minimum `transaction_id`, `issue_type`, `source_value`, `bronze_value`, `variance`, `batch_id`, per the assignment's stated minimum
 - **issue_type vocabulary** - the closed set of values, aligned to the level 3 record classes and to `issue-log.csv`'s own `issue_type` spelling so ground-truth comparison is a direct join
 - **materialisation** - whether the dataset is emitted as a table, a notebook output, or an embedded markdown extract in the deliverable, and where the full row set lives if the write-up shows only a sample
 - **ground-truth check** - the comparison against `issue-log.csv` proving detected issues match injected ones
 
 ### root-cause investigation - task 3
-
-_boilerplate - complete during 09.07_
 
 - **hypothesis** - the UTC vs. Singapore-business-date boundary explanation, framed as a hypothesis until the evidence queries confirm it
 - **evidence** - the queries demonstrating the missing population concentrates in near-midnight source files
@@ -209,8 +308,6 @@ _boilerplate - complete during 09.07_
 
 ### dq-control recommendations
 
-_boilerplate - complete during 09.08_
-
 - **preventive controls** - the permanent controls preventing recurrence of the root cause
 - **detective controls** - the ongoing reconciliation and profiling checks, mapped onto the `rc_*` control-table pattern so a recommendation is expressed as something the existing framework can run
 - **prioritisation** - severity/effort ranking so the list reads as a recommendation, not an inventory
@@ -218,8 +315,6 @@ _boilerplate - complete during 09.08_
 ### dashboard mock-up
 
 The dashboard deliverable is satisfied by the existing `.pbip` template owned by [06](../features/06-powerbi-dashboard-setup.md), extended with an Assessment 1 view, not by a new Power BI project. Edits are made in the tracked template, synced to the Windows-side working copy with `scripts/05-powerbi-sync.sh`, opened and saved in Power BI Desktop by the user, then synced back. The deliverable manifest's dashboard row remains a reference to that path.
-
-_boilerplate - complete during 09.09_
 
 - **pages/visuals** - the reconciliation summary, variance-by-dimension, and exception-breakdown visuals
 - **data source** - the `reconciliation.rc_*` tables the template already binds to
@@ -241,8 +336,6 @@ _boilerplate - complete during 09.09_
 No new variables and no new secrets. The work reuses the existing postgres connection settings, `LOGS_DIR`, `TIMEZONE`, and `TIMESTAMP_FORMAT` from `.env`, and the Power BI sync paths from [06](../features/06-powerbi-dashboard-setup.md#environment--secrets). Credentials are never written into a notebook cell, a deliverable markdown file, or the published site.
 
 ### workflow validation runner
-
-_boilerplate - confirm during 09.01_
 
 Assessment 1 introduces no new runner by default; validation composes the existing scripts in [prerequisites](#prerequisites) plus `scripts/06-notebook-validate.sh` for headless notebook execution and `scripts/07-deliverables-scaffold.sh --check` for deliverable completeness. If a per-assessment orchestration step proves necessary, it is added as the next free script number and logged under `.dev/logs/` with `<ts>-09.<nn>-<name>.log` naming, printing one `[PASS]`/`[FAIL]` line per stage of the [workflow cycle](#workflow-cycle).
 
@@ -308,13 +401,13 @@ awk '/^\|/ && length($0) >= 115 { print FILENAME ":" FNR ": row too long"; bad =
 | 09.EL.04 | `results/assessment-1/assessment-1-exception-dataset.md`     | task 2 level 3 write-up       |
 | 09.EL.05 | `results/assessment-1/assessment-1-root-cause-analysis.md`   | task 3 write-up               |
 | 09.EL.06 | `results/assessment-1/assessment-1-dq-recommendations.md`    | control recommendations       |
-| 09.EL.07 | `results/assessment-1/README.md`                             | regenerated manifest [01]     |
+| 09.EL.07 | `results/assessment-1/README.md`                             | regenerated manifest          |
 | 09.EL.08 | `powerbi/reconciliation-dashboard-template/`                 | assessment 1 dashboard view   |
-| 09.EL.09 | `src/sparksql/`                                              | reusable query files [02]     |
+| 09.EL.09 | `src/sparksql/`                                              | reusable query files          |
 | 09.EL.10 | `docs/milestones.md`                                         | milestone 09 status/closure   |
-| 09.EL.11 | `results/assessment-1/assessment-1-overview.md`              | assessment scope context [03] |
+| 09.EL.11 | `results/assessment-1/assessment-1-overview.md`              | assessment scope context      |
 | 09.EL.12 | `results/index.md`                                           | link to the overview page     |
-| 09.EL.13 | `mkdocs.yml`                                                 | overview in site nav [04]     |
+| 09.EL.13 | `mkdocs.yml`                                                 | overview in site nav          |
 
 01. **09.EL.07** is generated by `scripts/07-deliverables-scaffold.sh`; never hand-edited.
 02. **09.EL.09** is optional - used only where a query is worth extracting from the notebook for reuse, following the existing `src/pyspark/` naming pattern.
@@ -331,23 +424,56 @@ Implementation order is prerequisites -> assessment context -> profiling -> reco
 
 edit locations: none
 
-Run the [prerequisites](#prerequisites) steps in order, confirming the evidence column for each. Record the seed run's issue counts as the baseline every later ground-truth comparison is made against. Do not start task 1 until every prerequisite reports `[PASS]`.
+_closed 09.02_ - ran every [prerequisites](#prerequisites) step in order against a clean session:
+
+| id       | evidence observed                                                       |
+| -------- | ------------------------------------------------------------------------ |
+| 09.PR.01 | `[PASS]` docker + python3.14 + venv module                                |
+| 09.PR.02 | `[PASS]` venv, DDL generated/applied, postgres up, spark 2/2 workers      |
+| 09.PR.03 | `[PASS]` `docker ps` shows postgres/spark-master/2 workers/jupyter `Up`   |
+| 09.PR.04 | `[PASS]` 9 tables recreated; `src_transaction_daily`=2010, `bronze.transaction_daily`=1993 rows |
+| 09.PR.05 | `[PASS]` all row-count and ground-truth checks vs. `issue-log.csv` (300 rows/34 categories) |
+| 09.PR.06 | `[PASS]` `00_template_connectivity_check.ipynb` executed clean, summary marker agrees |
+| 09.PR.07 | `[PASS]` `reconciliation.rc_batch_control.batch_id=7`, status=WARNING [01]           |
+| 09.PR.08 | `[PASS]` `07-deliverables-scaffold.sh --check` current for all three assessments |
+
+01. **09.PR.07** WARNING is expected here - it is the batch-level symptom this assessment
+    investigates (injected source-to-Bronze variance), not a script failure.
+
+Baseline for later ground-truth comparison: `src_transaction_daily`=2010 rows / 2000 distinct
+`transaction_id`; `bronze.transaction_daily`=1993 rows / 1975 distinct `transaction_id`.
 
 ### 2. Assessment scope and context write-up
 
 edit locations: `09.EL.11, 09.EL.12, 09.EL.13`
 
-Author `results/assessment-1/assessment-1-overview.md` per [assessment context documentation](#assessment-context-documentation): the Assessment 1 scenario, the source and Bronze table shapes, Tasks 1-3, the expected deliverable list, and the scale statement contrasting the assignment's 25M-row/day production volumes with this demo's seeded volume budget. Use the assignment's own framing so the page reads as the question being answered, not as a summary of this tracker. Link it from `results/index.md`, and add it to `mkdocs.yml`'s navigation only if the strict build cannot reach it through that link.
-
-This step is done before any analysis write-up so each later deliverable can be authored with its context line already pointing at an existing page. Every deliverable created in steps 3-7 opens with that single line under its `status:` marker naming the assignment task it answers and linking the overview.
+_closed 09.03_ - authored `results/assessment-1/assessment-1-overview.md`: scenario, both table
+shapes, Tasks 1-3, expected deliverables, and the scale statement (25M-rows/day production vs.
+this seed run's 2,010/1,993-row budget). Linked from `results/index.md`. `mkdocs.yml` nav
+(`09.EL.13`) was **not** touched - `./scripts/08-assessment-site.sh build` passed strictly with
+the overview reachable through the `results/index.md` link alone, per the design footnote.
 
 ### 3. Task 1 - data profiling
 
 edit locations: `09.EL.01, 09.EL.02`
 
-_boilerplate - expand during 09.04_
+_open 09.04 - 09.CK.01 (task ref 01.01) only, remaining nine checks pending_
 
-Add the profiling section to the notebook covering every statistic listed in [profiling design](#profiling-design--task-1), for both source and Bronze. Nominate the critical data elements with justification. Write the profiling summary deliverable citing the notebook section and referencing the overview page for scenario and scale.
+Added a "Task 1 - Data Profiling" section to `notebooks/assessment1_profiling.ipynb`: a Spark
+session against `spark://spark-master:7077`, JDBC reads of `src_transaction_daily` and
+`bronze.transaction_daily`, and `09.CK.01`'s record-count / distinct-`transaction_id`-count pair
+for both tables, each printing a `[PASS]`/`[FAIL]` line plus one summary marker
+(`assessment1-profiling-09.CK.01: overall status=...`). Executed headlessly via
+`docker exec jupyter-notebook jupyter nbconvert --to notebook --execute` per the
+jupyter-notebook-workspace skill (no dedicated `09.*-notebook-validate.sh` script yet - deferred
+to 09.10 per [workflow validation runner](#workflow-validation-runner)); confirmed the executed
+output before copying it back over the tracked notebook (never `--inplace`). Result: `[PASS]`
+`src_transaction_daily` record_count=2010 distinct_count=2000 gap=10; `[PASS]`
+`bronze.transaction_daily` record_count=1993 distinct_count=1975 gap=18; overall `[PASS]`.
+
+Wrote `results/assessment-1/assessment-1-profiling-summary.md` citing that notebook section,
+the overview page, and the 09.CK.01 finding table, with an explicit **Scope** section stating
+only 09.CK.01 is implemented. Critical-data-element nomination and 09.CK.02-10 remain pending.
 
 ### 4. Task 2 - source-to-bronze reconciliation
 
@@ -411,6 +537,10 @@ Commit the reviewed work, run `scripts/08-assessment-site.sh build` for the stri
 
 - inventory all first out exceptions and issues encountered in this table
 - for each issue, create an issue section and use this section to document diagnostics and resolution steps
+
+_09.02-09.04 run (prerequisites, context write-up, 09.CK.01 profiling slice): every script and_
+_the notebook execution reported `[PASS]` on the first attempt - no exception surfaced. The_
+_09.IS.01 placeholder below stays open for the next task that does surface one._
 
 | id       | seq | status  | issue                                    |
 | -------- | --- | ------- | ---------------------------------------- |

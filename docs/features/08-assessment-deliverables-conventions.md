@@ -1,7 +1,7 @@
 # Assessment Deliverables Conventions - Feature tracker
 >Review the guidelines before performing any actions including edits on the document
 
-## 08 (open) assessment deliverables conventions
+## 08 (closed) assessment deliverables conventions
 
 ## Contents
 
@@ -33,9 +33,9 @@
 | 08.01 | 01  | closed  | design                                   |
 | 08.02 | 02  | closed  | edit locations and implementation guide  |
 | 08.03 | 03  | closed  | directory scaffold and naming convention |
-| 08.04 | 04  | pending | cross-reference from assessment trackers |
-| 08.05 | 05  | pending | assessment documentation publishing      |
-| 08.IS | 06  | pending | validate                                 |
+| 08.04 | 04  | closed  | cross-reference from assessment trackers |
+| 08.05 | 05  | closed  | assessment documentation publishing      |
+| 08.IS | 06  | closed  | validate                                 |
 
 ## Scope
 
@@ -394,6 +394,18 @@ The project has no pre-existing documentation dependency installation, so `pytho
 03. (closed) 08.TC.08 passed: moving one required deliverable aside made `--check` exit non-zero and it did not recreate the file. A normal write run restored the missing file. 08.TC.10 passed through the timestamped logs emitted by both scaffold modes. 08.TC.12 passed: the strict build generated all four expected page entry points and contained no `docs/features`, `docs/design`, `.secrets`, or `.dev/` content. 08.TC.13 passed: an invalid site command exited non-zero.
 
 04. (pending) 08.TC.14 requires the user's one-time GitHub Pages setup and an authenticated remote deployment. The deployment wrapper deliberately rejects the current dirty worktree, so the reviewed source changes must be committed before it can publish.
+
+05. (closed) 08.TC.14 passed: after the user confirmed the reviewed source changes were committed and pushed, Git authentication was available, and GitHub Pages was enabled from `gh-pages` at `/ (root)`, `08-assessment-site.sh deploy` completed successfully. `git ls-remote origin gh-pages` reported `e42e1d4cd2244f471f24b7b43cafc6996a4bcd1b`, and the published landing page loaded at `https://yayfalafels.github.io/de-financial-accounting-demo/` with links to Assessment 1, Assessment 2, and Assessment 3.
+
+**user actions**
+
+01. (completed) Committed and pushed the reviewed Feature 08 source changes before deployment, satisfying the wrapper's clean-worktree guard.
+
+02. (completed) Confirmed this machine's Git credentials could push to `origin` without sharing a credential in the tracker or chat.
+
+03. (completed) In GitHub repository Settings > Pages, selected **Deploy from a branch**, chose `gh-pages`, selected `/ (root)`, and saved the setting.
+
+04. (completed) Opened the published site in a browser and confirmed the landing-page navigation after deployment.
 
 ## Guideline
 

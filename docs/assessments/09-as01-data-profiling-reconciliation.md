@@ -37,7 +37,7 @@
 | 09.01 | 01  | closed  | design                                   |
 | 09.02 | 02  | closed  | prerequisites and seed data readiness    |
 | 09.03 | 03  | closed  | assessment scope and context write-up    |
-| 09.04 | 04  | open    | task 1 - data profiling                  |
+| 09.04 | 04  | closed  | task 1 - data profiling                  |
 | 09.05 | 05  | pending | task 2 - source-to-bronze reconciliation |
 | 09.06 | 06  | pending | exception dataset                        |
 | 09.07 | 07  | pending | task 3 - root-cause investigation        |
@@ -437,43 +437,25 @@ _closed 09.02_ - ran every [prerequisites](#prerequisites) step in order against
 | 09.PR.07 | `[PASS]` `reconciliation.rc_batch_control.batch_id=7`, status=WARNING [01]           |
 | 09.PR.08 | `[PASS]` `07-deliverables-scaffold.sh --check` current for all three assessments |
 
-01. **09.PR.07** WARNING is expected here - it is the batch-level symptom this assessment
-    investigates (injected source-to-Bronze variance), not a script failure.
+01. **09.PR.07** WARNING is expected here - it is the batch-level symptom this assessment investigates (injected source-to-Bronze variance), not a script failure.
 
-Baseline for later ground-truth comparison: `src_transaction_daily`=2010 rows / 2000 distinct
-`transaction_id`; `bronze.transaction_daily`=1993 rows / 1975 distinct `transaction_id`.
+Baseline for later ground-truth comparison: `src_transaction_daily`=2010 rows / 2000 distinct `transaction_id`; `bronze.transaction_daily`=1993 rows / 1975 distinct `transaction_id`.
 
 ### 2. Assessment scope and context write-up
 
 edit locations: `09.EL.11, 09.EL.12, 09.EL.13`
 
-_closed 09.03_ - authored `results/assessment-1/assessment-1-overview.md`: scenario, both table
-shapes, Tasks 1-3, expected deliverables, and the scale statement (25M-rows/day production vs.
-this seed run's 2,010/1,993-row budget). Linked from `results/index.md`. `mkdocs.yml` nav
-(`09.EL.13`) was **not** touched - `./scripts/08-assessment-site.sh build` passed strictly with
-the overview reachable through the `results/index.md` link alone, per the design footnote.
+_closed 09.03_ - authored `results/assessment-1/assessment-1-overview.md`: scenario, both table shapes, Tasks 1-3, expected deliverables, and the scale statement (25M-rows/day production vs. this seed run's 2,010/1,993-row budget). Linked from `results/index.md`. `mkdocs.yml` nav (`09.EL.13`) was **not** touched - `./scripts/08-assessment-site.sh build` passed strictly with the overview reachable through the `results/index.md` link alone, per the design footnote.
 
 ### 3. Task 1 - data profiling
 
 edit locations: `09.EL.01, 09.EL.02`
 
-_open 09.04 - 09.CK.01 (task ref 01.01) only, remaining nine checks pending_
+_closed 09.04_ - all ten task 1 checks (`09.CK.01`-`09.CK.10`, task refs `01.01`-`01.10`) plus critical-data-element nomination.
 
-Added a "Task 1 - Data Profiling" section to `notebooks/assessment1_profiling.ipynb`: a Spark
-session against `spark://spark-master:7077`, JDBC reads of `src_transaction_daily` and
-`bronze.transaction_daily`, and `09.CK.01`'s record-count / distinct-`transaction_id`-count pair
-for both tables, each printing a `[PASS]`/`[FAIL]` line plus one summary marker
-(`assessment1-profiling-09.CK.01: overall status=...`). Executed headlessly via
-`docker exec jupyter-notebook jupyter nbconvert --to notebook --execute` per the
-jupyter-notebook-workspace skill (no dedicated `09.*-notebook-validate.sh` script yet - deferred
-to 09.10 per [workflow validation runner](#workflow-validation-runner)); confirmed the executed
-output before copying it back over the tracked notebook (never `--inplace`). Result: `[PASS]`
-`src_transaction_daily` record_count=2010 distinct_count=2000 gap=10; `[PASS]`
-`bronze.transaction_daily` record_count=1993 distinct_count=1975 gap=18; overall `[PASS]`.
+Added a "Task 1 - Data Profiling" section to `notebooks/assessment1_profiling.ipynb`: a Spark session against `spark://spark-master:7077`, JDBC reads of `src_transaction_daily` and `bronze.transaction_daily`, one function per check run against both tables, and a critical-data-elements markdown table. Executed headlessly via `docker exec jupyter-notebook jupyter nbconvert --to notebook --execute` per the jupyter-notebook-workspace skill (no dedicated `09.*-notebook-validate.sh` script yet - deferred to 09.10 per [workflow validation runner](#workflow-validation-runner)); confirmed the executed output before copying it back over the tracked notebook (never `--inplace`). Every check reproduced its expected count from `data/mock/issue-log.csv` exactly; two checks surfaced real cross-check findings worth carrying into later tasks: `09.CK.10`'s FX-tolerance breach count (27 on source) is 15 genuine `fx_mismatch` rows plus 12 rows that also carry the unrelated `negative_or_zero_amount` mutation (confirmed by exact `transaction_id` overlap - flipping the amount's sign without recomputing `local_currency_amount` mechanically breaches tolerance too), and `09.CK.07`'s source-file distribution shows the five `*_MIDNIGHT.dat` files (2-7 rows each, the `utc_sgt_midnight_boundary` issue) entirely absent from Bronze's distribution - visible evidence for task 3's root cause, surfaced here without further interpretation.
 
-Wrote `results/assessment-1/assessment-1-profiling-summary.md` citing that notebook section,
-the overview page, and the 09.CK.01 finding table, with an explicit **Scope** section stating
-only 09.CK.01 is implemented. Critical-data-element nomination and 09.CK.02-10 remain pending.
+Wrote `results/assessment-1/assessment-1-profiling-summary.md` citing that notebook section, the overview page, a findings table for all ten checks, the critical-data-elements table, and a ground-truth cross-check section confirming every count against `issue-log.csv`.
 
 ### 4. Task 2 - source-to-bronze reconciliation
 
@@ -538,9 +520,7 @@ Commit the reviewed work, run `scripts/08-assessment-site.sh build` for the stri
 - inventory all first out exceptions and issues encountered in this table
 - for each issue, create an issue section and use this section to document diagnostics and resolution steps
 
-_09.02-09.04 run (prerequisites, context write-up, 09.CK.01 profiling slice): every script and_
-_the notebook execution reported `[PASS]` on the first attempt - no exception surfaced. The_
-_09.IS.01 placeholder below stays open for the next task that does surface one._
+_09.02-09.04 run (prerequisites, context write-up, task 1 profiling - all ten checks): every script and notebook execution reported `[PASS]` on the first attempt - no exception surfaced. The 09.IS.01 placeholder below stays open for the next task that does surface one._
 
 | id       | seq | status  | issue                                    |
 | -------- | --- | ------- | ---------------------------------------- |

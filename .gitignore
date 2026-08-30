@@ -167,6 +167,10 @@ venv.bak/
 # mkdocs documentation
 /site
 
+# power bi (feature 06) - Desktop-generated cache/local settings, never the tracked project itself
+powerbi/**/.pbi/
+powerbi/**/*.abf
+
 # mypy
 .mypy_cache/
 .dmypy.json

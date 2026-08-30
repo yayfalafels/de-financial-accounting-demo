@@ -1,0 +1,54 @@
+table rc_audit_trail
+	lineageTag: a4ebd5ed-b4cb-4795-9a84-24666b179fa4
+
+	column audit_id
+		dataType: int64
+		lineageTag: 6e3e7ae8-95ab-4ea1-bbd6-b50627889081
+		summarizeBy: none
+		sourceColumn: audit_id
+
+		annotation SummarizationSetBy = Automatic
+
+	column batch_id
+		dataType: int64
+		lineageTag: fdcc7f79-66e2-43f0-a917-a741a121e49f
+		summarizeBy: none
+		sourceColumn: batch_id
+
+		annotation SummarizationSetBy = Automatic
+
+	column action
+		dataType: string
+		lineageTag: eb1773b7-bcdc-47e4-b613-90b89bc3d7ae
+		summarizeBy: none
+		sourceColumn: action
+
+		annotation SummarizationSetBy = Automatic
+
+	column actor
+		dataType: string
+		lineageTag: cce215b2-732f-44c8-9e98-03ec19d151a2
+		summarizeBy: none
+		sourceColumn: actor
+
+		annotation SummarizationSetBy = Automatic
+
+	column created_at
+		dataType: dateTime
+		lineageTag: b8e002f8-598e-465a-a43a-6d37757d1575
+		summarizeBy: none
+		sourceColumn: created_at
+
+		annotation SummarizationSetBy = Automatic
+
+	partition rc_audit_trail = m
+		mode: import
+		source =
+				let
+				    Source = PostgreSQL.Database("localhost:5432", "as01_source_db", [Query="SELECT audit_id, batch_id, action, actor, created_at FROM reconciliation.rc_audit_trail"]),
+				    #"Changed Type" = Table.TransformColumnTypes(Source,{{"audit_id", Int64.Type}, {"batch_id", Int64.Type}, {"action", type text}, {"actor", type text}, {"created_at", type datetimezone}})
+				in
+				    #"Changed Type"
+
+	annotation PBI_ResultType = Table
+

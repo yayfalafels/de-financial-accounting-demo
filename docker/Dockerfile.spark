@@ -37,7 +37,8 @@ RUN pip install --no-cache-dir \
     pyspark==3.5.0 \
     delta-spark==3.0.0 \
     faker==19.0.0 \
-    notebook==7.0.6
+    notebook==7.0.6 \
+    psycopg2-binary==2.9.9
 
 ENV SPARK_HOME=/usr/local/lib/python3.11/site-packages/pyspark
 ENV PATH="${SPARK_HOME}/bin:${SPARK_HOME}/sbin:${PATH}"

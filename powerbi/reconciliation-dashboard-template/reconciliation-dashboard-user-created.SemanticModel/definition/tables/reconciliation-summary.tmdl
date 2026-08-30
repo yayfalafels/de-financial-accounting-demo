@@ -1,0 +1,80 @@
+table reconciliation-summary
+	lineageTag: 343d43c3-924e-4705-a90c-6190b51298a4
+
+	column batch_id
+		dataType: int64
+		formatString: 0
+		lineageTag: 79f5360b-0bb2-45ce-a1fe-2a3148658008
+		summarizeBy: sum
+		sourceColumn: batch_id
+
+		annotation SummarizationSetBy = Automatic
+
+	column dimension
+		dataType: string
+		lineageTag: af53d47f-fcda-4094-9847-b23b22ae1afc
+		summarizeBy: none
+		sourceColumn: dimension
+
+		annotation SummarizationSetBy = Automatic
+
+	column source_value
+		dataType: double
+		lineageTag: 8abafb68-f275-4499-a3d8-f05f263c8c9d
+		summarizeBy: sum
+		sourceColumn: source_value
+
+		annotation SummarizationSetBy = Automatic
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	column target_value
+		dataType: double
+		lineageTag: 4e481b0b-6454-4921-9e62-62707a54aed1
+		summarizeBy: sum
+		sourceColumn: target_value
+
+		annotation SummarizationSetBy = Automatic
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	column variance
+		dataType: double
+		lineageTag: 660e817b-d4aa-4298-8ff2-56d369a740a8
+		summarizeBy: sum
+		sourceColumn: variance
+
+		annotation SummarizationSetBy = Automatic
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	column variance_pct
+		dataType: double
+		lineageTag: 4f4144a5-0f90-4ac4-897e-47b6eb62cb2e
+		summarizeBy: sum
+		sourceColumn: variance_pct
+
+		annotation SummarizationSetBy = Automatic
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	column reconciliation_status
+		dataType: string
+		lineageTag: db7a66cd-2c94-4e6b-896d-b5b3c02c2be7
+		summarizeBy: none
+		sourceColumn: reconciliation_status
+
+		annotation SummarizationSetBy = Automatic
+
+	partition reconciliation-summary = m
+		mode: import
+		source =
+				let
+				    Source = Csv.Document(File.Contents("C:\Users\Admin\OneDrive\powerbi-workspace\reconciliation-dasboard-user-created\sample-data\reconciliation-summary.csv"),[Delimiter=",", Columns=7, Encoding=1252, QuoteStyle=QuoteStyle.None]),
+				    #"Promoted Headers" = Table.PromoteHeaders(Source, [PromoteAllScalars=true]),
+				    #"Changed Type" = Table.TransformColumnTypes(#"Promoted Headers",{{"batch_id", Int64.Type}, {"dimension", type text}, {"source_value", type number}, {"target_value", type number}, {"variance", type number}, {"variance_pct", type number}, {"reconciliation_status", type text}})
+				in
+				    #"Changed Type"
+
+	annotation PBI_ResultType = Table
+

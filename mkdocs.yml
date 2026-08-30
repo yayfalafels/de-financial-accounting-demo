@@ -1,0 +1,10 @@
+site_name: Financial Accounting Assessments
+docs_dir: results
+site_dir: site
+theme:
+  name: mkdocs
+nav:
+  - Home: index.md
+  - Assessment 1: assessment-1/README.md
+  - Assessment 2: assessment-2/README.md
+  - Assessment 3: assessment-3/README.md

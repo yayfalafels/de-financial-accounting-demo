@@ -1,0 +1,54 @@
+table rc_batch_control
+	lineageTag: 57f9f897-d450-482b-99dd-2a838f7a560f
+
+	column batch_id
+		dataType: int64
+		lineageTag: a14943f3-1db9-4216-9460-ca2b153dc34b
+		summarizeBy: none
+		sourceColumn: batch_id
+
+		annotation SummarizationSetBy = Automatic
+
+	column batch_date
+		dataType: dateTime
+		lineageTag: 9b86bccd-0bdc-4ab0-85ae-c01f76cc04bb
+		summarizeBy: none
+		sourceColumn: batch_date
+
+		annotation SummarizationSetBy = Automatic
+
+	column assessment_id
+		dataType: string
+		lineageTag: e459f489-0294-4cac-b563-d3ff6b026866
+		summarizeBy: none
+		sourceColumn: assessment_id
+
+		annotation SummarizationSetBy = Automatic
+
+	column status
+		dataType: string
+		lineageTag: 3c57c91a-1f87-43d9-b85b-77f64d9ac638
+		summarizeBy: none
+		sourceColumn: status
+
+		annotation SummarizationSetBy = Automatic
+
+	column created_at
+		dataType: dateTime
+		lineageTag: 9a59f032-1544-4de5-ad16-170fd54ee527
+		summarizeBy: none
+		sourceColumn: created_at
+
+		annotation SummarizationSetBy = Automatic
+
+	partition rc_batch_control = m
+		mode: import
+		source =
+				let
+				    Source = PostgreSQL.Database("localhost:5432", "as01_source_db", [Query="SELECT batch_id, batch_date, assessment_id, status, created_at FROM reconciliation.rc_batch_control"]),
+				    #"Changed Type" = Table.TransformColumnTypes(Source,{{"batch_id", Int64.Type}, {"batch_date", type datetimezone}, {"assessment_id", type text}, {"status", type text}, {"created_at", type datetimezone}})
+				in
+				    #"Changed Type"
+
+	annotation PBI_ResultType = Table
+

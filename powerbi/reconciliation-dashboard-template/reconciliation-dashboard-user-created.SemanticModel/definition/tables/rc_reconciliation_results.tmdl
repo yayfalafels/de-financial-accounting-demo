@@ -1,0 +1,86 @@
+table rc_reconciliation_results
+	lineageTag: 3036d351-2f39-407c-9297-6e386c568247
+
+	column result_id
+		dataType: int64
+		lineageTag: fc2b6924-1319-4223-8393-420232c3c85d
+		summarizeBy: none
+		sourceColumn: result_id
+
+		annotation SummarizationSetBy = Automatic
+
+	column batch_id
+		dataType: int64
+		lineageTag: ea648295-ff9b-441d-a56b-892451d0d034
+		summarizeBy: none
+		sourceColumn: batch_id
+
+		annotation SummarizationSetBy = Automatic
+
+	column dimension
+		dataType: string
+		lineageTag: acb4c4b2-9d53-4404-8cca-1191fec2837a
+		summarizeBy: none
+		sourceColumn: dimension
+
+		annotation SummarizationSetBy = Automatic
+
+	column source_value
+		dataType: double
+		lineageTag: 6f2985d1-11d7-4d9a-aec1-7e343c0e940d
+		summarizeBy: none
+		sourceColumn: source_value
+
+		annotation SummarizationSetBy = Automatic
+
+	column target_value
+		dataType: double
+		lineageTag: 189cfb6c-6f8e-40d6-bfcf-7abb8b04e74a
+		summarizeBy: none
+		sourceColumn: target_value
+
+		annotation SummarizationSetBy = Automatic
+
+	column variance
+		dataType: double
+		lineageTag: e32f0096-24fb-4be1-b058-b65ad52ec9df
+		summarizeBy: none
+		sourceColumn: variance
+
+		annotation SummarizationSetBy = Automatic
+
+	column variance_pct
+		dataType: double
+		lineageTag: 97864954-d9fc-4dfb-be45-4fb0eff82ae1
+		summarizeBy: none
+		sourceColumn: variance_pct
+
+		annotation SummarizationSetBy = Automatic
+
+	column reconciliation_status
+		dataType: string
+		lineageTag: bf1bd6bb-4e48-43aa-bc71-bf15e46bf752
+		summarizeBy: none
+		sourceColumn: reconciliation_status
+
+		annotation SummarizationSetBy = Automatic
+
+	column created_at
+		dataType: dateTime
+		lineageTag: 40e89696-966a-438c-a95a-3e25da26d419
+		summarizeBy: none
+		sourceColumn: created_at
+
+		annotation SummarizationSetBy = Automatic
+
+	partition rc_reconciliation_results = m
+		mode: import
+		source =
+				let
+				    Source = PostgreSQL.Database("localhost:5432", "as01_source_db", [Query="SELECT result_id, batch_id, dimension, source_value, target_value, variance, variance_pct, reconciliation_status, created_at FROM reconciliation.rc_reconciliation_results"]),
+				    #"Changed Type" = Table.TransformColumnTypes(Source,{{"result_id", Int64.Type}, {"batch_id", Int64.Type}, {"dimension", type text}, {"source_value", type number}, {"target_value", type number}, {"variance", type number}, {"variance_pct", type number}, {"reconciliation_status", type text}, {"created_at", type datetimezone}})
+				in
+				    #"Changed Type"
+
+	annotation PBI_ResultType = Table
+

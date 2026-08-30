@@ -1,0 +1,85 @@
+{
+  "$schema": "https://developer.microsoft.com/json-schemas/fabric/item/report/definition/visualContainer/2.12.0/schema.json",
+  "name": "646db3b2e6e6a7d781ab",
+  "position": {
+    "x": 780,
+    "y": 31.181342130152945,
+    "z": 0,
+    "height": 708.666866594385,
+    "width": 697.3281967288749,
+    "tabOrder": 1
+  },
+  "visual": {
+    "visualType": "barChart",
+    "query": {
+      "queryState": {
+        "Category": {
+          "projections": [
+            {
+              "field": {
+                "Column": {
+                  "Expression": {
+                    "SourceRef": {
+                      "Entity": "reconciliation-summary"
+                    }
+                  },
+                  "Property": "dimension"
+                }
+              },
+              "queryRef": "reconciliation-summary.dimension",
+              "nativeQueryRef": "dimension",
+              "active": true
+            }
+          ]
+        },
+        "Y": {
+          "projections": [
+            {
+              "field": {
+                "Aggregation": {
+                  "Expression": {
+                    "Column": {
+                      "Expression": {
+                        "SourceRef": {
+                          "Entity": "reconciliation-summary"
+                        }
+                      },
+                      "Property": "variance"
+                    }
+                  },
+                  "Function": 0
+                }
+              },
+              "queryRef": "Sum(reconciliation-summary.variance)",
+              "nativeQueryRef": "Sum of variance"
+            }
+          ]
+        }
+      },
+      "sortDefinition": {
+        "sort": [
+          {
+            "field": {
+              "Aggregation": {
+                "Expression": {
+                  "Column": {
+                    "Expression": {
+                      "SourceRef": {
+                        "Entity": "reconciliation-summary"
+                      }
+                    },
+                    "Property": "variance"
+                  }
+                },
+                "Function": 0
+              }
+            },
+            "direction": "Descending"
+          }
+        ],
+        "isDefaultSort": true
+      }
+    },
+    "drillFilterOtherVisuals": true
+  }
+}

@@ -98,6 +98,10 @@ services:
       args:
         JDBC_DRIVER_VERSION: ${JDBC_DRIVER_VERSION:-42.7.3}
     container_name: jupyter-notebook
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
     command:
       - jupyter
       - notebook

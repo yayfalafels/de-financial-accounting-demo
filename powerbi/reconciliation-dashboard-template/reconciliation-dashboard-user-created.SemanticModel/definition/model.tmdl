@@ -1,0 +1,25 @@
+model Model
+	culture: en-US
+	defaultPowerBIDataSourceVersion: powerBI_V3
+	sourceQueryCulture: en-AU
+	valueFilterBehavior: independent
+	dataAccessOptions
+		legacyRedirects
+		returnErrorValuesAsNull
+
+annotation __PBI_TimeIntelligenceEnabled = 1
+
+annotation PBI_QueryOrder = ["reconciliation-summary", "rc_batch_control", "rc_reconciliation_results", "rc_audit_trail"]
+
+annotation PBI_ProTooling = ["DevMode"]
+
+ref table reconciliation-summary
+
+ref table rc_batch_control
+
+ref table rc_reconciliation_results
+
+ref table rc_audit_trail
+
+ref cultureInfo en-US
+

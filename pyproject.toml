@@ -14,3 +14,6 @@ requires-python = ">=3.11"
 # cover it. scripts/utils/data-generators.py stays stdlib-only, same as
 # sql-generators.py, avoiding a DB driver via `psql \copy` too.
 dependencies = []
+
+[project.optional-dependencies]
+docs = ["mkdocs>=1.6,<2"]

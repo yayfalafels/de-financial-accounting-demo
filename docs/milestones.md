@@ -7,8 +7,8 @@
 | 04 | 03  | closed  | seed mock data                                   | 
 | 03 | 03  | closed  | dev env setup spark container                    | 
 | 05 | 05  | closed  | ai closed loop develop and validation            | 
-| 06 | 06  | open    | power bi dashboard setup                         | 
-| 07 | 07  | open    | jupyter notebook workspace setup                 | 
+| 06 | 06  | closed  | power bi dashboard setup                         | 
+| 07 | 07  | closed  | jupyter notebook workspace setup                 | 
 | 08 | 08  | open    | assessment deliverables conventions              | 
 | 09 | 09  | pending | assessment 1 - source-to-bronze profiling recon  | 
 | 10 | 10  | pending | assessment 2 - financial accounting gl recon     | 
@@ -36,7 +36,7 @@
 
 **06. power bi dashboard setup** — set up a git-tracked, version-controlled Power BI workspace using `.pbip` (Power BI Project) template files, plus a sync script keeping them mirrored between the Windows-side `/mnt/...` path (where Power BI Desktop actually runs — it's Windows-only and can't run inside this Linux/Docker sandbox) and this repo's `/home/...` working copy. 
 
-**Closure**: a `.pbip` template exists in the repo, the sync script round-trips a change made on the `/mnt` side back into the git-tracked copy without data loss, and the workflow is documented well enough that assessments (both need a dashboard deliverable) can open the template and start building.
+**Closure**: original scope closed — see `docs/features/06-powerbi-dashboard-setup.md`. A real, Desktop-authored `.pbip` template lives in the repo (`powerbi/reconciliation-dashboard-template/`); the sync script round-tripped an AI-added visual out to `/mnt` and back with an independent `diff -rq` confirming no data loss (Test Cases 06.TC.14-18), and the human confirmed in Power BI Desktop that the round-tripped project opens, renders, and **saves** cleanly. Workflow documented in `powerbi/README.md`. Reopened for subtask **06.08**: wiring the template to the live `reconciliation.rc_*` postgres tables and building real visuals on top, rather than leaving that connection for the assessments to each redo.
 
 **07. jupyter notebook workspace setup** — define the notebook workspace conventions: one notebook per assessment (matching the assessment's own naming, e.g. `assessment1_profiling.ipynb`), a template notebook proving it reaches both postgres (JDBC/psycopg2) and the Spark cluster from inside the Jupyter container, and where notebook outputs get committed. 
 

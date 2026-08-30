@@ -1,0 +1,122 @@
+{
+  "$schema": "https://developer.microsoft.com/json-schemas/fabric/item/report/definition/visualContainer/2.12.0/schema.json",
+  "name": "c4ee1717d00f47231b66",
+  "position": {
+    "x": 39.685344529285565,
+    "y": 31.181342130152945,
+    "z": 0,
+    "height": 708.666866594385,
+    "width": 697.3281967288749,
+    "tabOrder": 0
+  },
+  "visual": {
+    "visualType": "barChart",
+    "query": {
+      "queryState": {
+        "Category": {
+          "projections": [
+            {
+              "field": {
+                "Column": {
+                  "Expression": {
+                    "SourceRef": {
+                      "Entity": "reconciliation-summary"
+                    }
+                  },
+                  "Property": "reconciliation_status"
+                }
+              },
+              "queryRef": "reconciliation-summary.reconciliation_status",
+              "nativeQueryRef": "reconciliation_status",
+              "active": true
+            }
+          ]
+        },
+        "Y": {
+          "projections": [
+            {
+              "field": {
+                "Aggregation": {
+                  "Expression": {
+                    "Column": {
+                      "Expression": {
+                        "SourceRef": {
+                          "Entity": "reconciliation-summary"
+                        }
+                      },
+                      "Property": "batch_id"
+                    }
+                  },
+                  "Function": 0
+                }
+              },
+              "queryRef": "Sum(reconciliation-summary.batch_id)",
+              "nativeQueryRef": "Sum of batch_id"
+            }
+          ]
+        }
+      },
+      "sortDefinition": {
+        "sort": [
+          {
+            "field": {
+              "Aggregation": {
+                "Expression": {
+                  "Column": {
+                    "Expression": {
+                      "SourceRef": {
+                        "Entity": "reconciliation-summary"
+                      }
+                    },
+                    "Property": "batch_id"
+                  }
+                },
+                "Function": 0
+              }
+            },
+            "direction": "Descending"
+          }
+        ],
+        "isDefaultSort": true
+      }
+    },
+    "drillFilterOtherVisuals": true
+  },
+  "filterConfig": {
+    "filters": [
+      {
+        "name": "cc3a81653bbce94b4585",
+        "field": {
+          "Column": {
+            "Expression": {
+              "SourceRef": {
+                "Entity": "reconciliation-summary"
+              }
+            },
+            "Property": "reconciliation_status"
+          }
+        },
+        "type": "Categorical"
+      },
+      {
+        "name": "0a206cbea636c11aaaea",
+        "field": {
+          "Aggregation": {
+            "Expression": {
+              "Column": {
+                "Expression": {
+                  "SourceRef": {
+                    "Entity": "reconciliation-summary"
+                  }
+                },
+                "Property": "batch_id"
+              }
+            },
+            "Function": 0
+          }
+        },
+        "type": "Advanced"
+      }
+    ]
+  }
+}

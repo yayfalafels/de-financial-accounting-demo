@@ -9,8 +9,8 @@
 | 05 | 05  | closed  | ai closed loop develop and validation            | 
 | 06 | 06  | closed  | power bi dashboard setup                         | 
 | 07 | 07  | closed  | jupyter notebook workspace setup                 | 
-| 08 | 08  | open    | assessment deliverables conventions              | 
-| 09 | 09  | pending | assessment 1 - source-to-bronze profiling recon  | 
+| 08 | 08  | closed  | assessment deliverables conventions              | 
+| 09 | 09  | open    | assessment 1 - source-to-bronze profiling recon  | 
 | 10 | 10  | pending | assessment 2 - financial accounting gl recon     | 
 | 11 | 11  | pending | assessment 3 - regulatory dq lineage dashboard   | 
 

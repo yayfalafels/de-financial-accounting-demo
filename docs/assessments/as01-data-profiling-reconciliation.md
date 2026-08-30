@@ -1,0 +1,466 @@
+# Assessment 1 - Source-to-Bronze Data Profiling and Reconciliation - Feature tracker
+>Review the guidelines before performing any actions including edits on the document
+
+## 09 (open) assessment 1 - source-to-bronze profiling and reconciliation
+
+## Contents
+
+- [Tasks](#tasks)
+- [Scope](#scope)
+- [References](#references)
+- [Design](#design)
+  - [prerequisites](#prerequisites)
+  - [assessment task to deliverable map](#assessment-task-to-deliverable-map)
+  - [workflow cycle](#workflow-cycle)
+  - [assessment context documentation](#assessment-context-documentation)
+  - [profiling design - task 1](#profiling-design--task-1)
+  - [reconciliation design - task 2](#reconciliation-design--task-2)
+  - [exception dataset](#exception-dataset)
+  - [root-cause investigation - task 3](#root-cause-investigation--task-3)
+  - [dq-control recommendations](#dq-control-recommendations)
+  - [dashboard mock-up](#dashboard-mock-up)
+  - [notebook organisation](#notebook-organisation)
+  - [idempotency / rerun-safety](#idempotency--rerun-safety)
+  - [environment & secrets](#environment--secrets)
+  - [workflow validation runner](#workflow-validation-runner)
+  - [publishing](#publishing)
+- [Test cases](#test-cases)
+- [Edit locations](#edit-locations)
+- [Implement](#implement)
+- [Validate](#validate)
+- [Guideline](#guideline)
+
+## Tasks
+
+| id    | seq | status  | milestone                                |
+| ----- | --- | ------- | ---------------------------------------- |
+| 09.01 | 01  | pending | design                                   |
+| 09.02 | 02  | pending | prerequisites and seed data readiness    |
+| 09.03 | 03  | pending | assessment scope and context write-up    |
+| 09.04 | 04  | pending | task 1 - data profiling                  |
+| 09.05 | 05  | pending | task 2 - source-to-bronze reconciliation |
+| 09.06 | 06  | pending | exception dataset                        |
+| 09.07 | 07  | pending | task 3 - root-cause investigation        |
+| 09.08 | 08  | pending | dq-control recommendations               |
+| 09.09 | 09  | pending | dashboard mock-up                        |
+| 09.10 | 10  | pending | notebook consolidation and clean rerun   |
+| 09.11 | 11  | pending | deliverable review and status promotion  |
+| 09.12 | 12  | pending | publish assessment site                  |
+| 09.IS | 13  | pending | validate                                 |
+
+## Scope
+
+answer Assessment 1 of the **assignment design doc** end to end - profile `src_transaction_daily` and `bronze.transaction_daily`, reconcile source to Bronze at batch, dimensional, and record level, explain the missing-record symptom, and publish the resulting deliverable set together with the assignment context that motivated it - see [milestones.md](../milestones.md)'s `assessment 1` entry for the milestone-level statement this tracker executes.
+
+**assessment scope** (condensed from the **assignment design doc**'s Assessment 1 section)
+
+- **scenario** - a daily Core Banking extract lands in a Databricks-style Bronze layer; Finance reports the Bronze total local-currency balance does not match source
+- **task 1 - data profiling** - profile both datasets for record/distinct counts, duplicate transaction ids, per-field null percentage, min/max transaction and posting dates, distinct and invalid currency codes and transaction types, negative/zero amounts, branch/product/source-file distributions, late-arriving records, posting date preceding transaction date, and FX rows breaching `local_currency_amount != transaction_amount * exchange_rate` tolerance; nominate and justify the critical data elements
+- **task 2 - source-to-bronze reconciliation** - level 1 batch totals (record count, distinct count, debit sum, credit sum, net amount, local-currency sum), level 2 dimensional reconciliation by transaction date, branch, currency, product, transaction type, and source file with the largest-variance combinations identified, and level 3 record-level classification into exact match, missing in Bronze, unexpected in Bronze, amount, currency, and posting-date mismatch, and duplicates on either side
+- **task 3 - root cause** - explain the missing-record population concentrated in near-midnight source files where UTC source timestamps meet Singapore business-date ingestion, evidence the hypothesis with queries, quantify financial impact, identify affected branches/products/currencies/accounting dates, and recommend remediation plus permanent preventive controls
+- **expected deliverables** - notebook, profiling summary, reconciliation results, exception dataset, root-cause analysis, DQ-control recommendations, and a short reconciliation dashboard or mock-up
+- **assessment context** - the published results must state the assignment scenario, tasks, and scale framing they answer, so a reader is not handed measurements without the question they respond to - see [assessment context documentation](#assessment-context-documentation)
+
+**prerequisite scope** (already-closed infrastructure this assessment consumes, not re-decided here)
+
+- **postgres db** ([02](../features/02-dev-env-setup-postgresql-db.md)) running with `src_transaction_daily` created, via `scripts/01-dev-env-setup.sh`
+- **spark + jupyter containers** ([03](../features/03-dev-env-setup-spark-container.md)) up, so the notebook can reach both postgres over JDBC and the Spark master
+- **seed data** ([04](../features/04-seed-mock-data.md)) loaded through `scripts/03-mock-data-seed.sh`, with `data/mock/issue-log.csv` as the ground-truth catalog of every injected Assessment 1 issue
+- **reconciliation control tables** ([05](../features/05-ai-closed-loop-validation.md)) `reconciliation.rc_*` present, with `scripts/04-closed-loop-run.sh` already proving the batch-level check for this assessment
+- **deliverable paths** ([08](../features/08-assessment-deliverables-conventions.md)) scaffolded under `results/assessment-1/`, indexed by [results/assessment-1/README.md](../../results/assessment-1/README.md) - that manifest, not this tracker, is the single list of what must be produced
+- **notebook path** ([07](../features/07-jupyter-notebook-workspace-setup.md)) `notebooks/assessment1_profiling.ipynb`
+- **dashboard template** ([06](../features/06-powerbi-dashboard-setup.md)) `powerbi/reconciliation-dashboard-template/`, synced with `scripts/05-powerbi-sync.sh`
+
+**out of scope**
+
+- does not seed, extend, or regenerate mock data - if a check has nothing to find, that is a [04](../features/04-seed-mock-data.md) defect raised there, not a data edit made here
+- does not change the `reconciliation.rc_*` schema; new checks are new rows, not new columns
+- does not attempt the assignment's literal 25M-row/day volumes - measured numbers come from the seeded volume budget and every write-up states that scale delta explicitly
+- does not cover Assessment 2 or 3 datasets, deliverables, or notebooks
+
+**closure**
+
+Every deliverable listed in [results/assessment-1/README.md](../../results/assessment-1/README.md) carries `status: final`, the assessment context page exists and is referenced from every deliverable, each finding is traceable to a `reconciliation.rc_batch_control.batch_id` or a notebook section, `scripts/07-deliverables-scaffold.sh --check` passes, and the published site shows the Assessment 1 pages.
+
+## References
+
+- **assignment design doc** `docs/design/assignment.md` (Assessment 1 scenario, Tasks 1-3, Expected Deliverables)
+- **milestones** `docs/milestones.md` (`assessment 1` scope and closure statement)
+- **postgresql db tracker** `docs/features/02-dev-env-setup-postgresql-db.md`
+- **spark container tracker** `docs/features/03-dev-env-setup-spark-container.md`
+- **seed mock data tracker** `docs/features/04-seed-mock-data.md` (assessment 1 injected issue catalog)
+- **ai closed-loop validation tracker** `docs/features/05-ai-closed-loop-validation.md` (`rc_*` schema)
+- **powerbi dashboard setup tracker** `docs/features/06-powerbi-dashboard-setup.md`
+- **jupyter notebook workspace tracker** `docs/features/07-jupyter-notebook-workspace-setup.md`
+- **deliverables conventions tracker** `docs/features/08-assessment-deliverables-conventions.md`
+- **deliverable manifest** `results/assessment-1/README.md`
+- **issue log** `data/mock/issue-log.csv` (gitignored, regenerated every seed run)
+
+## Design
+
+### prerequisites
+
+Ordered, rerunnable setup steps that must pass before any analysis task starts. Each is an existing script from a closed feature; this tracker only fixes the order and the evidence each step must leave behind.
+
+| id | step                        | command                          | evidence            |
+| -- | --------------------------- | -------------------------------- | ------------------- |
+| 01 | host prerequisites          | `scripts/00-prereq-check.sh`     | `[PASS]` log        |
+| 02 | postgres + tables           | `scripts/01-dev-env-setup.sh`    | 9 tables exist [01] |
+| 03 | spark + jupyter containers  | `docker compose` full profile    | `docker ps` [02]    |
+| 04 | seed mock data              | `scripts/03-mock-data-seed.sh`   | `issue-log.csv`     |
+| 05 | seed validation             | `scripts/04-mock-data-validate.sh` | row/issue counts  |
+| 06 | notebook connectivity       | `scripts/06-notebook-validate.sh`  | template passes   |
+| 07 | control-table smoke run     | `scripts/04-closed-loop-run.sh`  | one `batch_id`      |
+| 08 | deliverable scaffold check  | `scripts/07-deliverables-scaffold.sh --check` | current  |
+
+01. step 02 covers only DDL; a fresh clone must still run step 04 before any profiling query returns rows.
+02. step 03 uses `docker/docker-compose.full.yml`; the master, both workers, and the Jupyter container must all be `Up` before the notebook is executed.
+
+### assessment task to deliverable map
+
+One row per assignment task, naming the deliverable file it lands in and the executable artifact it is derived from. This is the traceability contract every write-up's **Sources** section must satisfy.
+
+| id | assignment task              | deliverable file [01]     | artifact           |
+| -- | ---------------------------- | ------------------------- | ------------------ |
+| 01 | task 1 profiling             | `profiling-summary`       | notebook           |
+| 02 | task 1 critical data elements | `profiling-summary`      | notebook           |
+| 03 | task 2 level 1 batch          | `reconciliation-results`  | `rc_*` + notebook  |
+| 04 | task 2 level 2 dimensional    | `reconciliation-results`  | notebook           |
+| 05 | task 2 level 3 record-level   | `exception-dataset`       | notebook           |
+| 06 | task 3 root cause             | `root-cause-analysis`     | notebook           |
+| 07 | task 3 remediation            | `root-cause-analysis`     | narrative          |
+| 08 | task 3 permanent controls     | `dq-recommendations`      | narrative          |
+| 09 | dashboard mock-up             | manifest reference row    | `.pbip` template   |
+| 10 | notebook                      | manifest reference row    | notebook           |
+| 11 | scenario and task context     | `overview` [02]           | assignment doc     |
+
+01. file names are `results/assessment-1/assessment-1-<slug>.md` per [08](../features/08-assessment-deliverables-conventions.md#directory-and-naming-convention).
+02. row 11 is the authored context page introduced by this tracker, outside feature 08's generated taxonomy - see [assessment context documentation](#assessment-context-documentation).
+
+### workflow cycle
+
+Each implementation task runs the same five-stage loop, so every claim in a markdown deliverable is reproducible from a seeded database rather than hand-typed. A task is only complete when all five stages have run in order.
+
+```
+seed db  ->  notebook / spark  ->  rc_* control tables  ->  results markdown  ->  validation run
+   ^                                                                                     |
+   |_____________________________ rerun on any change ___________________________________|
+```
+
+| id | stage             | action                                                   |
+| -- | ----------------- | -------------------------------------------------------- |
+| 01 | seed db           | confirm seeded state, capture the seed run's `issue-log`  |
+| 02 | notebook / spark  | add or update the task's cells, execute top to bottom     |
+| 03 | control tables    | write measured results to `reconciliation.rc_*`           |
+| 04 | results markdown  | update the mapped deliverable and its **Sources** section |
+| 05 | validation run    | rerun the scripted checks and record `[PASS]`/`[FAIL]`    |
+
+01. stage 03 applies to measurable reconciliation output only; profiling statistics and narrative findings stop at stage 02 and are cited by notebook cell rather than `batch_id`.
+02. stage 04 never restates a number the notebook did not produce in the same run - a changed measurement means the deliverable is edited in the same cycle, not the next one.
+03. the Power BI substitute for stage 04 is a `.pbip` edit plus `scripts/05-powerbi-sync.sh`; a dashboard change is treated as a deliverable change and re-enters the cycle at stage 05.
+
+### assessment context documentation
+
+The deliverables scaffolded by [08](../features/08-assessment-deliverables-conventions.md) present measurements without the assignment context that motivated them - a reader landing on the profiling summary sees statistics but not the scenario, the task that asked for them, or the scale they were measured at. This tracker closes that gap explicitly rather than leaving the context implicit in this internal document.
+
+- **overview page** - `results/assessment-1/assessment-1-overview.md` restates the Assessment 1 scenario, the source and Bronze table shapes, Tasks 1-3, and the expected deliverable list in the assignment's own framing, so the published results stand on their own without the reader holding the assignment doc open beside them
+- **scale statement** - one paragraph naming the assignment's production volumes and this demo's seeded volume budget, so every number published elsewhere is read against the right scale rather than mistaken for a production figure
+- **per-deliverable context** - each deliverable opens with a single line, directly under its `status:` marker, naming the assignment task it answers and linking the overview page
+- **linkage** - the overview is authored content outside feature 08's generated taxonomy, so it is linked from `results/index.md` and from each deliverable rather than from the generated manifest; promoting it to a taxonomy row is a change raised in [08](../features/08-assessment-deliverables-conventions.md), not made here
+- **no restatement of findings** - the overview carries assignment context only; measured results stay in their own deliverables so there is one place a number can change
+
+### profiling design - task 1
+
+_boilerplate - complete during 09.01/09.04_
+
+- **checks** - one row per profiling statistic named in Task 1, with its SQL/PySpark expression, the table(s) it runs against, and the seeded issue-log row(s) it is expected to surface
+- **critical data elements** - the nominated CDE list with the justification for each, stated as a table rather than prose so the reasoning is auditable per column
+- **presentation** - how each statistic is rendered in the notebook (single-row summary vs. distribution table) and which of those carry through into the profiling summary write-up
+- **expected findings** - the assessment 1 issue counts from [04](../features/04-seed-mock-data.md#injected-issue-catalog--assessment-1) that each check must reproduce
+
+### reconciliation design - task 2
+
+_boilerplate - complete during 09.01/09.05_
+
+- **level 1 batch** - the six batch totals, their tolerance, and the mapping onto `rc_reconciliation_results` rows already established by [05](../features/05-ai-closed-loop-validation.md)
+- **level 2 dimensional** - the six reconciliation dimensions, the variance measure used to rank combinations, and the cut-off for what counts as a reported largest mismatch
+- **level 3 record-level** - the business key used for the source-to-Bronze join, the classification decision order for the eight record classes, and the handling of rows matching more than one class
+- **scale note** - the standard wording stating measured values come from the seeded volume budget, not the assignment's 25M-row/day production scale
+
+### exception dataset
+
+_boilerplate - complete during 09.06_
+
+- **schema** - at minimum `transaction_id`, `issue_type`, `source_value`, `bronze_value`, `variance`, `batch_id`, per the assignment's stated minimum
+- **issue_type vocabulary** - the closed set of values, aligned to the level 3 record classes and to `issue-log.csv`'s own `issue_type` spelling so ground-truth comparison is a direct join
+- **materialisation** - whether the dataset is emitted as a table, a notebook output, or an embedded markdown extract in the deliverable, and where the full row set lives if the write-up shows only a sample
+- **ground-truth check** - the comparison against `issue-log.csv` proving detected issues match injected ones
+
+### root-cause investigation - task 3
+
+_boilerplate - complete during 09.07_
+
+- **hypothesis** - the UTC vs. Singapore-business-date boundary explanation, framed as a hypothesis until the evidence queries confirm it
+- **evidence** - the queries demonstrating the missing population concentrates in near-midnight source files
+- **financial impact** - the quantified local-currency value of the missing records
+- **affected dimensions** - the branches, products, currencies, and accounting dates involved
+- **remediation** - the corrective action for the affected batches
+- **note** - the assignment's stated symptom counts are production-scale figures; findings are reported against seeded counts with the production figures cited as the scenario framing
+
+### dq-control recommendations
+
+_boilerplate - complete during 09.08_
+
+- **preventive controls** - the permanent controls preventing recurrence of the root cause
+- **detective controls** - the ongoing reconciliation and profiling checks, mapped onto the `rc_*` control-table pattern so a recommendation is expressed as something the existing framework can run
+- **prioritisation** - severity/effort ranking so the list reads as a recommendation, not an inventory
+
+### dashboard mock-up
+
+The dashboard deliverable is satisfied by the existing `.pbip` template owned by [06](../features/06-powerbi-dashboard-setup.md), extended with an Assessment 1 view, not by a new Power BI project. Edits are made in the tracked template, synced to the Windows-side working copy with `scripts/05-powerbi-sync.sh`, opened and saved in Power BI Desktop by the user, then synced back. The deliverable manifest's dashboard row remains a reference to that path.
+
+_boilerplate - complete during 09.09_
+
+- **pages/visuals** - the reconciliation summary, variance-by-dimension, and exception-breakdown visuals
+- **data source** - the `reconciliation.rc_*` tables the template already binds to
+- **user action** - the Desktop open/save round trip that only the user can perform
+
+### notebook organisation
+
+`notebooks/assessment1_profiling.ipynb` is the single executable artifact for this assessment, sectioned in assignment order - connectivity, task 1 profiling, task 2 levels 1-3, task 3 root cause - so a deliverable's **Sources** reference can name a section rather than a cell index that shifts on edit. Output commit policy follows [07](../features/07-jupyter-notebook-workspace-setup.md); the notebook must execute cleanly top to bottom against a freshly seeded database before 09.10 closes.
+
+### idempotency / rerun-safety
+
+- **notebook** - re-executable end to end against a freshly seeded database with no manual cell ordering; any writes it makes are keyed by `batch_id` so a rerun appends a new batch rather than mutating a prior one.
+- **control tables** - reruns insert a new `rc_batch_control` row; existing batches are never updated in place, preserving the evidence a published deliverable already cites.
+- **deliverable markdown** - authored content, never regenerated by a script; `07-deliverables-scaffold.sh` remains verify-or-create and only the derived `README.md` manifest is rewritten.
+- **seed data** - regenerated only by `scripts/03-mock-data-seed.sh`, which is deterministic under the fixed `MOCK_DATA_SEED`; this tracker never edits seeded rows directly.
+
+### environment & secrets
+
+No new variables and no new secrets. The work reuses the existing postgres connection settings, `LOGS_DIR`, `TIMEZONE`, and `TIMESTAMP_FORMAT` from `.env`, and the Power BI sync paths from [06](../features/06-powerbi-dashboard-setup.md#environment--secrets). Credentials are never written into a notebook cell, a deliverable markdown file, or the published site.
+
+### workflow validation runner
+
+_boilerplate - confirm during 09.01_
+
+Assessment 1 introduces no new runner by default; validation composes the existing scripts in [prerequisites](#prerequisites) plus `scripts/06-notebook-validate.sh` for headless notebook execution and `scripts/07-deliverables-scaffold.sh --check` for deliverable completeness. If a per-assessment orchestration step proves necessary, it is added as the next free script number and logged under `.dev/logs/` with `<ts>-09.<nn>-<name>.log` naming, printing one `[PASS]`/`[FAIL]` line per stage of the [workflow cycle](#workflow-cycle).
+
+### publishing
+
+Once every deliverable is promoted to `status: final`, `scripts/07-deliverables-scaffold.sh` regenerates the Assessment 1 manifest with the updated statuses, `scripts/08-assessment-site.sh build` validates the strict MkDocs build, and `scripts/08-assessment-site.sh deploy` publishes to `gh-pages` from a clean, reviewed worktree. The overview page must be reachable from the published navigation before deploy, otherwise the context gap simply reappears on the site. Deployment is never run with uncommitted assessment evidence in the tree.
+
+## Test cases
+
+_test strategy_
+
+Findings are validated at three layers so a measurement is never trusted on the strength of the write-up alone:
+
+1. **script self-report** - `[PASS]`/`[FAIL]` lines and timestamped logs from the prerequisite and validation scripts show each stage ran.
+2. **ground-truth comparison** - detected issues are joined against `data/mock/issue-log.csv`, the injected catalog from [04](../features/04-seed-mock-data.md), rather than eyeballed.
+3. **content inspection** - deliverable markdown is checked for required headings, `status:` markers, context and source references, and table shape independently of the notebook that produced the numbers.
+
+_test cases_
+
+| id       | task  | layer        | check                                       |
+| -------- | ----- | ------------ | ------------------------------------------- |
+| 09.TC.01 | 09.02 | script       | all prerequisite steps report `[PASS]`      |
+| 09.TC.02 | 09.02 | ground-truth | seeded issue counts match the issue log     |
+| 09.TC.03 | 09.03 | content      | overview states scenario, tasks, and scale  |
+| 09.TC.04 | 09.03 | content      | every deliverable links the overview page   |
+| 09.TC.05 | 09.04 | content      | every task 1 statistic is in the write-up   |
+| 09.TC.06 | 09.04 | ground-truth | profiling counts match injected issue rows  |
+| 09.TC.07 | 09.05 | script       | level 1 totals land in `rc_*` for one batch |
+| 09.TC.08 | 09.05 | content      | level 2 names the largest-variance combos   |
+| 09.TC.09 | 09.06 | content      | exception dataset carries the six columns   |
+| 09.TC.10 | 09.06 | ground-truth | exception rows reconcile to the issue log   |
+| 09.TC.11 | 09.07 | content      | root cause states evidence and impact       |
+| 09.TC.12 | 09.08 | content      | each control maps to a runnable check       |
+| 09.TC.13 | 09.09 | direct-fs    | dashboard round trip leaves no diff         |
+| 09.TC.14 | 09.10 | script       | notebook executes clean top to bottom       |
+| 09.TC.15 | 09.11 | content      | every deliverable reads `status: final`     |
+| 09.TC.16 | 09.12 | build        | strict MkDocs build succeeds                |
+| 09.TC.17 | 09.12 | deployment   | published site shows assessment 1 pages     |
+
+**tools**
+
+```bash
+cd /home/taylor-hickem/repos/de-financial-accounting-demo
+./scripts/00-prereq-check.sh
+./scripts/03-mock-data-seed.sh
+./scripts/04-mock-data-validate.sh
+./scripts/04-closed-loop-run.sh
+./scripts/06-notebook-validate.sh
+./scripts/07-deliverables-scaffold.sh --check
+./scripts/08-assessment-site.sh build
+grep -R --line-number '^status: \(draft\|final\)$' results/assessment-1
+grep -RL 'assessment-1-overview.md' results/assessment-1/assessment-1-*.md
+awk '/^\|/ && length($0) >= 115 { print FILENAME ":" FNR ": row too long"; bad = 1 } END { exit bad }' results/assessment-1/*.md
+```
+
+## Edit locations
+
+| id       | path                                                        | change                        |
+| -------- | ----------------------------------------------------------- | ----------------------------- |
+| 09.EL.01 | `notebooks/assessment1_profiling.ipynb`                     | full analysis notebook        |
+| 09.EL.02 | `results/assessment-1/assessment-1-profiling-summary.md`     | task 1 write-up               |
+| 09.EL.03 | `results/assessment-1/assessment-1-reconciliation-results.md` | task 2 levels 1-2 write-up  |
+| 09.EL.04 | `results/assessment-1/assessment-1-exception-dataset.md`     | task 2 level 3 write-up       |
+| 09.EL.05 | `results/assessment-1/assessment-1-root-cause-analysis.md`   | task 3 write-up               |
+| 09.EL.06 | `results/assessment-1/assessment-1-dq-recommendations.md`    | control recommendations       |
+| 09.EL.07 | `results/assessment-1/README.md`                             | regenerated manifest [01]     |
+| 09.EL.08 | `powerbi/reconciliation-dashboard-template/`                 | assessment 1 dashboard view   |
+| 09.EL.09 | `src/sparksql/`                                              | reusable query files [02]     |
+| 09.EL.10 | `docs/milestones.md`                                         | milestone 09 status/closure   |
+| 09.EL.11 | `results/assessment-1/assessment-1-overview.md`              | assessment scope context [03] |
+| 09.EL.12 | `results/index.md`                                           | link to the overview page     |
+| 09.EL.13 | `mkdocs.yml`                                                 | overview in site nav [04]     |
+
+01. **09.EL.07** is generated by `scripts/07-deliverables-scaffold.sh`; never hand-edited.
+02. **09.EL.09** is optional - used only where a query is worth extracting from the notebook for reuse, following the existing `src/pyspark/` naming pattern.
+03. **09.EL.11** is authored content outside feature 08's generated taxonomy, so the scaffold neither creates nor validates it; it is created by hand in 09.03.
+04. **09.EL.13** is only required if the strict build cannot reach the overview through `09.EL.12`'s link alone.
+
+No `.env`, `.env.sample`, schema JSON, DDL, or seed-script change is expected. A required change to any of those is a defect in the owning feature and is raised there rather than patched from this tracker.
+
+## Implement
+
+Implementation order is prerequisites -> assessment context -> profiling -> reconciliation -> exceptions -> root cause -> recommendations -> dashboard -> notebook rerun -> review -> publish. Each step runs the full [workflow cycle](#workflow-cycle) before the next begins.
+
+### 1. Prerequisites and seed data readiness
+
+edit locations: none
+
+Run the [prerequisites](#prerequisites) steps in order, confirming the evidence column for each. Record the seed run's issue counts as the baseline every later ground-truth comparison is made against. Do not start task 1 until every prerequisite reports `[PASS]`.
+
+### 2. Assessment scope and context write-up
+
+edit locations: `09.EL.11, 09.EL.12, 09.EL.13`
+
+Author `results/assessment-1/assessment-1-overview.md` per [assessment context documentation](#assessment-context-documentation): the Assessment 1 scenario, the source and Bronze table shapes, Tasks 1-3, the expected deliverable list, and the scale statement contrasting the assignment's 25M-row/day production volumes with this demo's seeded volume budget. Use the assignment's own framing so the page reads as the question being answered, not as a summary of this tracker. Link it from `results/index.md`, and add it to `mkdocs.yml`'s navigation only if the strict build cannot reach it through that link.
+
+This step is done before any analysis write-up so each later deliverable can be authored with its context line already pointing at an existing page. Every deliverable created in steps 3-7 opens with that single line under its `status:` marker naming the assignment task it answers and linking the overview.
+
+### 3. Task 1 - data profiling
+
+edit locations: `09.EL.01, 09.EL.02`
+
+_boilerplate - expand during 09.04_
+
+Add the profiling section to the notebook covering every statistic listed in [profiling design](#profiling-design--task-1), for both source and Bronze. Nominate the critical data elements with justification. Write the profiling summary deliverable citing the notebook section and referencing the overview page for scenario and scale.
+
+### 4. Task 2 - source-to-bronze reconciliation
+
+edit locations: `09.EL.01, 09.EL.03`
+
+_boilerplate - expand during 09.05_
+
+Add level 1 batch totals writing into `reconciliation.rc_*` under one `batch_id`, then level 2 dimensional reconciliation across the six dimensions with the largest-variance combinations ranked. Write the reconciliation results deliverable citing that `batch_id`.
+
+### 5. Exception dataset
+
+edit locations: `09.EL.01, 09.EL.04`
+
+_boilerplate - expand during 09.06_
+
+Add the level 3 record-level join and classification, emit the exception dataset with the assignment's minimum columns, and reconcile the detected rows against `issue-log.csv`. Write the exception dataset deliverable, sampling in the markdown and pointing at the full output.
+
+### 6. Task 3 - root-cause investigation
+
+edit locations: `09.EL.01, 09.EL.05`
+
+_boilerplate - expand during 09.07_
+
+Add the evidence queries for the timezone/business-date hypothesis, quantify the financial impact, identify the affected dimensions, and state remediation. Write the root-cause analysis deliverable.
+
+### 7. DQ-control recommendations
+
+edit locations: `09.EL.06`
+
+_boilerplate - expand during 09.08_
+
+Write the preventive and detective control recommendations, each expressed as something the `rc_*` framework can execute, prioritised by severity and effort.
+
+### 8. Dashboard mock-up
+
+edit locations: `09.EL.08`
+
+Edit the tracked `.pbip` template to add the Assessment 1 view, run `scripts/05-powerbi-sync.sh` to push it to the Windows-side working copy, have the user open and save it in Power BI Desktop, then sync back and confirm with an independent `diff -rq` that the round trip lost nothing.
+
+### 9. Notebook consolidation and clean rerun
+
+edit locations: `09.EL.01`
+
+Reorder the notebook into assignment task order, remove scratch cells, reseed the database, and execute the notebook headless with `scripts/06-notebook-validate.sh`. Confirm every number cited in a deliverable still matches the rerun output; where it does not, correct the deliverable in the same cycle.
+
+### 10. Deliverable review and status promotion
+
+edit locations: `09.EL.02-09.EL.07, 09.EL.11`
+
+Review each deliverable against the [task to deliverable map](#assessment-task-to-deliverable-map) for coverage, a populated **Sources** section, a context line linking the overview, and consistent numbers. Confirm the overview still matches the assignment wording after any analysis-driven edits. Promote each `status: draft` to `status: final`, then run `scripts/07-deliverables-scaffold.sh` to regenerate the manifest with the new statuses and `--check` to confirm the result is current.
+
+### 11. Publish
+
+edit locations: `09.EL.10`
+
+Commit the reviewed work, run `scripts/08-assessment-site.sh build` for the strict build, then `scripts/08-assessment-site.sh deploy` from the clean worktree. Confirm the published Assessment 1 pages, including that the overview is reachable from the site navigation, then update `docs/milestones.md` to mark milestone 09 closed with its closure evidence.
+
+## Validate
+
+**Issues**
+
+- inventory all first out exceptions and issues encountered in this table
+- for each issue, create an issue section and use this section to document diagnostics and resolution steps
+
+| id       | seq | status  | issue                                    |
+| -------- | --- | ------- | ---------------------------------------- |
+| 09.IS.01 | 01  | pending | \<first out exception\>                  |
+
+_09.IS.01 (pending) \<first out exception\>_
+
+**problem description**
+
+**exception**
+
+```log
+```
+
+**triggering actions**
+
+**hypothesis**
+
+- use hypothesis framing until a validated fix is applied
+
+**diagnostic steps**
+
+- first out exception is NOT a diagnostic step
+- diagnostic steps reveal information or apply a fix
+- assume re-run and validation, these are not diagnostic steps
+- keep the step description brief, use the diagnostics details section to elaborate actions and learnings for each step
+
+| id          | seq | status  | step                                 |
+| ----------- | --- | ------- | ------------------------------------ |
+| 09.IS.01.01 | 01  | pending | \<diagnostic step 01\>               |
+
+**diagnostic details**
+
+**validation evidence**
+
+**user actions**
+
+- Power BI Desktop open/save round trip for the dashboard deliverable (09.09)
+- GitHub authentication and the deploy confirmation for the published site (09.12)
+
+## Guideline
+
+## instructions
+
+review and strictly follow these relevant skills when performing tasks for this
+feature implementation and working with this document
+
+## relevant skills
+
+- markdown-tables
+- feature-implementation-guide
+- jupyter-notebook-workspace
+- powerbi-dashboard-workspace

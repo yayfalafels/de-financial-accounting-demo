@@ -8,7 +8,7 @@
         
         
         <link rel="shortcut icon" href="../../img/favicon.ico">
-        <title>Assessment 1 - Data Profiling Summary - Financial Accounting Assessments</title>
+        <title>Assessment 1 - Ground-Truth Audit - Financial Accounting Assessments</title>
         <link href="../../css/bootstrap.min.css" rel="stylesheet">
         <link href="../../css/fontawesome.min.css" rel="stylesheet">
         <link href="../../css/brands.min.css" rel="stylesheet">
@@ -72,21 +72,21 @@
     <div id="toc-collapse" class="navbar-collapse collapse card bg-body-tertiary">
         <ul class="nav flex-column">
             
-            <li class="nav-item" data-bs-level="1"><a href="#assessment-1-data-profiling-summary" class="nav-link">Assessment 1 - Data Profiling Summary</a>
+            <li class="nav-item" data-bs-level="1"><a href="#assessment-1-ground-truth-audit" class="nav-link">Assessment 1 - Ground-Truth Audit</a>
               <ul class="nav flex-column">
             <li class="nav-item" data-bs-level="2"><a href="#sources" class="nav-link">Sources</a>
               <ul class="nav flex-column">
               </ul>
             </li>
-            <li class="nav-item" data-bs-level="2"><a href="#definitions" class="nav-link">Definitions</a>
+            <li class="nav-item" data-bs-level="2"><a href="#task-1-data-profiling" class="nav-link">Task 1 - Data Profiling</a>
               <ul class="nav flex-column">
               </ul>
             </li>
-            <li class="nav-item" data-bs-level="2"><a href="#findings" class="nav-link">Findings</a>
+            <li class="nav-item" data-bs-level="2"><a href="#task-2-source-to-bronze-reconciliation" class="nav-link">Task 2 - Source-to-Bronze Reconciliation</a>
               <ul class="nav flex-column">
               </ul>
             </li>
-            <li class="nav-item" data-bs-level="2"><a href="#critical-data-elements" class="nav-link">Critical data elements</a>
+            <li class="nav-item" data-bs-level="2"><a href="#task-3-root-cause-investigation" class="nav-link">Task 3 - Root-Cause Investigation</a>
               <ul class="nav flex-column">
               </ul>
             </li>
@@ -97,177 +97,123 @@
 </div></div>
                     <div class="col-md-9" role="main">
 
-<h1 id="assessment-1-data-profiling-summary">Assessment 1 - Data Profiling Summary</h1>
-<p><strong>Task 1 - Data Profiling</strong></p>
-<p>See <a href="../assessment-1-overview/">overview</a> for the scenario, source/Bronze table shapes, and the seeded-vs-production scale statement.</p>
+<h1 id="assessment-1-ground-truth-audit">Assessment 1 - Ground-Truth Audit</h1>
+<p>Cross-checks every measured count published in this assessment's deliverables against <code>data/mock/issue-log.csv</code> (gitignored, generated locally by the seed run - not a repo path), organized by assignment task and subtask rather than by deliverable, so one task's full evidence trail reads in one place.</p>
 <h2 id="sources">Sources</h2>
 <ul>
-<li>notebook: <a href="https://github.com/yayfalafels/de-financial-accounting-demo/blob/main/notebooks/assessment1_profiling.ipynb">assessment1_profiling.ipynb</a> -&gt; "Task 1 - Data Profiling" section</li>
-<li>checks implemented: <code>09.CK.01</code>-<code>09.CK.10</code> (task refs <code>01.01</code>-<code>01.10</code>) - all ten task 1 checks.</li>
-<li>ground-truth verification of every count below: <a href="../assessment-1-audit/">assessment-1-audit.md</a></li>
+<li>notebook: <a href="https://github.com/yayfalafels/de-financial-accounting-demo/blob/main/notebooks/assessment1_profiling.ipynb">assessment1_profiling.ipynb</a></li>
+<li>deliverable audited: <a href="../assessment-1-profiling-summary/">assessment-1-profiling-summary.md</a></li>
 </ul>
-<h2 id="definitions">Definitions</h2>
-<ul>
-<li><strong>valid currency codes</strong>: <code>SGD, USD, EUR, GBP, JPY</code></li>
-<li><strong>valid transaction types</strong>: <code>CREDIT, DEBIT</code></li>
-<li><strong>FX tolerance (09.CK.10)</strong>: <code>abs(local_currency_amount - transaction_amount * exchange_rate) &gt; 0.01</code> (absolute, cents)</li>
-<li><strong>late-arriving (09.CK.08)</strong>: <code>date(source_extract_ts) &gt; transaction_date</code></li>
-</ul>
-<h2 id="findings">Findings</h2>
+<h2 id="task-1-data-profiling">Task 1 - Data Profiling</h2>
 <table>
 <thead>
 <tr>
-<th>id</th>
+<th>task ref</th>
 <th>check</th>
-<th>src</th>
-<th>bronze</th>
+<th>expected (issue-log)</th>
+<th>measured</th>
+<th>match</th>
 </tr>
 </thead>
 <tbody>
 <tr>
-<td>09.CK.01</td>
-<td>record / distinct transaction_id</td>
-<td>2010 / 2000 (gap 10)</td>
-<td>1993 / 1975 (gap 18)</td>
+<td>01.01</td>
+<td>record/distinct counts</td>
+<td>n/a [01]</td>
+<td>see profiling summary</td>
+<td>n/a</td>
 </tr>
 <tr>
-<td>09.CK.02</td>
-<td>duplicate id groups</td>
-<td>10 / 10 extra</td>
-<td>18 / 18 extra [01]</td>
+<td>01.02</td>
+<td>duplicate ids</td>
+<td><code>duplicate_transaction_id</code>=10</td>
+<td>10 groups [02]</td>
+<td>yes</td>
 </tr>
 <tr>
-<td>09.CK.03</td>
-<td>null account_id / currency_code</td>
-<td>5 (0.25%) / 5 (0.25%)</td>
-<td>5 (0.25%) / 5 (0.25%)</td>
+<td>01.03</td>
+<td>null account_id</td>
+<td><code>null_account_id</code>=5</td>
+<td>5</td>
+<td>yes</td>
 </tr>
 <tr>
-<td>09.CK.05</td>
-<td>currency_code distinct / invalid</td>
-<td>10 / 8</td>
-<td>10 / 8</td>
+<td>01.03</td>
+<td>null currency_code</td>
+<td><code>null_currency_code</code>=5</td>
+<td>5</td>
+<td>yes</td>
 </tr>
 <tr>
-<td>09.CK.05</td>
-<td>transaction_type distinct / invalid</td>
-<td>5 / 5</td>
-<td>5 / 5</td>
+<td>01.04</td>
+<td>date ranges</td>
+<td>n/a [01]</td>
+<td>see profiling summary</td>
+<td>n/a</td>
 </tr>
 <tr>
-<td>09.CK.06</td>
-<td>negative/zero amount count</td>
+<td>01.05</td>
+<td>invalid currency_code</td>
+<td><code>invalid_currency_code</code>=8</td>
+<td>8</td>
+<td>yes</td>
+</tr>
+<tr>
+<td>01.05</td>
+<td>invalid transaction_type</td>
+<td><code>invalid_transaction_type</code>=5</td>
+<td>5</td>
+<td>yes</td>
+</tr>
+<tr>
+<td>01.06</td>
+<td>negative/zero amounts</td>
+<td><code>negative_or_zero_amount</code>=12</td>
 <td>12</td>
-<td>12</td>
+<td>yes</td>
 </tr>
 <tr>
-<td>09.CK.07</td>
-<td>branch/product/file distribution</td>
-<td>see notebook [02]</td>
-<td>see notebook [02]</td>
+<td>01.07</td>
+<td>distributions</td>
+<td><code>utc_sgt_midnight_boundary</code>=20 [03]</td>
+<td>5 files [03]</td>
+<td>yes</td>
 </tr>
 <tr>
-<td>09.CK.08</td>
-<td>late-arriving records</td>
+<td>01.08</td>
+<td>late-arriving</td>
+<td><code>late_arriving</code>=10</td>
 <td>10</td>
-<td>10</td>
+<td>yes</td>
 </tr>
 <tr>
-<td>09.CK.09</td>
-<td>posting before transaction date</td>
+<td>01.09</td>
+<td>posting before txn</td>
+<td><code>posting_before_transaction</code>=6</td>
 <td>6</td>
-<td>6</td>
+<td>yes</td>
 </tr>
 <tr>
-<td>09.CK.10</td>
-<td>FX tolerance breach</td>
-<td>27 [03]</td>
-<td>37 [04]</td>
+<td>01.10</td>
+<td>FX tolerance</td>
+<td><code>fx_mismatch</code>=15</td>
+<td>27 / 37 [04][05]</td>
+<td>yes</td>
 </tr>
 </tbody>
 </table>
-<p><strong>09.CK.04</strong> transaction_date range 2026-08-17 to 2026-08-21, posting_date range 2026-08-15 to 2026-08-23 - identical on both tables.</p>
-<p>Notes below report what this level of analysis can deduce and the open question it raises for the next level - task 1 profiles each table on its own terms, not against an expected answer.</p>
 <ol>
-<li><strong>09.CK.02</strong> bronze shows 18 duplicate <code>transaction_id</code> groups (18 extra rows) against source's 10. At this profiling stage that is only a count difference on each table taken alone; whether the same IDs are duplicated in both tables, Bronze carries additional duplicates of its own, or both, is an open question for task 2's source-to-Bronze record-level comparison.</li>
-<li><strong>09.CK.07</strong> source's <code>ingestion_file</code> distribution shows five low-volume files (2-7 rows each, named with a <code>MIDNIGHT</code> suffix) well below the other fifteen files' 120-150 row range - a distributional outlier worth flagging. Bronze shows only fifteen distinct <code>ingestion_file</code> values against source's twenty. Whether Bronze's five missing values are those same five low-volume files, and why, is an open question for task 2's reconciliation.</li>
-<li><strong>09.CK.10</strong> source: 27 rows breach the FX tolerance, of which 12 also fail the negative/zero amount check (09.CK.06) on the same <code>transaction_id</code> - two independent checks flagging the same rows is worth carrying forward as one population rather than two separate counts. The remaining 15 raise no other flag in this profiling pass.</li>
-<li><strong>09.CK.10</strong> bronze: 37 rows breach the same tolerance, more than source's 27. Whether this is the source rows carrying through plus additional Bronze-only breaches, or a different population, is an open question for task 2's reconciliation - not resolved by profiling alone.</li>
+<li><strong>01.01/01.04</strong> are descriptive baselines with no single injected-issue tag of their own; 01.01's src/bronze gap is explained by 01.02's duplicate counts plus Bronze-only drops, not an independent ground truth.</li>
+<li><strong>01.02</strong> bronze's 18 duplicate groups (not directly comparable to a single issue-log tag) split into 10 inherited from source plus 8 seeded <code>duplicate_in_bronze_reprocessed</code> rows - see the profiling summary for the row-level split.</li>
+<li><strong>01.07</strong> the 20 <code>utc_sgt_midnight_boundary</code> rows are Task 3's root-cause subject, not a Task 1 injected-issue count in the strict sense - listed here because 01.07's distribution is the check that first surfaces them visually, as 5 <code>*_MIDNIGHT.dat</code> files present in source and entirely absent from Bronze.</li>
+<li><strong>01.10</strong> src's 27 breaches are 15 genuine <code>fx_mismatch</code> rows plus 12 rows that separately carry <code>negative_or_zero_amount</code> (flipping the amount's sign without recomputing <code>local_currency_amount</code> mechanically breaches tolerance too) - confirmed by exact <code>transaction_id</code> overlap with 01.06.</li>
+<li><strong>01.10</strong> bronze's 37 breaches are the 27 inherited from source plus rows carrying <code>bronze_amount_mismatch</code> (10) and <code>bronze_currency_mismatch</code> (4), net of overlaps and rows dropped from Bronze - full row-level attribution belongs to task 2 level 3 / the exception dataset.</li>
 </ol>
-<h2 id="critical-data-elements">Critical data elements</h2>
-<p>Nominated against the checks and joins actually exercised by this assessment's three tasks - a column earns the label because a specific check, reconciliation cut, or root-cause step depends on it, not because it appears in the schema.</p>
-<table>
-<thead>
-<tr>
-<th>id</th>
-<th>column</th>
-<th>why critical</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td>01</td>
-<td>transaction_id</td>
-<td>business key - drives 09.CK.02 dedup and the source-to-Bronze join</td>
-</tr>
-<tr>
-<td>02</td>
-<td>transaction_amount</td>
-<td>feeds task 2 level 1 batch totals and the sign check 09.CK.06</td>
-</tr>
-<tr>
-<td>03</td>
-<td>local_currency_amount</td>
-<td>the balance Finance reported broken - task 2's reconciled measure</td>
-</tr>
-<tr>
-<td>04</td>
-<td>exchange_rate</td>
-<td>ties amount to local_currency_amount - the 09.CK.10 tolerance check</td>
-</tr>
-<tr>
-<td>05</td>
-<td>currency_code</td>
-<td>dimensional reconciliation cut plus the 09.CK.05 validity check</td>
-</tr>
-<tr>
-<td>06</td>
-<td>transaction_type</td>
-<td>debit/credit split for level 1 totals plus the 09.CK.05 validity check</td>
-</tr>
-<tr>
-<td>07</td>
-<td>transaction_date</td>
-<td>task 2 dimensional cut and task 3's business-date boundary</td>
-</tr>
-<tr>
-<td>08</td>
-<td>posting_date</td>
-<td>09.CK.09 ordering check plus accounting-date reconciliation</td>
-</tr>
-<tr>
-<td>09</td>
-<td>branch_code</td>
-<td>task 2 level 2 dimensional reconciliation cut</td>
-</tr>
-<tr>
-<td>10</td>
-<td>product_code</td>
-<td>task 2 level 2 dimensional reconciliation cut</td>
-</tr>
-<tr>
-<td>11</td>
-<td>ingestion_file</td>
-<td>09.CK.07 source-file distribution and task 3's root-cause trace</td>
-</tr>
-<tr>
-<td>12</td>
-<td>source_extract_ts</td>
-<td>09.CK.08 late-arriving check and task 3's UTC/SGT boundary evidence</td>
-</tr>
-</tbody>
-</table>
-<p><code>account_id</code> and <code>source_system</code> are excluded - neither is read by any Task 1-3 check, reconciliation cut, or root-cause step in this assessment's scope.</p></div>
+<p>All measured values are read live via PySpark JDBC against postgres in the notebook section cited above, not hand-typed against the ground truth.</p>
+<h2 id="task-2-source-to-bronze-reconciliation">Task 2 - Source-to-Bronze Reconciliation</h2>
+<p>pending - not yet implemented (09.05).</p>
+<h2 id="task-3-root-cause-investigation">Task 3 - Root-Cause Investigation</h2>
+<p>pending - not yet implemented (09.07).</p></div>
             </div>
         </div>
 

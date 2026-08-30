@@ -8,6 +8,7 @@ See [overview](assessment-1-overview.md) for the scenario, source/Bronze table s
 
 - notebook: [assessment1_profiling.ipynb](https://github.com/yayfalafels/de-financial-accounting-demo/blob/main/notebooks/assessment1_profiling.ipynb) -> "Task 1 - Data Profiling" section
 - checks implemented: `09.CK.01`-`09.CK.10` (task refs `01.01`-`01.10`) - all ten task 1 checks.
+- ground-truth verification of every count below: [assessment-1-audit.md](assessment-1-audit.md)
 
 ## Definitions
 
@@ -58,19 +59,3 @@ Nominated against the checks and joins actually exercised by this assessment's t
 | 12 | source_extract_ts     | 09.CK.08 late-arriving check and task 3's UTC/SGT boundary evidence  |
 
 `account_id` and `source_system` are excluded - neither is read by any Task 1-3 check, reconciliation cut, or root-cause step in this assessment's scope.
-
-## Ground-truth cross-check
-
-Every count above reproduces its expected value from `data/mock/issue-log.csv` (gitignored, generated locally by the seed run - not a repo path) exactly: 
-
-- `duplicate_transaction_id`=10
-- `null_account_id`=5
-- `null_currency_code`=5
-- `invalid_currency_code`=8
-- `invalid_transaction_type`=5
-- `negative_or_zero_amount`=12
-- `posting_before_transaction`=6
-- `fx_mismatch`=15 (within the 27 total breaches)
-- `late_arriving`=10. 
-
-All counts are read live via PySpark JDBC against postgres - see the notebook section cited above.

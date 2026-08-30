@@ -10,5 +10,6 @@ Current assessment deliverables and their submission status.
 | 04 | [Accounting Mapping Validation](assessment-2-mapping-validation.md) | draft |
 | 05 | [Reconciliation Framework Design](assessment-2-framework-design.md) | draft |
 | 06 | [Business-Facing Summary](assessment-2-business-summary.md) | draft |
+| 07 | [Ground-Truth Audit](assessment-2-audit.md) | draft |
 | 90 | notebook [07] | reference |
 | 91 | dashboard [06] | reference |

@@ -11,5 +11,6 @@ Current assessment deliverables and their submission status.
 | 05 | [Data-Lineage Document](assessment-3-lineage-doc.md) | draft |
 | 06 | [Performance-Optimization Notes](assessment-3-performance-notes.md) | draft |
 | 07 | [Five-Minute Presentation Summary](assessment-3-presentation-summary.md) | draft |
+| 08 | [Ground-Truth Audit](assessment-3-audit.md) | draft |
 | 90 | notebook [07] | reference |
 | 91 | dashboard [06] | reference |

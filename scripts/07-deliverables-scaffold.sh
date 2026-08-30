@@ -48,12 +48,14 @@ deliverables=(
     "assessment-1|exception-dataset|Exception Dataset"
     "assessment-1|root-cause-analysis|Root-Cause Analysis"
     "assessment-1|dq-recommendations|DQ-Control Recommendations"
+    "assessment-1|audit|Ground-Truth Audit"
     "assessment-2|reconciliation-results|Reconciliation Results"
     "assessment-2|exception-dataset|Exception Dataset"
     "assessment-2|root-cause-analysis|Root-Cause Analysis"
     "assessment-2|mapping-validation|Accounting Mapping Validation"
     "assessment-2|framework-design|Reconciliation Framework Design"
     "assessment-2|business-summary|Business-Facing Summary"
+    "assessment-2|audit|Ground-Truth Audit"
     "assessment-3|profiling-summary|Data Profiling Summary"
     "assessment-3|reconciliation-results|Reconciliation Results"
     "assessment-3|exception-dataset|Exception Dataset"
@@ -61,6 +63,7 @@ deliverables=(
     "assessment-3|lineage-doc|Data-Lineage Document"
     "assessment-3|performance-notes|Performance-Optimization Notes"
     "assessment-3|presentation-summary|Five-Minute Presentation Summary"
+    "assessment-3|audit|Ground-Truth Audit"
 )
 
 assessment_number() {

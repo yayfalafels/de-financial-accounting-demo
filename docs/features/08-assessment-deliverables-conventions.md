@@ -86,9 +86,11 @@ The **assignment design doc**'s three "Expected Deliverables" lists use differen
 | 09 | lineage-doc            | data-lineage document             |    |    | x  |
 | 10 | performance-notes      | performance-optimization notes    |    |    | x  |
 | 11 | presentation-summary   | five-minute presentation summary  |    |    | x  |
+| 12 | audit                  | ground-truth audit [03]           | x  | x  | x  |
 
 01. `a1`/`a2`/`a3` are `assessment-1`/`assessment-2`/`assessment-3`, matching the `assessment_id` spelling `rc_batch_control` already writes ([05](05-ai-closed-loop-validation.md#reconciliation-control-schema)) - one spelling for the concept everywhere, not a directory-name variant of a DB value.
 02. row 02 (`reconciliation-results`) is the narrative write-up of a batch's numbers, not a duplicate of `reconciliation.rc_reconciliation_results` - see [relationship to existing artifact conventions](#relationship-to-existing-artifact-conventions).
+03. row 12 added during AS01 task 1 ([09](../assessments/09-as01-data-profiling-reconciliation.md)) - every measured count in every other deliverable that has an injected-issue-catalog ground truth (`data/mock/issue-log.csv`) is cross-checked here instead of inline, organized by assignment task and subtask rather than by deliverable-type, so a reader can see one task's full evidence trail in one place. It has no "Expected Deliverables" line item of its own in the **assignment design doc** - it exists to make the other deliverables' claims auditable, not to answer a task by itself.
 
 ### directory and naming convention
 
@@ -102,6 +104,7 @@ results/
 │   ├── assessment-1-exception-dataset.md
 │   ├── assessment-1-root-cause-analysis.md
 │   ├── assessment-1-dq-recommendations.md
+│   ├── assessment-1-audit.md
 │   └── README.md
 ├── assessment-2/
 │   ├── assessment-2-reconciliation-results.md
@@ -110,6 +113,7 @@ results/
 │   ├── assessment-2-mapping-validation.md
 │   ├── assessment-2-framework-design.md
 │   ├── assessment-2-business-summary.md
+│   ├── assessment-2-audit.md
 │   └── README.md
 └── assessment-3/
     ├── assessment-3-profiling-summary.md
@@ -118,6 +122,7 @@ results/
     ├── assessment-3-root-cause-analysis.md
     ├── assessment-3-lineage-doc.md
     ├── assessment-3-performance-notes.md
+    ├── assessment-3-audit.md
     ├── assessment-3-presentation-summary.md
     └── README.md
 ```

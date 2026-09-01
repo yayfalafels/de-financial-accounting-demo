@@ -6,6 +6,7 @@ description: spec-first feature-tracker document pattern (scope -> design -> tes
 ## relevant skills
 
 - markdown-tables - apply it to every table in the tracker (id leftmost column, fixed width, <115 char rows, long text migrated to footnotes)
+- feature-implementation-guide - this repo's concrete mechanics for the Implement/Validate sections below (log file naming, error-handling wrappers, the issues/diagnostic-step table format). This skill defines the document *shape* those sections live in, not the tooling inside them - a project without that skill defines its own equivalent, matched to its own stack.
 
 ## what this is
 
@@ -82,10 +83,10 @@ Carve out explicitly any step that structurally requires a human - a GUI-only to
 
 ### 07 Validate
 
-- an **Issues** table, one row per first-out failure actually hit
-- per issue: problem description, the raw exception/log text, triggering action, a **hypothesis** (framed as unconfirmed until evidence backs it), then diagnostic steps
-- a first-out exception is data, not a diagnostic step; a diagnostic step reveals information or applies a fix - keep that distinction, and assume a step will be rerun for validation rather than logging every rerun as a new step
+- an **Issues** table, one row per first-out failure actually hit, each expanded into its own diagnostic section
+- a first-out failure is logged as data, kept structurally separate from the diagnostic steps taken about it, and any root cause stays framed as a **hypothesis** until evidence confirms it
 - a **user actions** line listing anything a human had to physically do (click through a Desktop app, approve a deploy, authenticate) - the explicit human-in-the-loop seam, kept separate from what the agent did on its own
+- the exact issue-table columns, diagnostic-step fields, and log-file conventions belong to this repo's `feature-implementation-guide` skill (or its equivalent elsewhere) - not restated here, so there's one place that convention can change
 
 ## id cross-reference scheme
 

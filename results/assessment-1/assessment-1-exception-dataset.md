@@ -52,7 +52,3 @@ Minimum columns per the assignment: `transaction_id`, `issue_type`, `source_valu
 | TXN-0000090    | duplicate in Bronze     | -              | 33260.17       | -        |
 
 Full per-class counts and the remaining rows (25 genuinely absent, 32 more duplicates, 2 more currency mismatches, 4 posting-date mismatches, and 20 duplicate-in-source rows) are in the notebook output, not reproduced here.
-
-## Ground-truth check
-
-See [assessment-1-audit.md](assessment-1-audit.md) for the comparison against `data/mock/issue-log.csv` proving these detected classes match the injected catalog.

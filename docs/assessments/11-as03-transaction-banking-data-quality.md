@@ -59,7 +59,7 @@ answer Assessment 3 of the **assignment design doc** end to end - profile `sourc
 
 condensed from the **assignment design doc**'s Assessment 3 section
 
-- **scenario** transaction volumes shown in the regulatory reporting mart do not match Transaction Banking records; management requires a Source -> Bronze -> Reporting lineage and reconciliation investigation.
+- **scenario** transaction volumes shown in the regulatory reporting mart do not match Transaction Banking records. management requires a Source -> Bronze -> Reporting lineage and reconciliation investigation.
 - **the problem** `regulatory.payment_reporting` disagrees with `bronze.payment_transactions`, driven by more than one concurrent defect
 - **checks to perform**
 
@@ -256,56 +256,343 @@ Same gap and same fix as [09](09-as01-data-profiling-reconciliation.md#assessmen
 
 ### profiling design - task 1
 
-- **checks** - one row per profiling statistic named in Task 1 (**11.CK.01**-**11.CK.12**), with its SQL/PySpark expression, the table(s) it runs against, and the seeded issue-log row(s) it is expected to surface
-- **presentation** - how each statistic is rendered in the notebook (single-row summary vs. distribution table) and which of those carry through into the profiling summary write-up
-- **Spark-scale narrative** - one section explaining how each check would run efficiently at the assignment's real scale (partitioned scans, `approx_count_distinct` for cardinality checks, broadcasted `customer_master` for the reference-lookup checks) even though it executes here against the seeded volume budget - a narrower, task-1-scoped preview of [performance-optimization design](#performance-optimization-design)
-- **expected findings** - the assessment 3 issue counts from [04](../features/04-seed-mock-data.md#injected-issue-catalog--assessment-3) that each check must reproduce
+**11.CK.01 - duplicate `payment_id`** - measured at `source.payment_transactions`, not Bronze: Bronze's business key is `(payment_id, batch_id)`, so a Bronze-level repeat is a different signal (**11.CK.21**'s reload detection), and folding the two together would double-count the same population under two checks.
+
+```sql
+SELECT payment_id, COUNT(*) AS n
+FROM source.payment_transactions
+GROUP BY payment_id
+HAVING COUNT(*) > 1
+```
+
+**11.CK.02 - missing `customer_id`**
+
+```sql
+SELECT COUNT(*) FROM source.payment_transactions WHERE customer_id IS NULL OR TRIM(customer_id) = ''
+```
+
+**11.CK.03 - invalid payment status** - against the schema's closed set:
+
+```sql
+SELECT DISTINCT status FROM source.payment_transactions
+WHERE status NOT IN ('COMPLETED', 'PENDING', 'FAILED', 'REJECTED')
+```
+
+**11.CK.04 - missing currency**
+
+```sql
+SELECT COUNT(*) FROM source.payment_transactions WHERE currency IS NULL OR TRIM(currency) = ''
+```
+
+**11.CK.05 - invalid beneficiary country** - ISO 3166-1 alpha-2 shape check, not a full country-code lookup table (none is seeded):
+
+```sql
+SELECT DISTINCT beneficiary_country FROM source.payment_transactions
+WHERE beneficiary_country IS NULL OR beneficiary_country !~ '^[A-Z]{2}$'
+```
+
+**11.CK.06 - negative or zero payment amount**
+
+```sql
+SELECT COUNT(*) FROM source.payment_transactions WHERE amount <= 0
+```
+
+**11.CK.07 - missing customer reference record** - no `bronze.customer_master` row for the `customer_id` at all, at any effective date:
+
+```sql
+SELECT p.payment_id, p.customer_id
+FROM bronze.payment_transactions p
+WHERE NOT EXISTS (SELECT 1 FROM bronze.customer_master c WHERE c.customer_id = p.customer_id)
+```
+
+**11.CK.08 - payment linked to inactive customer record** - distinguished from **11.CK.07** by *some* `customer_master` history existing, but none of it currently open (`effective_end_date IS NULL`):
+
+```sql
+SELECT p.payment_id, p.customer_id
+FROM bronze.payment_transactions p
+WHERE EXISTS (SELECT 1 FROM bronze.customer_master c WHERE c.customer_id = p.customer_id)
+  AND NOT EXISTS (
+    SELECT 1 FROM bronze.customer_master c
+    WHERE c.customer_id = p.customer_id AND c.effective_end_date IS NULL
+  )
+```
+
+**11.CK.09 - multiple active (effective-dated) customer records** - overlapping windows for the same `customer_id`, the same self-join shape as [10](10-as02-financial-accounting-gl.md#mapping-validation-design--task-2)'s **10.CK.12**:
+
+```sql
+SELECT a.customer_id, a.effective_start_date, a.effective_end_date,
+       b.effective_start_date AS overlap_start, b.effective_end_date AS overlap_end
+FROM bronze.customer_master a
+JOIN bronze.customer_master b
+  ON  a.customer_id = b.customer_id
+  AND a.effective_start_date < b.effective_start_date
+  AND a.effective_start_date <= COALESCE(b.effective_end_date, DATE '9999-12-31')
+  AND COALESCE(a.effective_end_date, DATE '9999-12-31') >= b.effective_start_date
+```
+
+**11.CK.10 - unusual transaction-volume spikes** - a daily count more than 2 standard deviations from the seeded period's own mean:
+
+```sql
+WITH daily AS (
+  SELECT payment_date, COUNT(*) AS n FROM bronze.payment_transactions GROUP BY payment_date
+),
+stats AS ( SELECT AVG(n) AS mean_n, STDDEV_SAMP(n) AS sd_n FROM daily )
+SELECT d.payment_date, d.n, (d.n - s.mean_n) / NULLIF(s.sd_n, 0) AS z_score
+FROM daily d CROSS JOIN stats s
+WHERE ABS((d.n - s.mean_n) / NULLIF(s.sd_n, 0)) > 2
+```
+
+**11.CK.11 - unexpected payment-channel distribution** - a channel's daily share of volume deviating more than 15 percentage points from its own period-average share:
+
+```sql
+WITH channel_share AS (
+  SELECT payment_date, payment_channel,
+         COUNT(*) * 1.0 / SUM(COUNT(*)) OVER (PARTITION BY payment_date) AS daily_share
+  FROM bronze.payment_transactions
+  GROUP BY payment_date, payment_channel
+),
+baseline AS ( SELECT payment_channel, AVG(daily_share) AS baseline_share FROM channel_share GROUP BY payment_channel )
+SELECT cs.payment_date, cs.payment_channel, cs.daily_share, b.baseline_share
+FROM channel_share cs JOIN baseline b USING (payment_channel)
+WHERE ABS(cs.daily_share - b.baseline_share) > 0.15
+```
+
+**11.CK.12 - cross-border classification anomalies** - profiling-level: rows the classification in [end-to-end reconciliation design](#end-to-end-reconciliation-design--task-2) cannot evaluate at all, or evaluates to a mismatched result due to case/whitespace noise rather than a genuine cross-border payment (Task 3's **11.CK.23** is the separate question of whether the classification *rule itself* is adequate):
+
+```sql
+SELECT p.payment_id, c.residence_country, p.beneficiary_country
+FROM bronze.payment_transactions p
+LEFT JOIN bronze.customer_master c
+  ON  c.customer_id = p.customer_id
+  AND p.payment_date BETWEEN c.effective_start_date AND COALESCE(c.effective_end_date, DATE '9999-12-31')
+WHERE c.residence_country IS NULL
+   OR (UPPER(TRIM(c.residence_country)) = UPPER(TRIM(p.beneficiary_country))
+       AND c.residence_country <> p.beneficiary_country)
+```
+
+**presentation** - single-row summary for count-style checks (**11.CK.01**-**11.CK.08**), a distribution table for the channel/volume checks (**11.CK.10**-**11.CK.12**), carried into the profiling summary write-up.
+
+**Spark-scale narrative** - one section explaining how each check would run efficiently at the assignment's real scale (partitioned scans, `approx_count_distinct` for the cardinality checks, `broadcast(customer_master)` for **11.CK.07**-**11.CK.09**'s reference-lookup joins) even though it executes here against the seeded volume budget - a narrower, task-1-scoped preview of [performance-optimization design](#performance-optimization-design).
+
+**expected findings** - the assessment 3 issue counts from [04](../features/04-seed-mock-data.md#injected-issue-catalog--assessment-3) that each check must reproduce.
 
 ### end-to-end reconciliation design - task 2
 
-- **three-tier comparison** - each of the eight dimensions (**11.CK.13**-**11.CK.20**) compared across all three stages (`source.payment_transactions`, `bronze.payment_transactions`, `regulatory.payment_reporting`), not just Source-vs-Bronze, matching the assignment's own reconciliation-matrix example
-- **matrix output** - `Dimension | Source | Bronze | Regulatory | Variance | Status`, one row per dimension, `Status` from the same `PASS`/`WARNING`/`FAIL` thresholds `reconciliation.rc_batch_control.status` already establishes ([05](../features/05-ai-closed-loop-validation.md#reconciliation-control-schema))
-- **regulatory-stage caveat** - `regulatory.payment_reporting`'s row count is not independently seeded; per [04](../features/04-seed-mock-data.md#injected-issue-catalog--assessment-3), it is the generator's own replay of the naive (non-effective-dated) join, so the Bronze-vs-Regulatory variance this task measures is the same fan-out [complex issue detection](#complex-issue-detection--task-3) is asked to explain, not two independent findings
-- **scale note** - the standard wording stating measured values come from the seeded volume budget, not the assignment's illustrative production-scale figures
+**classification formula** - `regulatory.payment_reporting.domestic_crossborder_flag` has no equivalent column in Source/Bronze, so the *correct* (effective-dated) classification is derived at query time for the Source/Bronze sides of every comparison below:
+
+```sql
+CASE WHEN c.residence_country = p.beneficiary_country THEN 'DOMESTIC' ELSE 'CROSSBORDER' END
+```
+
+joined via `bronze.customer_master` on `customer_id` + `payment_date BETWEEN effective_start_date AND COALESCE(effective_end_date, DATE '9999-12-31')` - the same correct join [complex issue detection](#complex-issue-detection--task-3)'s **11.CK.22** contrasts against the pipeline's naive one.
+
+**finest-grain three-tier aggregate** - Source and Bronze are aggregated to the same grain before comparison, since `regulatory.payment_reporting` is itself pre-aggregated (no `payment_id` column) and has no finer grain to drill into:
+
+```sql
+WITH source_agg AS (
+  SELECT p.payment_date AS reporting_date, p.legal_entity, p.payment_type, p.currency,
+         CASE WHEN c.residence_country = p.beneficiary_country THEN 'DOMESTIC' ELSE 'CROSSBORDER' END
+           AS domestic_crossborder_flag,
+         COUNT(*) AS txn_count, SUM(p.amount) AS amount
+  FROM source.payment_transactions p
+  JOIN bronze.customer_master c
+    ON c.customer_id = p.customer_id
+   AND p.payment_date BETWEEN c.effective_start_date AND COALESCE(c.effective_end_date, DATE '9999-12-31')
+  GROUP BY 1, 2, 3, 4, 5
+),
+bronze_agg AS ( -- identical shape, FROM bronze.payment_transactions ),
+regulatory_agg AS (
+  SELECT reporting_date, legal_entity, payment_type, reporting_currency AS currency, domestic_crossborder_flag,
+         SUM(transaction_count) AS txn_count, SUM(total_transaction_amount) AS amount
+  FROM regulatory.payment_reporting
+  GROUP BY 1, 2, 3, 4, 5
+)
+```
+
+**11.CK.13-11.CK.20 - per-dimension matrix rows** - each dimension rolls the finest-grain aggregate above up to one column, `FULL OUTER JOIN`ed across the three CTEs on that column alone (matching [10](10-as02-financial-accounting-gl.md#gl-integrity-design--task-1)'s per-dimension roll-up pattern):
+
+```sql
+-- <dimension> is one of: reporting_date, legal_entity, payment_type, currency, domestic_crossborder_flag
+SELECT COALESCE(s.<dimension>, b.<dimension>, r.<dimension>) AS <dimension>,
+       s.txn_count AS source, b.txn_count AS bronze, r.txn_count AS regulatory,
+       r.txn_count - s.txn_count AS variance,
+       CASE
+         WHEN ABS(r.txn_count - s.txn_count) / NULLIF(ABS(s.txn_count), 0) < 0.001 THEN 'PASS'
+         WHEN ABS(r.txn_count - s.txn_count) / NULLIF(ABS(s.txn_count), 0) < 0.01  THEN 'WARNING'
+         ELSE 'FAIL'
+       END AS status
+FROM (SELECT <dimension>, SUM(txn_count) AS txn_count FROM source_agg GROUP BY <dimension>) s
+FULL OUTER JOIN (SELECT <dimension>, SUM(txn_count) AS txn_count FROM bronze_agg GROUP BY <dimension>) b
+  USING (<dimension>)
+FULL OUTER JOIN (SELECT <dimension>, SUM(txn_count) AS txn_count FROM regulatory_agg GROUP BY <dimension>) r
+  USING (<dimension>)
+```
+
+**11.CK.14 - payment amount** and **11.CK.15 - customer count** are the two exceptions to the roll-up-by-summing pattern above:
+- **payment amount** sums `amount`/`total_transaction_amount` instead of `txn_count` - otherwise identical.
+- **customer count** cannot be derived from `source_agg`/`bronze_agg` by summing, since `COUNT(DISTINCT customer_id)` does not roll up additively across a `GROUP BY` that already collapsed `customer_id` away; it is computed as its own query directly against the row-level tables (`COUNT(DISTINCT customer_id)` grouped by whichever single dimension is being matrix-rolled), and `regulatory.payment_reporting`'s side is `COUNT(DISTINCT customer_id)` grouped the same way, not `SUM(transaction_count)`.
+
+**matrix output** - `Dimension | Source | Bronze | Regulatory | Variance | Status`, one row per dimension per the query above, matching the assignment's own worked example shape.
+
+**regulatory-stage caveat** - `regulatory.payment_reporting`'s row count is not independently seeded; per [04](../features/04-seed-mock-data.md#injected-issue-catalog--assessment-3), it is the generator's own replay of the naive (non-effective-dated) join, so the Bronze-vs-Regulatory variance this task measures is the same fan-out [complex issue detection](#complex-issue-detection--task-3) is asked to explain, not two independent findings.
+
+**scale note** - the standard wording stating measured values come from the seeded volume budget, not the assignment's illustrative production-scale figures.
 
 ### complex issue detection - task 3
 
-- **duplicate processing (11.CK.21)** - detect rows sharing `payment_id` under different `batch_id`s in `bronze.payment_transactions`, and state the distinguishing rule separating this from a legitimate repeated payment (issue 01 in the seed catalog is the deliberate control case for that distinction)
-- **effective-dated join fan-out (11.CK.22)** - reproduce the naive `customer_id`-only join's duplication, then recompute the correct effective-dated join (`customer_id` + payment date within `effective_start_date`/`effective_end_date`) and quantify the row-count delta between the two
-- **cross-border sufficiency (11.CK.23)** - assess, in narrative, whether `residence_country != beneficiary_country` is a sufficient cross-border definition, and name at least one concrete banking scenario it misclassifies (e.g. a domestic payment routed through a foreign correspondent, or a resident with a foreign-domiciled account)
-- **late-arriving transactions (11.CK.24)** - identify transactions received after the regulatory cutoff and assigned to the next reporting date, and quantify the regulatory impact (transaction count and amount shifted between reporting dates)
+**11.CK.21 - duplicate processing** - the distinguishing rule separating a reload duplicate from a legitimate repeated payment (issue 01 in the seed catalog is the deliberate control case for this) is `record_hash`, not `payment_id` alone: a true reload carries the *same* business-field hash under two different `batch_id`s, while a coincidentally-shared `payment_id` on a genuinely different payment produces a different hash and is correctly excluded:
+
+```sql
+SELECT payment_id, record_hash, COUNT(DISTINCT batch_id) AS batch_count
+FROM bronze.payment_transactions
+GROUP BY payment_id, record_hash
+HAVING COUNT(DISTINCT batch_id) > 1
+```
+
+**11.CK.22 - effective-dated join fan-out** - reproduce the pipeline's actual (naive) join, then the corrected one, and diff the two:
+
+```sql
+-- naive join the regulatory pipeline actually runs
+SELECT p.payment_id, COUNT(*) AS naive_match_count
+FROM bronze.payment_transactions p
+JOIN bronze.customer_master c ON c.customer_id = p.customer_id
+GROUP BY p.payment_id
+HAVING COUNT(*) > 1
+
+-- corrected, effective-dated join
+SELECT p.payment_id, COUNT(*) AS correct_match_count
+FROM bronze.payment_transactions p
+JOIN bronze.customer_master c
+  ON  c.customer_id = p.customer_id
+  AND p.payment_date BETWEEN c.effective_start_date AND COALESCE(c.effective_end_date, DATE '9999-12-31')
+GROUP BY p.payment_id
+HAVING COUNT(*) > 1  -- should return zero rows once 11.CK.09's overlaps are otherwise clean
+```
+
+The row-count delta (`naive_match_count - 1`, summed over every affected `payment_id`) is the fan-out quantity - each such payment appears once for every `customer_master` row it naively matched, one of which is correct and the rest of which are the duplicate regulatory records **11.CK.22** is asked to detect.
+
+**11.CK.23 - cross-border sufficiency** - narrative assessment of the current rule (`CASE WHEN c.residence_country <> p.beneficiary_country THEN 'CROSSBORDER' ELSE 'DOMESTIC' END`, the same expression [end-to-end reconciliation design](#end-to-end-reconciliation-design--task-2) uses), naming at least one concrete banking scenario it misclassifies - e.g. a domestic payment routed through a foreign correspondent bank, a resident with a foreign-domiciled account, or a payment for a customer with no `residence_country` on file (**11.CK.07**/**11.CK.08**), which the rule cannot classify at all rather than defaulting safely.
+
+**11.CK.24 - late-arriving transactions** - `regulatory.payment_reporting` has no `payment_id`, so detection is two-step: identify the *candidate* late-arriving population in Bronze by processing-time proximity to a configurable ingestion cutoff, then confirm the day-pair count/amount shift in the regulatory aggregate:
+
+```sql
+-- step 1: candidate population (CUTOFF_TIME default 22:00 local, configurable)
+SELECT payment_id, payment_date, payment_timestamp
+FROM bronze.payment_transactions
+WHERE payment_timestamp::time >= TIME '22:00'
+
+-- step 2: confirm a same-key shortfall on payment_date matched by a surplus on payment_date + 1
+SELECT r1.reporting_date, r1.customer_id, r1.payment_type, r1.legal_entity, r1.domestic_crossborder_flag,
+       r1.transaction_count AS day_count, r2.transaction_count AS next_day_count,
+       r2.total_transaction_amount AS next_day_amount_shifted
+FROM regulatory.payment_reporting r1
+JOIN regulatory.payment_reporting r2
+  ON  r1.customer_id = r2.customer_id AND r1.payment_type = r2.payment_type
+  AND r1.legal_entity = r2.legal_entity AND r1.domestic_crossborder_flag = r2.domestic_crossborder_flag
+  AND r2.reporting_date = r1.reporting_date + INTERVAL '1 day'
+```
+
+The regulatory impact is `SUM(next_day_amount_shifted)` across confirmed pairs - transaction count and amount reported as shifted from their true `payment_date` into the following reporting date.
 
 ### exception dataset
 
 - **schema** - at minimum `payment_id`, `issue_type`, `source_value`, `regulatory_value`, `variance`, `batch_id`, mirroring [09](09-as01-data-profiling-reconciliation.md#exception-dataset)'s minimum columns adapted to this assessment's three-stage comparison
-- **issue_type vocabulary** - the closed set of values aligned to the profiling checks (**11.CK.01**-**11.CK.12**) and the four complex-issue categories (**11.CK.21**-**11.CK.24**), and to `issue-log.csv`'s own `issue_type` spelling so ground-truth comparison is a direct join
 - **materialisation** - table, notebook output, or embedded markdown extract, with the full row set's location stated where the write-up shows only a sample
 - **ground-truth check** - the comparison against `issue-log.csv` proving detected issues match injected ones
 
+**issue_type vocabulary** - the closed set of string values every check writes, matched against `issue-log.csv`'s own `issue_type` spelling so ground-truth comparison is a direct join:
+
+| check id | `issue_type`               |
+| -------- | ----------------------------- |
+| 11.CK.01 | `DUPLICATE_PAYMENT_ID`          |
+| 11.CK.02 | `MISSING_CUSTOMER_ID`           |
+| 11.CK.03 | `INVALID_STATUS`                |
+| 11.CK.04 | `MISSING_CURRENCY`              |
+| 11.CK.05 | `INVALID_BENEFICIARY_COUNTRY`   |
+| 11.CK.06 | `NEGATIVE_OR_ZERO_AMOUNT`       |
+| 11.CK.07 | `MISSING_CUSTOMER_REFERENCE`    |
+| 11.CK.08 | `INACTIVE_CUSTOMER_REFERENCE`   |
+| 11.CK.09 | `OVERLAPPING_CUSTOMER_RECORD`   |
+| 11.CK.21 | `DUPLICATE_PROCESSING`          |
+| 11.CK.22 | `EFFECTIVE_DATE_JOIN_FANOUT`    |
+| 11.CK.24 | `LATE_ARRIVAL_MISASSIGNED`      |
+
+01. **11.CK.10**-**11.CK.12** and **11.CK.23** are distributional/narrative findings rather than row-level flags on an individual `payment_id`, so they do not carry an `issue_type` row in this table - they are reported directly in the profiling summary / root-cause write-up instead.
+02. a `payment_id` may carry more than one `issue_type` (e.g. `MISSING_CUSTOMER_REFERENCE` and `DUPLICATE_PROCESSING` both true) - one row per `(payment_id, issue_type)` pair, same convention as [10](10-as02-financial-accounting-gl.md#exception-dataset)'s exception dataset.
+
 ### lineage documentation - task 4
 
-- **attribute selection** - five critical regulatory attributes minimum, drawn from `regulatory.payment_reporting`'s own columns (e.g. `total_transaction_amount`, `domestic_crossborder_flag`, `transaction_count`, `reporting_currency`, `customer_id`-derived counts), matching the assignment's own worked examples (Total Payment Amount, Cross Border Flag)
-- **row shape** - `Regulatory Attribute | Source | Source Column | Bronze | Transformation | Data Quality Control`, per the assignment's own table
-- **critical data elements** - the nominated CDE list stated with justification, echoing the same "table not prose" convention [09](09-as01-data-profiling-reconciliation.md#profiling-design--task-1) uses for its own CDE list
-- **control linkage** - each row's `Data Quality Control` column names an actual check from [profiling design](#profiling-design--task-1), [end-to-end reconciliation design](#end-to-end-reconciliation-design--task-2), or [complex issue detection](#complex-issue-detection--task-3) rather than an aspirational, unimplemented control
+**row shape** - `Regulatory Attribute | Source | Source Column | Bronze | Transformation | Data Quality Control`, per the assignment's own table. The five required rows, source column(s), and controlling check id(s) - the transformation each one applies is detailed in the notes below rather than in-cell, per the markdown-tables convention for long cell content:
+
+| id | regulatory attribute | source column                              | control                    |
+| -- | -------------------- | ------------------------------------------ | -------------------------- |
+| 01 | Total Payment Amount | `amount`                                   | **11.CK.14**               |
+| 02 | Transaction Count    | `payment_id`                               | **11.CK.13**               |
+| 03 | Cross Border Flag    | `beneficiary_country`, `residence_country` | **11.CK.19**, **11.CK.23** |
+| 04 | Reporting Date       | `payment_date`                             | **11.CK.20**, **11.CK.24** |
+| 05 | Customer Count       | `customer_id`                              | **11.CK.15**, **11.CK.22** |
+
+01. **Total Payment Amount** - source: Payment System; Bronze: `bronze.payment_transactions.amount`; transformation: `SUM(amount)` grouped by `reporting_date, legal_entity, payment_type, currency, domestic_crossborder_flag`.
+02. **Transaction Count** - source: Payment System; Bronze: `bronze.payment_transactions`; transformation: `COUNT(*)` over the same grouping as row 01.
+03. **Cross Border Flag** - source: Payment System + Customer Reference; Bronze: `bronze.payment_transactions` joined to `bronze.customer_master`; transformation: the effective-dated `CASE` expression from [end-to-end reconciliation design](#end-to-end-reconciliation-design--task-2).
+04. **Reporting Date** - source: Payment System; Bronze: `bronze.payment_transactions.payment_date`; transformation: `reporting_date := payment_date`, except the late-arriving population which the defective pipeline misassigns to `payment_date + 1` (the exact defect **11.CK.24** detects).
+05. **Customer Count** - source: Customer Reference; Bronze: `bronze.customer_master`; transformation: `COUNT(DISTINCT customer_id)` via the effective-dated join, per grouping.
+
+**critical data elements** - the nominated CDE list stated with justification, echoing the same "table not prose" convention [09](09-as01-data-profiling-reconciliation.md#profiling-design--task-1) uses for its own CDE list; the five rows above are the CDE list itself, one CDE per lineage row, so no separate table is authored.
+
+**control linkage** - each row's `Data Quality Control` column names an actual check id from [profiling design](#profiling-design--task-1), [end-to-end reconciliation design](#end-to-end-reconciliation-design--task-2), or [complex issue detection](#complex-issue-detection--task-3) rather than an aspirational, unimplemented control.
 
 ### dashboard design - task 5
 
 The dashboard deliverable is satisfied by the existing `.pbip` template owned by [06](../features/06-powerbi-dashboard-setup.md), extended with an Assessment 3 view, not by a new Power BI project - the same reuse [09](09-as01-data-profiling-reconciliation.md#dashboard-mock-up) already established for Assessment 1. Edits are made in the tracked template, synced to the Windows-side working copy with `scripts/05-powerbi-sync.sh`, opened and saved in Power BI Desktop by the user, then synced back.
 
-- **executive KPIs** - source records, Bronze records, regulatory records, reconciliation rate, financial variance, data-quality issue count, critical exception count
-- **recommended visuals** - reconciliation status by reporting date, exception trend, variance by legal entity, variance by payment type, data-quality issues by category, top failing controls, Source-to-Bronze reconciliation trend, regulatory reconciliation trend
-- **filters** - date, legal entity, currency, payment type, data-quality status
-- **data source** - the `reconciliation.rc_*` tables the template already binds to, plus the task 2 reconciliation matrix for the three-stage visuals
-- **user action** - the Desktop open/save round trip that only the user can perform
+**executive KPIs** - each measure's exact source, so the DAX/Power Query measure is unambiguous:
+
+| KPI                      | measure                                                                |
+| ------------------------ | ---------------------------------------------------------------------- |
+| source records           | `SUM(source_agg.txn_count)` [01]                                       |
+| Bronze records           | `SUM(bronze_agg.txn_count)` [01]                                       |
+| regulatory records       | `SUM(regulatory_agg.txn_count)` [01]                                   |
+| reconciliation rate      | `1 - COUNT(status='FAIL') / COUNT(*)` over `rc_reconciliation_results` |
+| financial variance       | `SUM(variance)`, payment-amount row of the reconciliation matrix       |
+| data-quality issue count | `COUNT(*)` from the exception dataset                                  |
+| critical exception count | `COUNT(*)` from the exception dataset, `issue_type` in [02]            |
+
+01. `source_agg`/`bronze_agg`/`regulatory_agg` are the three CTEs from [end-to-end reconciliation design](#end-to-end-reconciliation-design--task-2).
+02. `('EFFECTIVE_DATE_JOIN_FANOUT', 'DUPLICATE_PROCESSING', 'LATE_ARRIVAL_MISASSIGNED')` - the three highest-impact [exception dataset](#exception-dataset) categories.
+
+**recommended visuals** - reconciliation status by reporting date, exception trend, variance by legal entity, variance by payment type, data-quality issues by category, top failing controls, Source-to-Bronze reconciliation trend, regulatory reconciliation trend - each binds directly to `reconciliation.rc_reconciliation_results` (`dimension`, `reconciliation_status`, `batch_date` via `rc_batch_control`) or the exception dataset's `issue_type` column, not a separately-modeled Power BI table.
+
+**filters** - date, legal entity, currency, payment type, data-quality status - implemented as slicers on the columns above, shared across all visuals via the report page's sync-slicer setting.
+
+**data source** - the `reconciliation.rc_*` tables the template already binds to, plus the task 2 reconciliation matrix for the three-stage visuals.
+
+**user action** - the Desktop open/save round trip that only the user can perform.
 
 ### performance-optimization design
 
 Answered by design and small-scale demonstration, not literal 5B-row execution, per [milestones.md](../milestones.md)'s `assessment 3` closure note - no billion-row dataset is generated; the Spark SQL is written to scale and demonstrated against the seeded data with an explicit note on the scale delta.
 
-- **techniques addressed** - from the assignment's list, this tracker commits to explaining and demonstrating incremental processing, partition pruning, a partition strategy proposal, broadcast joins (`bronze.customer_master` is small enough to broadcast against `bronze.payment_transactions`), and pre-aggregated reconciliation tables (the `rc_reconciliation_results` pattern itself is one); Delta optimization, data skipping, and predicate pushdown are explained conceptually since they require a Delta Lake/Databricks runtime this dev environment does not stand up
-- **demonstration shape** - a Spark job run twice against the seeded volume against `bronze.payment_transactions` - once as a naive full scan, once applying the chosen techniques - reporting the wall-clock delta as evidence of direction, not magnitude, with the write-up stating explicitly that the seeded row count is far below the 40-minute baseline's threshold
-- **what changed and why** - the write-up states the reasoning per technique against this assessment's own join/aggregation shape, not a generic Spark feature list
+**techniques addressed and how each is demonstrated:**
+
+| technique              | demonstration                                                              |
+| ---------------------- | -------------------------------------------------------------------------- |
+| partition strategy     | partition `bronze.payment_transactions` by `payment_date` (daily) [01]     |
+| partition pruning      | `payment_date` range filter, confirmed via `explain()` [02]                |
+| broadcast joins        | `F.broadcast(customer_master_df)` on every join to `customer_master` [03]  |
+| incremental processing | reprocess only rows newer than the last batch's `ingestion_timestamp` [04] |
+| pre-aggregated tables  | `reconciliation.rc_reconciliation_results` itself is the pattern           |
+
+01. matches every reconciliation query's own `WHERE`/`GROUP BY` axis in [end-to-end reconciliation design](#end-to-end-reconciliation-design--task-2).
+02. against the proposed partitioning from row 01, confirming a full scan is skipped rather than merely asserting it.
+03. `bronze.customer_master` is small (low thousands of rows), avoiding a shuffle join against the much larger `bronze.payment_transactions`.
+04. `ingestion_timestamp > (SELECT MAX(batch_date) FROM reconciliation.rc_batch_control WHERE assessment_id = 'assessment-3')`, rather than a full-table rerun on every batch.
+
+Delta optimization (`OPTIMIZE`/Z-ORDER), data skipping, and predicate pushdown are explained conceptually only - they are Delta Lake/Databricks-runtime features this dev environment's plain-Parquet/postgres Spark setup does not stand up, so no demonstration is claimed for them.
+
+**demonstration shape** - one Spark job run twice against `bronze.payment_transactions` at the seeded volume: once as a naive full scan with a row-wise join against `bronze.customer_master`, once applying partition pruning + the broadcast join above, reporting the wall-clock delta as evidence of *direction*, not magnitude - the write-up states explicitly that the seeded row count is far below the 40-minute baseline's threshold, so the delta demonstrates the technique, not the production time saving.
+
+**what changed and why** - the write-up states the reasoning per technique against this assessment's own join/aggregation shape (the `customer_master` broadcast join, the `payment_date`-keyed reconciliation queries), not a generic Spark feature list.
 
 ### notebook organisation
 
@@ -428,41 +715,31 @@ This step is done before any analysis write-up so each later deliverable can be 
 
 edit locations: `11.EL.01, 11.EL.02`
 
-_boilerplate - expand during 11.04_
-
-Add the profiling section to the notebook covering every statistic listed in [profiling design](#profiling-design--task-1), for source, Bronze, and the customer reference table, plus the Spark-scale handling narrative. Write the profiling summary deliverable citing the notebook section and referencing the overview page for scenario and scale.
+Implement **11.CK.01**-**11.CK.12** exactly as specified in [profiling design](#profiling-design--task-1), against `source.payment_transactions`, `bronze.payment_transactions`, and `bronze.customer_master`, plus the Spark-scale handling narrative. Write the profiling summary deliverable citing the notebook section and referencing the overview page for scenario and scale.
 
 ### 4. Task 2 - end-to-end reconciliation
 
 edit locations: `11.EL.01, 11.EL.03`
 
-_boilerplate - expand during 11.05_
-
-Add the three-stage (Source/Bronze/Regulatory) reconciliation across the eight dimensions, writing into `reconciliation.rc_*` under one `batch_id`. Write the reconciliation results deliverable citing that `batch_id`, in the assignment's matrix shape.
+Implement the `source_agg`/`bronze_agg`/`regulatory_agg` CTEs and **11.CK.13**-**11.CK.20**'s per-dimension roll-up exactly as specified in [end-to-end reconciliation design](#end-to-end-reconciliation-design--task-2), including the `customer_count` exception to the roll-up-by-summing pattern. Write into `reconciliation.rc_*` under one `batch_id` (`assessment_id = 'assessment-3'`). Write the reconciliation results deliverable citing that `batch_id`, in the assignment's matrix shape.
 
 ### 5. Exception dataset
 
 edit locations: `11.EL.01, 11.EL.04`
 
-_boilerplate - expand during 11.06_
-
-Consolidate the task 3 detection queries' row-level detail into the exception dataset with the minimum columns, and reconcile the detected rows against `issue-log.csv`. Write the exception dataset deliverable, sampling in the markdown and pointing at the full output.
+Union the row sets from **11.CK.01**-**11.CK.09**, **11.CK.21**, **11.CK.22**, and **11.CK.24** into the exception dataset's minimum columns per [exception dataset](#exception-dataset), one row per `(payment_id, issue_type)` pair, and reconcile detected rows against `issue-log.csv`. Write the exception dataset deliverable, sampling in the markdown and pointing at the full output.
 
 ### 6. Task 3 - complex issue detection
 
 edit locations: `11.EL.01, 11.EL.05`
 
-_boilerplate - expand during 11.07_
-
-Add the four detection queries per [complex issue detection](#complex-issue-detection--task-3): duplicate processing, the effective-dated join fix, the cross-border sufficiency assessment, and the late-arrival quantification. Write the root-cause analysis deliverable.
+Implement **11.CK.21**-**11.CK.24** exactly as specified in [complex issue detection](#complex-issue-detection--task-3): the `record_hash`-based duplicate-processing detection, the naive-vs-corrected join diff, the cross-border sufficiency narrative, and the day-pair late-arrival confirmation. Write the root-cause analysis deliverable.
 
 ### 7. Task 4 - data lineage documentation
 
 edit locations: `11.EL.06`
 
-_boilerplate - expand during 11.08_
-
-Write the lineage table for at least five critical regulatory attributes, per [lineage documentation](#lineage-documentation--task-4), linking each control to a check implemented in tasks 1-3.
+Write the lineage deliverable directly from [lineage documentation](#lineage-documentation--task-4)'s five-row table and its transformation notes - this step is a narrative write-up of an already-fully-specified design, not new query development.
 
 ### 8. Task 5 - Power BI executive dashboard
 

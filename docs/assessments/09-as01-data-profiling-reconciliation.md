@@ -38,8 +38,8 @@
 | 09.02 | 02  | closed  | prerequisites and seed data readiness    |
 | 09.03 | 03  | closed  | assessment scope and context write-up    |
 | 09.04 | 04  | closed  | task 1 - data profiling                  |
-| 09.05 | 05  | pending | task 2 - source-to-bronze reconciliation |
-| 09.06 | 06  | pending | exception dataset                        |
+| 09.05 | 05  | closed  | task 2 - source-to-bronze reconciliation |
+| 09.06 | 06  | closed  | exception dataset                        |
 | 09.07 | 07  | pending | task 3 - root-cause investigation        |
 | 09.08 | 08  | pending | dq-control recommendations               |
 | 09.09 | 09  | pending | dashboard mock-up                        |
@@ -474,17 +474,17 @@ Wrote `results/assessment-1/assessment-1-profiling-summary.md` citing that noteb
 
 edit locations: `09.EL.01, 09.EL.03`
 
-_boilerplate - expand during 09.05_
+_closed 09.05_ - level 1 batch totals (`09.CK.11`-`09.CK.16`, task refs `02.01.01`-`02.01.06`) and level 2 dimensional reconciliation (`09.CK.17`-`09.CK.22`, task refs `02.02.01`-`02.02.06`).
 
-Add level 1 batch totals writing into `reconciliation.rc_*` under one `batch_id`, then level 2 dimensional reconciliation across the six dimensions with the largest-variance combinations ranked. Write the reconciliation results deliverable citing that `batch_id`.
+Added a "Task 2 - Source-to-Bronze Reconciliation" section to `notebooks/assessment1_profiling.ipynb`, following task 1's blind-analyst framing throughout. Level 1: all six batch totals computed via PySpark; `record count` and `amount` (debit sum + credit sum, the only two dimensions `reconciliation.rc_reconciliation_results`'s closed enum supports - widening it is out of scope) written into a fresh `batch_id=9` via `reconciliation.rc_batch_control`/`rc_reconciliation_results`; the other four totals reported in the notebook/deliverable only. Every one of the six totals disagrees beyond `PASS` (`net amount` off by ~16%), directly evidencing the batch-level symptom this assessment investigates. Level 2: each of the six dimensions grouped and compared independently, top-3 largest-variance values reported per dimension; `ingestion_file`'s finding answers task 1's own open question - the low-volume `*_MIDNIGHT.dat` files carry a disproportionate share of the missing-record variance. Executed headlessly, confirmed no cell error, copied back over the tracked notebook. Wrote `results/assessment-1/assessment-1-reconciliation-results.md` citing that section, `batch_id=9`, and the overview/audit pages.
 
 ### 5. Exception dataset
 
 edit locations: `09.EL.01, 09.EL.04`
 
-_boilerplate - expand during 09.06_
+_closed 09.06_ - level 3 record-level classification (`09.CK.23`-`09.CK.30`, task refs `02.03.01`-`02.03.08`).
 
-Add the level 3 record-level join and classification, emit the exception dataset with the assignment's minimum columns, and reconcile the detected rows against `issue-log.csv`. Write the exception dataset deliverable, sampling in the markdown and pointing at the full output.
+Added the "Level 3 - Record-Level Classification" section: business key `transaction_id`, an explicit decision order (duplicate in source -> duplicate in Bronze -> missing in Bronze -> unexpected in Bronze -> amount mismatch -> currency mismatch -> posting-date mismatch -> exact match) stated in the notebook and the deliverable, plus the one caveat that order creates (a Bronze-duplicated id excluded from the join classifies as "missing" even though Bronze holds a row for it - stated plainly, not resolved here). Result: 1940 exact match, 33 missing in Bronze, 0 unexpected, 9 amount mismatch, 4 currency mismatch, 4 posting-date mismatch, 20/10 duplicate-in-source rows/ids, 36/18 duplicate-in-Bronze rows/ids - 106 exception rows total, materialized in full in the notebook's cell output and sampled by class in the deliverable. A real bug surfaced and was fixed before this run: the first pass showed identical source/bronze values for `amount_mismatch` rows because the mismatch was in `transaction_amount`, not `local_currency_amount`, but only the latter was displayed - fixed to report whichever field actually differs. Wrote `results/assessment-1/assessment-1-exception-dataset.md` with the classification method, the eight-class table, and a representative sample.
 
 ### 6. Task 3 - root-cause investigation
 
@@ -539,6 +539,7 @@ _09.02-09.04 run (prerequisites, context write-up, task 1 profiling - all ten ch
 | -------- | --- | ------ | ------------------------------------------------ |
 | 09.IS.01 | 01  | closed | gh-pages `git push` had no credentials configured |
 | 09.IS.02 | 02  | closed | deliverable status marker convention conflict     |
+| 09.IS.03 | 03  | closed | exception dataset showed identical source/bronze values |
 
 _09.IS.01 (closed) gh-pages `git push` had no credentials configured_
 
@@ -633,6 +634,49 @@ Step 02's manifest-row regex had to tolerate the variable column padding markdow
 **validation evidence**
 
 `scripts/07-deliverables-scaffold.sh --check` and `./scripts/08-assessment-site.sh build` (strict) both pass; `results/assessment-1/README.md` row 01 reads `open` and survives a second scaffold run unchanged.
+
+_09.IS.03 (closed) exception dataset showed identical source/bronze values_
+
+**problem description**
+
+The first execution of the level-3 exception dataset showed `amount_mismatch` rows with identical `source_value`/`bronze_value` (e.g. `6990.12` / `6990.12`, `variance=0.0`) - a mismatch class with no visible mismatch.
+
+**exception**
+
+```log
+| TXN-0000010   | amount_mismatch    | 6990.12     | 6990.12     | 0.0     |
+```
+
+**triggering actions**
+
+reviewed the notebook's own printed sample rows for the exception dataset after the first Task 2 execution.
+
+**hypothesis**
+
+the classification condition checks both `local_currency_amount` and `transaction_amount` for a mismatch (either can trigger `amount_mismatch`), but the displayed `source_value`/`bronze_value` always showed `local_currency_amount` regardless of which field actually differed.
+
+**diagnostic steps**
+
+- first out exception is NOT a diagnostic step
+- diagnostic steps reveal information or apply a fix
+- assume re-run and validation, these are not diagnostic steps
+- keep the step description brief, use the diagnostics details section to elaborate actions and learnings for each step
+
+| id          | seq | status | step                                     |
+| ----------- | --- | ------ | ------------------------------------------- |
+| 09.IS.03.01 | 01  | closed | confirmed via direct SQL which field differed |
+| 09.IS.03.02 | 02  | closed | added a per-row field-detection column [01]  |
+| 09.IS.03.03 | 03  | closed | reran the notebook and confirmed real values  |
+
+01. **09.IS.03.02** `mismatched_field` picks `local_currency_amount` or `transaction_amount` per row depending on which one actually breached the 0.01 tolerance, and `source_value`/`bronze_value`/`variance` follow that same field.
+
+**diagnostic details**
+
+Confirmed via SQL that all 9 `amount_mismatch` rows differ on `transaction_amount` only, none on `local_currency_amount` - Bronze's amount-transform defect mutates the raw transaction amount, not the already-derived local-currency figure, so a check that only looked at `local_currency_amount` would report the right count but the wrong evidence for every single row.
+
+**validation evidence**
+
+Rerun sample rows show real, differing `source_value`/`bronze_value` pairs (e.g. `6990.12` / `6992.03`, `variance=1.91`); `exception_dataset.groupBy("mismatched_field")` confirms all 9 are `transaction_amount`.
 
 **user actions**
 

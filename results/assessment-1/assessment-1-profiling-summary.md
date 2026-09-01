@@ -19,7 +19,7 @@ See [overview](assessment-1-overview.md) for the scenario, source/Bronze table s
 
 ## Findings
 
-| id       | check                                | src                    | bronze                 |
+| id       | check                                  | src                     | bronze                  |
 | -------- | -------------------------------------- | ----------------------- | ----------------------- |
 | 09.CK.01 | record / distinct transaction_id       | 2010 / 2000 (gap 10)    | 1993 / 1975 (gap 18)    |
 | 09.CK.02 | duplicate id groups                    | 10 / 10 extra           | 18 / 18 extra [01]      |

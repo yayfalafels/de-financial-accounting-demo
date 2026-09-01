@@ -78,6 +78,22 @@
               <ul class="nav flex-column">
               </ul>
             </li>
+            <li class="nav-item" data-bs-level="2"><a href="#classification-method" class="nav-link">Classification method</a>
+              <ul class="nav flex-column">
+              </ul>
+            </li>
+            <li class="nav-item" data-bs-level="2"><a href="#record-classes" class="nav-link">Record classes</a>
+              <ul class="nav flex-column">
+              </ul>
+            </li>
+            <li class="nav-item" data-bs-level="2"><a href="#exception-dataset-schema" class="nav-link">Exception dataset schema</a>
+              <ul class="nav flex-column">
+              </ul>
+            </li>
+            <li class="nav-item" data-bs-level="2"><a href="#ground-truth-check" class="nav-link">Ground-truth check</a>
+              <ul class="nav flex-column">
+              </ul>
+            </li>
               </ul>
             </li>
         </ul>
@@ -86,11 +102,148 @@
                     <div class="col-md-9" role="main">
 
 <h1 id="assessment-1-exception-dataset">Assessment 1 - Exception Dataset</h1>
+<p><strong>Task 2 - Source-to-Bronze Reconciliation (Level 3)</strong></p>
+<p>See <a href="../assessment-1-overview/">overview</a> for the scenario, source/Bronze table shapes, and the seeded-vs-production scale statement. See <a href="../assessment-1-reconciliation-results/">assessment-1-reconciliation-results.md</a> for levels 1-2.</p>
 <h2 id="sources">Sources</h2>
 <ul>
-<li>notebook: <a href="https://github.com/yayfalafels/de-financial-accounting-demo/blob/main/notebooks/assessment1_profiling.ipynb">assessment1_profiling.ipynb</a></li>
-<li>batch: <code>reconciliation.rc_batch_control.batch_id = &lt;n&gt;</code></li>
-</ul></div>
+<li>notebook: <a href="https://github.com/yayfalafels/de-financial-accounting-demo/blob/main/notebooks/assessment1_profiling.ipynb">assessment1_profiling.ipynb</a> -&gt; "Level 3 - Record-Level Classification" section</li>
+<li>batch: <code>reconciliation.rc_batch_control.batch_id = 9</code></li>
+<li>ground-truth verification of every count below: <a href="../assessment-1-audit/">assessment-1-audit.md</a></li>
+</ul>
+<h2 id="classification-method">Classification method</h2>
+<p>Business key: <code>transaction_id</code>. Decision order, applied so every row lands in exactly one of the eight classes below:</p>
+<ol>
+<li><strong>duplicate in source</strong> - <code>transaction_id</code> appears more than once in <code>src_transaction_daily</code>; every row sharing that id is flagged, excluded from the comparison below since there is no single source row to compare against</li>
+<li><strong>duplicate in Bronze</strong> - same rule, applied to <code>bronze.transaction_daily</code></li>
+<li>for <code>transaction_id</code>s not a duplicate on either side, a full outer join classifies by the first rule that applies: <strong>missing in Bronze</strong> -&gt; <strong>unexpected in Bronze</strong> -&gt; <strong>amount mismatch</strong> (<code>transaction_amount</code> or <code>local_currency_amount</code> differs beyond 0.01) -&gt; <strong>currency mismatch</strong> -&gt; <strong>posting-date mismatch</strong> -&gt; <strong>exact match</strong></li>
+</ol>
+<p>Caveat: a <code>transaction_id</code> unique in source but duplicated in Bronze is excluded from step 3 (already counted under duplicate in Bronze), so its source row classifies as <em>missing in Bronze</em> here even though Bronze does hold a (duplicated) row for it - "missing in Bronze" means "no single canonical Bronze row," not necessarily "zero Bronze rows total."</p>
+<h2 id="record-classes">Record classes</h2>
+<table>
+<thead>
+<tr>
+<th>id</th>
+<th>record class</th>
+<th>count</th>
+<th>materialisation</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>09.CK.23</td>
+<td>exact match</td>
+<td>1940</td>
+<td>-</td>
+</tr>
+<tr>
+<td>09.CK.24</td>
+<td>missing in Bronze</td>
+<td>33 [01]</td>
+<td>see exception rows</td>
+</tr>
+<tr>
+<td>09.CK.25</td>
+<td>unexpected in Bronze</td>
+<td>0</td>
+<td>-</td>
+</tr>
+<tr>
+<td>09.CK.26</td>
+<td>amount mismatch</td>
+<td>9 [02]</td>
+<td>see exception rows</td>
+</tr>
+<tr>
+<td>09.CK.27</td>
+<td>currency mismatch</td>
+<td>4</td>
+<td>see exception rows</td>
+</tr>
+<tr>
+<td>09.CK.28</td>
+<td>posting-date mismatch</td>
+<td>4</td>
+<td>see exception rows</td>
+</tr>
+<tr>
+<td>09.CK.29</td>
+<td>duplicate in source</td>
+<td>20 rows / 10 ids</td>
+<td>see exception rows</td>
+</tr>
+<tr>
+<td>09.CK.30</td>
+<td>duplicate in Bronze</td>
+<td>36 rows / 18 ids</td>
+<td>see exception rows</td>
+</tr>
+</tbody>
+</table>
+<ol>
+<li><strong>09.CK.24</strong> 8 of these 33 are the "excluded because Bronze-duplicated" case the caveat above describes - see the notebook section for the exact <code>transaction_id</code> overlap with <code>09.CK.30</code>. The remaining 25 have no Bronze row under any classification.</li>
+<li><strong>09.CK.26</strong> all 9 differ on <code>transaction_amount</code>, none on <code>local_currency_amount</code> alone - the two fields disagree with each other for these rows on the Bronze side, worth carrying into task 3.</li>
+</ol>
+<h2 id="exception-dataset-schema">Exception dataset schema</h2>
+<p>Minimum columns per the assignment: <code>transaction_id</code>, <code>issue_type</code>, <code>source_value</code>, <code>bronze_value</code>, <code>variance</code>, <code>batch_id</code>. <code>issue_type</code> uses the eight record-class names above (snake_case). <code>source_value</code>/<code>bronze_value</code> hold whichever field the classification rule actually compared (the amount, currency code, or posting date); <code>variance</code> is populated only for <code>amount_mismatch</code>.</p>
+<p><strong>Materialisation</strong>: the full 106-row exception dataset lives in the notebook's own cell output (<code>exception_dataset</code>, cached and printed in full by class), git-tracked as part of the committed, executed notebook. This deliverable embeds only representative rows below, grouped by class - see the notebook section cited above for every row.</p>
+<table>
+<thead>
+<tr>
+<th>transaction_id</th>
+<th>issue_type</th>
+<th>source_value</th>
+<th>bronze_value</th>
+<th>variance</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>TXN-0000010</td>
+<td>amount mismatch</td>
+<td>6990.12</td>
+<td>6992.03</td>
+<td>1.91</td>
+</tr>
+<tr>
+<td>TXN-0000031</td>
+<td>amount mismatch</td>
+<td>475.68</td>
+<td>478.76</td>
+<td>3.08</td>
+</tr>
+<tr>
+<td>TXN-0000856</td>
+<td>currency mismatch</td>
+<td>GBP</td>
+<td>EUR</td>
+<td>-</td>
+</tr>
+<tr>
+<td>TXN-0000971</td>
+<td>currency mismatch</td>
+<td>SGD</td>
+<td>JPY</td>
+<td>-</td>
+</tr>
+<tr>
+<td>TXN-0000068</td>
+<td>duplicate in Bronze</td>
+<td>-</td>
+<td>48039.77</td>
+<td>-</td>
+</tr>
+<tr>
+<td>TXN-0000090</td>
+<td>duplicate in Bronze</td>
+<td>-</td>
+<td>33260.17</td>
+<td>-</td>
+</tr>
+</tbody>
+</table>
+<p>Full per-class counts and the remaining rows (25 genuinely absent, 32 more duplicates, 2 more currency mismatches, 4 posting-date mismatches, and 20 duplicate-in-source rows) are in the notebook output, not reproduced here.</p>
+<h2 id="ground-truth-check">Ground-truth check</h2>
+<p>See <a href="../assessment-1-audit/">assessment-1-audit.md</a> for the comparison against <code>data/mock/issue-log.csv</code> proving these detected classes match the injected catalog.</p></div>
             </div>
         </div>
 

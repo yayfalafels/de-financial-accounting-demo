@@ -78,6 +78,14 @@
               <ul class="nav flex-column">
               </ul>
             </li>
+            <li class="nav-item" data-bs-level="2"><a href="#level-1-batch-totals" class="nav-link">Level 1 - Batch Totals</a>
+              <ul class="nav flex-column">
+              </ul>
+            </li>
+            <li class="nav-item" data-bs-level="2"><a href="#level-2-dimensional-reconciliation" class="nav-link">Level 2 - Dimensional Reconciliation</a>
+              <ul class="nav flex-column">
+              </ul>
+            </li>
               </ul>
             </li>
         </ul>
@@ -86,11 +94,146 @@
                     <div class="col-md-9" role="main">
 
 <h1 id="assessment-1-reconciliation-results">Assessment 1 - Reconciliation Results</h1>
+<p><strong>Task 2 - Source-to-Bronze Reconciliation</strong></p>
+<p>See <a href="../assessment-1-overview/">overview</a> for the scenario, source/Bronze table shapes, and the seeded-vs-production scale statement.</p>
 <h2 id="sources">Sources</h2>
 <ul>
-<li>notebook: <a href="https://github.com/yayfalafels/de-financial-accounting-demo/blob/main/notebooks/assessment1_profiling.ipynb">assessment1_profiling.ipynb</a></li>
-<li>batch: <code>reconciliation.rc_batch_control.batch_id = &lt;n&gt;</code></li>
-</ul></div>
+<li>notebook: <a href="https://github.com/yayfalafels/de-financial-accounting-demo/blob/main/notebooks/assessment1_profiling.ipynb">assessment1_profiling.ipynb</a> -&gt; "Task 2 - Source-to-Bronze Reconciliation" section</li>
+<li>batch: <code>reconciliation.rc_batch_control.batch_id = 9</code></li>
+<li>ground-truth verification of every count below: <a href="../assessment-1-audit/">assessment-1-audit.md</a></li>
+<li>record-level classification and the exception dataset: <a href="../assessment-1-exception-dataset/">assessment-1-exception-dataset.md</a></li>
+</ul>
+<h2 id="level-1-batch-totals">Level 1 - Batch Totals</h2>
+<table>
+<thead>
+<tr>
+<th>id</th>
+<th>check</th>
+<th>src</th>
+<th>bronze</th>
+<th>variance</th>
+<th>variance %</th>
+<th>status</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>09.CK.11</td>
+<td>record count</td>
+<td>2010</td>
+<td>1993</td>
+<td>-17</td>
+<td>-0.8458%</td>
+<td>WARNING</td>
+</tr>
+<tr>
+<td>09.CK.12</td>
+<td>distinct count</td>
+<td>2000</td>
+<td>1975</td>
+<td>-25</td>
+<td>-1.25%</td>
+<td>FAIL</td>
+</tr>
+<tr>
+<td>09.CK.13</td>
+<td>debit sum</td>
+<td>24853095.67</td>
+<td>24588770.69</td>
+<td>-264324.98</td>
+<td>-1.0635%</td>
+<td>FAIL</td>
+</tr>
+<tr>
+<td>09.CK.14</td>
+<td>credit sum</td>
+<td>24469169.68</td>
+<td>24265754.53</td>
+<td>-203415.15</td>
+<td>-0.8313%</td>
+<td>WARNING</td>
+</tr>
+<tr>
+<td>09.CK.15</td>
+<td>net amount</td>
+<td>383925.99</td>
+<td>323016.16</td>
+<td>-60909.83</td>
+<td>-15.865%</td>
+<td>FAIL</td>
+</tr>
+<tr>
+<td>09.CK.16</td>
+<td>local-currency sum</td>
+<td>56551777.54</td>
+<td>56009111.70</td>
+<td>-542665.84</td>
+<td>-0.9596%</td>
+<td>WARNING</td>
+</tr>
+</tbody>
+</table>
+<p>Status: <code>PASS</code> if <code>|variance %| &lt; 0.1</code>, <code>WARNING</code> if <code>&lt; 1</code>, else <code>FAIL</code>. Every total disagrees beyond <code>PASS</code>; <strong>net amount</strong> is the most severe, off by nearly 16% - a batch-level total this sensitive to a handful of record-level differences is itself worth carrying into task 3, not just the totals themselves.</p>
+<p><code>09.CK.11</code> (record count) and <code>09.CK.14</code>+<code>09.CK.13</code> combined (<code>amount</code> = gross debit + credit) are written to <code>reconciliation.rc_reconciliation_results</code> under <code>batch_id=9</code> - the only two of these six totals the existing control-table schema supports (see the notebook's Level 1 markdown for why). The other four are reported here only.</p>
+<h2 id="level-2-dimensional-reconciliation">Level 2 - Dimensional Reconciliation</h2>
+<p>Reconciled independently by each of six dimensions; the three group values with the largest absolute local-currency amount variance per dimension are the "largest-variance combinations."</p>
+<table>
+<thead>
+<tr>
+<th>id</th>
+<th>dimension</th>
+<th>distinct values</th>
+<th>nonzero variance</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>09.CK.17</td>
+<td>transaction_date</td>
+<td>5</td>
+<td>5 [01]</td>
+</tr>
+<tr>
+<td>09.CK.18</td>
+<td>branch_code</td>
+<td>20</td>
+<td>16 [02]</td>
+</tr>
+<tr>
+<td>09.CK.19</td>
+<td>currency_code</td>
+<td>11</td>
+<td>7 [03]</td>
+</tr>
+<tr>
+<td>09.CK.20</td>
+<td>product_code</td>
+<td>4</td>
+<td>4 [04]</td>
+</tr>
+<tr>
+<td>09.CK.21</td>
+<td>transaction_type</td>
+<td>5</td>
+<td>2 [05]</td>
+</tr>
+<tr>
+<td>09.CK.22</td>
+<td>ingestion_file</td>
+<td>20</td>
+<td>12 [06]</td>
+</tr>
+</tbody>
+</table>
+<ol>
+<li><strong>09.CK.17</strong> largest: <code>2026-08-21</code> (-260,658.90), <code>2026-08-19</code> (-168,711.69), <code>2026-08-18</code> (-57,386.91).</li>
+<li><strong>09.CK.18</strong> largest: <code>BR014</code> (-90,870.13), <code>BR013</code> (-80,605.10), <code>BR011</code> (-79,614.19) - variance is spread thinly rather than concentrated in one branch.</li>
+<li><strong>09.CK.19</strong> largest: <code>SGD</code> (-239,896.50), <code>GBP</code> (-207,902.80), <code>USD</code> (-159,037.76) - roughly proportional to each currency's share of volume, not concentrated in one currency.</li>
+<li><strong>09.CK.20</strong> largest: <code>CURRENT</code> (-232,715.39), <code>SAVINGS</code> (-181,472.23), <code>LOAN</code> (-92,556.26) - all four products show a variance, none disproportionately.</li>
+<li><strong>09.CK.21</strong> largest: <code>DEBIT</code> (-355,345.22), <code>CREDIT</code> (-187,320.62); the third value, <code>ADJUSTMENT</code>, has zero variance on a single matched row.</li>
+<li><strong>09.CK.22</strong> largest: <code>source_extract_260821_MIDNIGHT.dat</code> (-269,583.23, entirely absent from Bronze - 7 source rows, 0 Bronze rows), <code>source_extract_260817_MIDNIGHT.dat</code> (-161,975.39, same pattern, 5 rows), <code>source_extract_260817_02.dat</code> (+98,323.35, the only one of the three with <em>more</em> Bronze rows than source). This is the open question task 1's profiling raised, now answered at the dimensional level: the low-volume <code>*_MIDNIGHT.dat</code> files carry a disproportionate share of the missing-record variance relative to their size - worth carrying into task 3.</li>
+</ol>
+<p><code>transaction_date</code> and <code>currency_code</code> show variance spread broadly across nearly every value rather than concentrated in one, while <code>ingestion_file</code> shows the opposite - two files carry a variance far larger than their row count alone would suggest. That contrast is itself a finding: whatever is driving the gap correlates with <code>ingestion_file</code> more than with the other five dimensions.</p></div>
             </div>
         </div>
 

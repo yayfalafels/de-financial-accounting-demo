@@ -211,7 +211,97 @@
 </ol>
 <p>All measured values are read live via PySpark JDBC against postgres in the notebook section cited above, not hand-typed against the ground truth.</p>
 <h2 id="task-2-source-to-bronze-reconciliation">Task 2 - Source-to-Bronze Reconciliation</h2>
-<p>pending - not yet implemented (09.05).</p>
+<table>
+<thead>
+<tr>
+<th>task ref</th>
+<th>check</th>
+<th>expected (issue-log)</th>
+<th>measured</th>
+<th>match</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>02.01.01-06</td>
+<td>batch totals</td>
+<td>n/a [01]</td>
+<td>see reconciliation-results</td>
+<td>n/a</td>
+</tr>
+<tr>
+<td>02.02.01-06</td>
+<td>dimensional variance</td>
+<td>n/a [01]</td>
+<td>see reconciliation-results</td>
+<td>n/a</td>
+</tr>
+<tr>
+<td>02.03.01</td>
+<td>exact match</td>
+<td>n/a</td>
+<td>1940</td>
+<td>n/a</td>
+</tr>
+<tr>
+<td>02.03.02</td>
+<td>missing in Bronze</td>
+<td>25 [02]</td>
+<td>33 [02]</td>
+<td>yes</td>
+</tr>
+<tr>
+<td>02.03.03</td>
+<td>unexpected in Bronze</td>
+<td>0</td>
+<td>0</td>
+<td>yes</td>
+</tr>
+<tr>
+<td>02.03.04</td>
+<td>amount mismatch</td>
+<td><code>bronze_amount_mismatch</code>=10 [03]</td>
+<td>9 [03]</td>
+<td>yes</td>
+</tr>
+<tr>
+<td>02.03.05</td>
+<td>currency mismatch</td>
+<td><code>bronze_currency_mismatch</code>=4</td>
+<td>4</td>
+<td>yes</td>
+</tr>
+<tr>
+<td>02.03.06</td>
+<td>posting-date mismatch</td>
+<td><code>bronze_posting_date_mismatch</code>=5 [04]</td>
+<td>4 [04]</td>
+<td>yes</td>
+</tr>
+<tr>
+<td>02.03.07</td>
+<td>duplicate in source</td>
+<td><code>duplicate_transaction_id</code>=10 ids</td>
+<td>10 ids / 20 rows</td>
+<td>yes</td>
+</tr>
+<tr>
+<td>02.03.08</td>
+<td>duplicate in Bronze</td>
+<td>10 inherited + 8 reprocessed [05]</td>
+<td>18 ids / 36 rows</td>
+<td>yes</td>
+</tr>
+</tbody>
+</table>
+<ol>
+<li><strong>02.01/02.02</strong> batch totals and dimensional variance are aggregate measures with no single injected-issue tag of their own; they are the mechanical consequence of every level-3 record class below plus ordinary rounding, not independently seeded.</li>
+<li><strong>02.03.02</strong> issue-log's <code>utc_sgt_midnight_boundary</code> (20) + <code>missing_in_bronze_unrelated</code> (5) = 25 rows genuinely absent from Bronze under any classification. The measured 33 includes those 25 plus 8 more <code>transaction_id</code>s that are unique in source but duplicated in Bronze - excluded from the level-3 join by the decision order's own stated caveat (already counted under <code>duplicate_in_bronze</code>), not a second population of genuinely missing rows.</li>
+<li><strong>02.03.04</strong> of the 10 <code>bronze_amount_mismatch</code> rows, 1 (<code>TXN-0001449</code>) is also a duplicate on both sides and is excluded from the level-3 join entirely (counted under <code>duplicate_in_source</code>/<code>duplicate_in_bronze</code> instead), leaving 9 reaching the <code>amount_mismatch</code> class - exactly the measured count.</li>
+<li><strong>02.03.06</strong> of the 5 <code>bronze_posting_date_mismatch</code> rows, 1 (<code>TXN-0001985</code>) also carries an amount difference and is classified <code>amount_mismatch</code> under the decision order's amount-before-posting-date priority, leaving 4 in <code>posting_date_mismatch</code> - exactly the measured count.</li>
+<li><strong>02.03.08</strong> bronze's 18 duplicated <code>transaction_id</code>s split into the 10 inherited from source's own <code>duplicate_transaction_id</code> rows (carried through unchanged) plus the 8 seeded <code>duplicate_in_bronze_reprocessed</code> rows unique to Bronze.</li>
+</ol>
+<p>Every level-3 count reconciles exactly to the injected catalog once the decision order's own documented exclusions are accounted for - no unexplained residual.</p>
 <h2 id="task-3-root-cause-investigation">Task 3 - Root-Cause Investigation</h2>
 <p>pending - not yet implemented (09.07).</p></div>
             </div>

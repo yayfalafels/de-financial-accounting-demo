@@ -43,7 +43,7 @@
 | 09.07 | 07  | closed  | task 3 - root-cause investigation        |
 | 09.10 | 08  | closed  | notebook consolidation and clean rerun   |
 | 09.11 | 09  | closed  | deliverable review and status promotion  |
-| 09.08 | 10  | open    | dq-control recommendations               |
+| 09.08 | 10  | closed  | dq-control recommendations               |
 | 09.09 | 11  | open    | dashboard mock-up                        |
 | 09.IS | 12  | pending | validate                                 |
 | 09.12 | 13  | pending | publish assessment site                  |

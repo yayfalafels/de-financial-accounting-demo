@@ -2,7 +2,7 @@
 
 **Task 3 - Root-Cause Investigation**
 
-See [overview](assessment-1-overview.md) for the scenario, source/Bronze table shapes, and the seeded-vs-production scale statement. See [assessment-1-reconciliation-results.md](assessment-1-reconciliation-results.md) and [assessment-1-exception-dataset.md](assessment-1-exception-dataset.md) for the two open questions investigated below.
+See [overview](assessment-1-overview.md) for the scenario, source/Bronze table shapes, and the seeded-vs-production scale statement. See [task 1 reconciliation](assessment-1-reconciliation-results.md) and [task 2 exceptions](assessment-1-exception-dataset.md) for the two open questions investigated below.
 
 ## Sources
 

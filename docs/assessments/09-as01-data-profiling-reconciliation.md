@@ -41,12 +41,12 @@
 | 09.05 | 05  | closed  | task 2 - source-to-bronze reconciliation |
 | 09.06 | 06  | closed  | exception dataset                        |
 | 09.07 | 07  | closed  | task 3 - root-cause investigation        |
-| 09.08 | 08  | pending | dq-control recommendations               |
-| 09.09 | 09  | pending | dashboard mock-up                        |
-| 09.10 | 10  | pending | notebook consolidation and clean rerun   |
-| 09.11 | 11  | pending | deliverable review and status promotion  |
-| 09.12 | 12  | pending | publish assessment site                  |
-| 09.IS | 13  | pending | validate                                 |
+| 09.10 | 08  | closed  | notebook consolidation and clean rerun   |
+| 09.11 | 09  | closed  | deliverable review and status promotion  |
+| 09.08 | 10  | open    | dq-control recommendations               |
+| 09.09 | 11  | open    | dashboard mock-up                        |
+| 09.IS | 12  | pending | validate                                 |
+| 09.12 | 13  | pending | publish assessment site                  |
 
 ## Scope
 
@@ -321,9 +321,35 @@ The deliverables scaffolded by [08](../features/08-assessment-deliverables-conve
 
 The dashboard deliverable is satisfied by the existing `.pbip` template owned by [06](../features/06-powerbi-dashboard-setup.md), extended with an Assessment 1 view, not by a new Power BI project. Edits are made in the tracked template, synced to the Windows-side working copy with `scripts/05-powerbi-sync.sh`, opened and saved in Power BI Desktop by the user, then synced back. The deliverable manifest's dashboard row remains a reference to that path.
 
-- **pages/visuals** - the reconciliation summary, variance-by-dimension, and exception-breakdown visuals
-- **data source** - the `reconciliation.rc_*` tables the template already binds to
-- **user action** - the Desktop open/save round trip that only the user can perform
+**data source** - the template's three live `reconciliation.rc_*` tables only cover level 1 (`rc_reconciliation_results.dimension IN ('row_count','amount')`, per [reconciliation design - task 2](#reconciliation-design--task-2)); level 2 dimensional variance and level 3 exception classes exist only in the notebook and the markdown deliverables, no live table. Rather than a staging step, two new tables query `src_transaction_daily`/`bronze.transaction_daily` directly - postgres-backed exactly like `rc_reconciliation_results.tmdl` already is, whose M query already embeds an arbitrary `SELECT` in `PostgreSQL.Database(...)`'s `Query=` parameter. No export script, no CSV, no intermediate table: each refresh in Desktop re-runs the query live.
+
+| id | table                          | columns                                          |
+| -- | ------------------------------- | --------------------------------------------------- |
+| 01 | assessment1-dimension-variance   | `dimension, group_value, counts/amounts` [01]         |
+| 02 | assessment1-exception-summary    | `issue_type, row_count` [02]                          |
+
+01. **01** `src_count, bronze_count, count_variance, src_amount, bronze_amount, amount_variance` - one row per (`dimension`, `group_value`) across all six level 2 dimensions, live from source/Bronze, not tied to a `batch_id` snapshot.
+02. **02** one row per level 3 record class, including the two duplicate classes - same live-query reasoning.
+
+See [Implement step 8](#8-dashboard-mock-up) for the two tables' full M-query SQL.
+
+**pages/visuals** - a new report page, "Assessment 1 - Reconciliation", alongside the template's existing shared page:
+
+| id | visual                      | type/fields    | source table                   |
+| -- | --------------------------- | -------------- | ------------------------------- |
+| 01 | reconciliation summary [01] | 3 cards        | `rc_batch_control`               |
+| 02 | variance by dimension       | bar chart [02] | `assessment1-dimension-variance` |
+| 03 | exception breakdown         | table [03]     | `assessment1-exception-summary`  |
+| 04 | total exceptions            | card [04]      | `assessment1-exception-summary`  |
+
+01. **01** the template's existing batch-count / batches-by-status / latest-variance-% cards, reused unchanged.
+02. **02** `group_value` (axis) x `amount_variance` (value), sliced by `dimension`.
+03. **03** `issue_type, row_count`.
+04. **04** sum of `row_count` where `issue_type <> 'exact_match'`.
+
+**safe-edit boundary** - per the powerbi-dashboard-workspace skill: the two new tables (id/columns/M-query) are TMDL, safe to author directly. Visuals 02-04 bind to columns that don't exist in the project *yet*, and all four sit on a brand new page - both are the explicitly higher-risk category that skill reserves for a human in Desktop, not an agent edit. Only the data layer is implemented directly; the page and its visuals are a checklist the user builds.
+
+**user action** - the Desktop open/save round trip (unchanged), plus building the new page's three visuals from the checklist above once the two new tables load with real data.
 
 ### notebook organisation
 
@@ -407,7 +433,7 @@ awk '/^\|/ && length($0) >= 115 { print FILENAME ":" FNR ": row too long"; bad =
 | 09.EL.05 | `results/assessment-1/assessment-1-root-cause-analysis.md`   | task 3 write-up               |
 | 09.EL.06 | `results/assessment-1/assessment-1-dq-recommendations.md`    | control recommendations       |
 | 09.EL.07 | `results/assessment-1/README.md`                             | regenerated manifest          |
-| 09.EL.08 | `powerbi/reconciliation-dashboard-template/`                 | assessment 1 dashboard view   |
+| 09.EL.08 | `powerbi/reconciliation-dashboard-template/`                 | assessment 1 dashboard view [08] |
 | 09.EL.09 | `src/sparksql/`                                              | reusable query files          |
 | 09.EL.10 | `docs/milestones.md`                                         | milestone 09 status/closure   |
 | 09.EL.11 | `results/assessment-1/assessment-1-overview.md`              | assessment scope context      |
@@ -426,6 +452,7 @@ awk '/^\|/ && length($0) >= 115 { print FILENAME ":" FNR ": row too long"; bad =
 05. **09.EL.14/15** added for [09.IS.01](#validate) - the `gh-pages` push had no credentials available in this environment.
 06. **09.EL.16/17** added for [09.IS.02](#validate) - moves deliverable `status` off the page and into the manifest, adding `open`.
 07. **09.EL.18** the ground-truth checks moved out of `assessment-1-profiling-summary.md` into their own file, per user direction during 09.04 review - not a bug fix, a requested reorganization.
+08. **09.EL.08** gains two new postgres-backed TMDL tables under `.SemanticModel/definition/tables/`, registered in `model.tmdl`, and (human-built, see [dashboard mock-up](#dashboard-mock-up)) one new report page under `.Report/definition/pages/`.
 
 No `.env`, `.env.sample`, schema JSON, DDL, or seed-script change is expected. A required change to any of those is a defect in the owning feature and is raised there rather than patched from this tracker.
 
@@ -508,7 +535,148 @@ Write the preventive and detective control recommendations, each expressed as so
 
 edit locations: `09.EL.08`
 
-Edit the tracked `.pbip` template to add the Assessment 1 view, run `scripts/05-powerbi-sync.sh` to push it to the Windows-side working copy, have the user open and save it in Power BI Desktop, then sync back and confirm with an independent `diff -rq` that the round trip lost nothing.
+_boilerplate - expand during 09.09_
+
+Per [dashboard mock-up](#dashboard-mock-up)'s safe-edit boundary: the two TMDL tables (id/columns/M-query) are authored directly; the new page and its three visuals are a checklist the user builds in Desktop. No export script, no CSV, no `batch_id` staging column - both tables query `src_transaction_daily`/`bronze.transaction_daily` live, the same way `rc_reconciliation_results.tmdl` already queries `reconciliation.rc_reconciliation_results` live: an arbitrary `SELECT` embedded in `PostgreSQL.Database(...)`'s `Query=` parameter. Both SQL strings below were run directly against postgres and their row counts/values checked against the published deliverables before being written here.
+
+**1. add the two TMDL tables** under `.SemanticModel/definition/tables/`, modeled directly on `rc_reconciliation_results.tmdl`'s postgres-partition shape (verified sibling, not invented syntax) - fresh `lineageTag` GUIDs per column, CRLF line endings:
+
+`assessment1-dimension-variance.tmdl` - one row per (`dimension`, `group_value`) across all six level 2 dimensions, verified against postgres to return 65 rows (5+20+11+4+5+20):
+
+```
+table assessment1-dimension-variance
+	lineageTag: 44d195ec-736a-486b-807b-8110a7b2d3cb
+
+	column dimension
+		dataType: string
+		lineageTag: 4b5ae694-4aca-404c-9ba2-f659dce3197c
+		summarizeBy: none
+		sourceColumn: dimension
+
+		annotation SummarizationSetBy = Automatic
+
+	column group_value
+		dataType: string
+		lineageTag: 7370e5b3-5234-46c7-ac2c-8fe20cafff2e
+		summarizeBy: none
+		sourceColumn: group_value
+
+		annotation SummarizationSetBy = Automatic
+
+	column src_count
+		dataType: int64
+		formatString: 0
+		lineageTag: c2ab1ca6-a543-4640-b524-75f75478e0bf
+		summarizeBy: sum
+		sourceColumn: src_count
+
+		annotation SummarizationSetBy = Automatic
+
+	column bronze_count
+		dataType: int64
+		formatString: 0
+		lineageTag: 72517296-a0ca-4d22-91df-68c00505c02a
+		summarizeBy: sum
+		sourceColumn: bronze_count
+
+		annotation SummarizationSetBy = Automatic
+
+	column count_variance
+		dataType: int64
+		formatString: 0
+		lineageTag: 1fcc2ed5-26b6-4701-8c2b-6a9e75a50f8c
+		summarizeBy: sum
+		sourceColumn: count_variance
+
+		annotation SummarizationSetBy = Automatic
+
+	column src_amount
+		dataType: double
+		lineageTag: f16e38af-862b-4d13-a49f-b946bdbf0cc7
+		summarizeBy: sum
+		sourceColumn: src_amount
+
+		annotation SummarizationSetBy = Automatic
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	column bronze_amount
+		dataType: double
+		lineageTag: 5b52beef-77d4-43d7-bc33-8abc829447b9
+		summarizeBy: sum
+		sourceColumn: bronze_amount
+
+		annotation SummarizationSetBy = Automatic
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	column amount_variance
+		dataType: double
+		lineageTag: c5f6b609-4884-4b00-bbd9-e58917c1e91c
+		summarizeBy: sum
+		sourceColumn: amount_variance
+
+		annotation SummarizationSetBy = Automatic
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	partition assessment1-dimension-variance = m
+		mode: import
+		source =
+				let
+				    Source = PostgreSQL.Database("localhost:5432", "as01_source_db", [Query="SELECT 'transaction_date' dimension, COALESCE(s.transaction_date::text, b.transaction_date::text) group_value, COALESCE(s.src_count,0) src_count, COALESCE(b.bronze_count,0) bronze_count, COALESCE(b.bronze_count,0)-COALESCE(s.src_count,0) count_variance, COALESCE(s.src_amount,0) src_amount, COALESCE(b.bronze_amount,0) bronze_amount, COALESCE(b.bronze_amount,0)-COALESCE(s.src_amount,0) amount_variance FROM (SELECT transaction_date, COUNT(*) src_count, SUM(local_currency_amount) src_amount FROM src_transaction_daily GROUP BY transaction_date) s FULL OUTER JOIN (SELECT transaction_date, COUNT(*) bronze_count, SUM(local_currency_amount) bronze_amount FROM bronze.transaction_daily GROUP BY transaction_date) b ON s.transaction_date = b.transaction_date UNION ALL SELECT 'branch_code' dimension, COALESCE(s.branch_code::text, b.branch_code::text) group_value, COALESCE(s.src_count,0) src_count, COALESCE(b.bronze_count,0) bronze_count, COALESCE(b.bronze_count,0)-COALESCE(s.src_count,0) count_variance, COALESCE(s.src_amount,0) src_amount, COALESCE(b.bronze_amount,0) bronze_amount, COALESCE(b.bronze_amount,0)-COALESCE(s.src_amount,0) amount_variance FROM (SELECT branch_code, COUNT(*) src_count, SUM(local_currency_amount) src_amount FROM src_transaction_daily GROUP BY branch_code) s FULL OUTER JOIN (SELECT branch_code, COUNT(*) bronze_count, SUM(local_currency_amount) bronze_amount FROM bronze.transaction_daily GROUP BY branch_code) b ON s.branch_code = b.branch_code UNION ALL SELECT 'currency_code' dimension, COALESCE(s.currency_code::text, b.currency_code::text) group_value, COALESCE(s.src_count,0) src_count, COALESCE(b.bronze_count,0) bronze_count, COALESCE(b.bronze_count,0)-COALESCE(s.src_count,0) count_variance, COALESCE(s.src_amount,0) src_amount, COALESCE(b.bronze_amount,0) bronze_amount, COALESCE(b.bronze_amount,0)-COALESCE(s.src_amount,0) amount_variance FROM (SELECT currency_code, COUNT(*) src_count, SUM(local_currency_amount) src_amount FROM src_transaction_daily GROUP BY currency_code) s FULL OUTER JOIN (SELECT currency_code, COUNT(*) bronze_count, SUM(local_currency_amount) bronze_amount FROM bronze.transaction_daily GROUP BY currency_code) b ON s.currency_code = b.currency_code UNION ALL SELECT 'product_code' dimension, COALESCE(s.product_code::text, b.product_code::text) group_value, COALESCE(s.src_count,0) src_count, COALESCE(b.bronze_count,0) bronze_count, COALESCE(b.bronze_count,0)-COALESCE(s.src_count,0) count_variance, COALESCE(s.src_amount,0) src_amount, COALESCE(b.bronze_amount,0) bronze_amount, COALESCE(b.bronze_amount,0)-COALESCE(s.src_amount,0) amount_variance FROM (SELECT product_code, COUNT(*) src_count, SUM(local_currency_amount) src_amount FROM src_transaction_daily GROUP BY product_code) s FULL OUTER JOIN (SELECT product_code, COUNT(*) bronze_count, SUM(local_currency_amount) bronze_amount FROM bronze.transaction_daily GROUP BY product_code) b ON s.product_code = b.product_code UNION ALL SELECT 'transaction_type' dimension, COALESCE(s.transaction_type::text, b.transaction_type::text) group_value, COALESCE(s.src_count,0) src_count, COALESCE(b.bronze_count,0) bronze_count, COALESCE(b.bronze_count,0)-COALESCE(s.src_count,0) count_variance, COALESCE(s.src_amount,0) src_amount, COALESCE(b.bronze_amount,0) bronze_amount, COALESCE(b.bronze_amount,0)-COALESCE(s.src_amount,0) amount_variance FROM (SELECT transaction_type, COUNT(*) src_count, SUM(local_currency_amount) src_amount FROM src_transaction_daily GROUP BY transaction_type) s FULL OUTER JOIN (SELECT transaction_type, COUNT(*) bronze_count, SUM(local_currency_amount) bronze_amount FROM bronze.transaction_daily GROUP BY transaction_type) b ON s.transaction_type = b.transaction_type UNION ALL SELECT 'ingestion_file' dimension, COALESCE(s.ingestion_file::text, b.ingestion_file::text) group_value, COALESCE(s.src_count,0) src_count, COALESCE(b.bronze_count,0) bronze_count, COALESCE(b.bronze_count,0)-COALESCE(s.src_count,0) count_variance, COALESCE(s.src_amount,0) src_amount, COALESCE(b.bronze_amount,0) bronze_amount, COALESCE(b.bronze_amount,0)-COALESCE(s.src_amount,0) amount_variance FROM (SELECT ingestion_file, COUNT(*) src_count, SUM(local_currency_amount) src_amount FROM src_transaction_daily GROUP BY ingestion_file) s FULL OUTER JOIN (SELECT ingestion_file, COUNT(*) bronze_count, SUM(local_currency_amount) bronze_amount FROM bronze.transaction_daily GROUP BY ingestion_file) b ON s.ingestion_file = b.ingestion_file"]),
+				    #"Changed Type" = Table.TransformColumnTypes(Source,{{"dimension", type text}, {"group_value", type text}, {"src_count", Int64.Type}, {"bronze_count", Int64.Type}, {"count_variance", Int64.Type}, {"src_amount", type number}, {"bronze_amount", type number}, {"amount_variance", type number}})
+				in
+				    #"Changed Type"
+
+	annotation PBI_ResultType = Table
+```
+
+`assessment1-exception-summary.tmdl` - one row per level 3 record class, verified against postgres to match `exception-dataset.md` exactly (`exact_match`=1940, `missing_in_bronze`=33, `amount_mismatch`=9, `currency_mismatch`=4, `posting_date_mismatch`=4, `duplicate_in_source`=20, `duplicate_in_bronze`=36):
+
+```
+table assessment1-exception-summary
+	lineageTag: bc6d3dd5-2a1d-458e-aad9-76c0d4440f2c
+
+	column issue_type
+		dataType: string
+		lineageTag: 81f928b3-8e6f-4363-aae3-cac7295dc81a
+		summarizeBy: none
+		sourceColumn: issue_type
+
+		annotation SummarizationSetBy = Automatic
+
+	column row_count
+		dataType: int64
+		formatString: 0
+		lineageTag: 3789d592-403f-4b6f-903a-40cf5217bb91
+		summarizeBy: sum
+		sourceColumn: row_count
+
+		annotation SummarizationSetBy = Automatic
+
+	partition assessment1-exception-summary = m
+		mode: import
+		source =
+				let
+				    Source = PostgreSQL.Database("localhost:5432", "as01_source_db", [Query="WITH src_dupes AS (SELECT transaction_id FROM src_transaction_daily GROUP BY transaction_id HAVING COUNT(*) > 1), bronze_dupes AS (SELECT transaction_id FROM bronze.transaction_daily GROUP BY transaction_id HAVING COUNT(*) > 1), src_clean AS (SELECT * FROM src_transaction_daily WHERE transaction_id NOT IN (SELECT transaction_id FROM src_dupes)), bronze_clean AS (SELECT * FROM bronze.transaction_daily WHERE transaction_id NOT IN (SELECT transaction_id FROM bronze_dupes)), joined AS (SELECT COALESCE(s.transaction_id, b.transaction_id) transaction_id, s.local_currency_amount s_lca, b.local_currency_amount b_lca, s.transaction_amount s_amt, b.transaction_amount b_amt, s.currency_code s_ccy, b.currency_code b_ccy, s.posting_date s_pd, b.posting_date b_pd FROM src_clean s FULL OUTER JOIN bronze_clean b ON s.transaction_id = b.transaction_id) SELECT issue_type, COUNT(*) row_count FROM (SELECT CASE WHEN b_lca IS NULL THEN 'missing_in_bronze' WHEN s_lca IS NULL THEN 'unexpected_in_bronze' WHEN ABS(b_lca - s_lca) > 0.01 OR ABS(b_amt - s_amt) > 0.01 THEN 'amount_mismatch' WHEN b_ccy IS DISTINCT FROM s_ccy THEN 'currency_mismatch' WHEN b_pd IS DISTINCT FROM s_pd THEN 'posting_date_mismatch' ELSE 'exact_match' END AS issue_type FROM joined) t GROUP BY issue_type UNION ALL SELECT 'duplicate_in_source', (SELECT COUNT(*) FROM src_transaction_daily WHERE transaction_id IN (SELECT transaction_id FROM src_dupes)) UNION ALL SELECT 'duplicate_in_bronze', (SELECT COUNT(*) FROM bronze.transaction_daily WHERE transaction_id IN (SELECT transaction_id FROM bronze_dupes))"]),
+				    #"Changed Type" = Table.TransformColumnTypes(Source,{{"issue_type", type text}, {"row_count", Int64.Type}})
+				in
+				    #"Changed Type"
+
+	annotation PBI_ResultType = Table
+```
+
+The level 3 query's `CASE`/decision order mirrors the notebook's Level 3 section exactly (duplicate in source -> duplicate in Bronze -> missing -> unexpected -> amount -> currency -> posting-date -> exact match) - see [Level 3 - Record-Level Classification](#level-3---record-level-classification) for why that order and its one documented caveat.
+
+**2. register both tables** in `.SemanticModel/definition/model.tmdl`, which already lists the four existing tables the same way:
+
+```
+annotation PBI_QueryOrder = ["reconciliation-summary", "rc_batch_control", "rc_reconciliation_results", "rc_audit_trail", "assessment1-dimension-variance", "assessment1-exception-summary"]
+
+ref table assessment1-dimension-variance
+
+ref table assessment1-exception-summary
+```
+
+**3. round trip** - `scripts/05-powerbi-sync.sh push` (repo -> Windows), user opens in Desktop, confirms both new tables refresh with real rows (no repair prompt - the pass signal per the skill; the Postgres credential prompt on first refresh is expected, same as the other three live tables), builds the "Assessment 1 - Reconciliation" page and its three visuals from the [pages/visuals](#dashboard-mock-up) checklist, saves; then `pull` (Windows -> repo) and an independent `diff -rq` confirming the round trip captured exactly the new page/visuals and nothing else.
 
 ### 9. Notebook consolidation and clean rerun
 

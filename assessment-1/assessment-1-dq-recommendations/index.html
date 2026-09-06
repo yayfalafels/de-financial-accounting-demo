@@ -78,6 +78,18 @@
               <ul class="nav flex-column">
               </ul>
             </li>
+            <li class="nav-item" data-bs-level="2"><a href="#remediation" class="nav-link">Remediation</a>
+              <ul class="nav flex-column">
+              </ul>
+            </li>
+            <li class="nav-item" data-bs-level="2"><a href="#preventative-controls" class="nav-link">Preventative controls</a>
+              <ul class="nav flex-column">
+              </ul>
+            </li>
+            <li class="nav-item" data-bs-level="2"><a href="#prioritisation" class="nav-link">Prioritisation</a>
+              <ul class="nav flex-column">
+              </ul>
+            </li>
               </ul>
             </li>
         </ul>
@@ -86,10 +98,156 @@
                     <div class="col-md-9" role="main">
 
 <h1 id="assessment-1-dq-control-recommendations">Assessment 1 - DQ-Control Recommendations</h1>
+<p><strong>Task 3 - Permanent DQ-Control Recommendations</strong></p>
+<p>See <a href="../assessment-1-overview/">overview</a> for the scenario, source/Bronze table shapes, and the seeded-vs-production scale statement. Every control below closes a specific gap named in <a href="../assessment-1-root-cause-analysis/">assessment-1-root-cause-analysis.md</a>; each is written so it maps onto the existing <code>reconciliation.rc_*</code> control-table framework rather than as a standalone process ask.</p>
 <h2 id="sources">Sources</h2>
 <ul>
-<li>notebook: <a href="https://github.com/yayfalafels/de-financial-accounting-demo/blob/main/notebooks/assessment1_profiling.ipynb">assessment1_profiling.ipynb</a></li>
-<li>batch: <code>reconciliation.rc_batch_control.batch_id = &lt;n&gt;</code></li>
+<li>root cause and remediation this list is derived from: <a href="../assessment-1-root-cause-analysis/">task 1 root cause analysis</a></li>
+<li>existing control-table schema each recommendation maps to: <code>postgresql/rc-batch-control-create-table.sql</code>, <code>postgresql/rc-reconciliation-results-create-table.sql</code>, <code>postgresql/rc-audit-trail-create-table.sql</code></li>
+<li>currently-running check this framework already executes: <code>scripts/utils/reconciliation-runner.py</code> -&gt; <code>reconciliation.rc_batch_control</code> + <code>reconciliation.rc_reconciliation_results</code> (<code>dimension</code> in <code>row_count</code>, <code>amount</code>), thresholds <code>PASS &lt;0.1%</code>, <code>WARNING &lt;1%</code>, <code>FAIL &gt;=1%</code></li>
+</ul>
+<h2 id="remediation">Remediation</h2>
+<p>Remediation repairs the root cause for this specific case, so the two confirmed hypotheses stop recurring rather than only being caught after the fact.</p>
+<table>
+<thead>
+<tr>
+<th>id</th>
+<th>control</th>
+<th>addresses</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>P01</td>
+<td>derive business date from <code>transaction_date</code> before file-bucketing</td>
+<td>hypothesis 1</td>
+</tr>
+<tr>
+<td>P02</td>
+<td>make Bronze ingestion idempotent on <code>transaction_id</code> upsert, not append</td>
+<td>hypothesis 2</td>
+</tr>
+<tr>
+<td>P03</td>
+<td>require a load <code>reason_code</code> (<code>INITIAL</code>/<code>REPROCESS</code>), reject if absent</td>
+<td>hypothesis 2</td>
+</tr>
+<tr>
+<td>P04</td>
+<td>gate Bronze publish on the batch's <code>rc_*</code> status</td>
+<td>both</td>
+</tr>
+</tbody>
+</table>
+<ol>
+<li><strong>P01</strong> convert <code>source_extract_ts</code> to business timezone (or derive business date directly) before assigning a record to a daily ingestion file - closes the UTC/SGT midnight boundary from hypothesis 1.</li>
+<li><strong>P03</strong> the <code>-R</code> suffix already present in this data shows the signal exists; this makes it a required, validated field instead of an informal file-naming convention.</li>
+<li><strong>P04</strong> publish blocked while <code>rc_reconciliation_results.reconciliation_status = 'FAIL'</code> for the batch, so a bad batch stops before reaching Finance rather than being caught after.</li>
+</ol>
+<h2 id="preventative-controls">Preventative controls</h2>
+<p>Ongoing checks, each expressed against the <code>rc_*</code> schema already in place so a recommendation is something the framework can run, not a new tool.</p>
+<table>
+<thead>
+<tr>
+<th>id</th>
+<th>check</th>
+<th>grain</th>
+<th>rc_* mapping [04]</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>D01</td>
+<td>batch row/amount parity</td>
+<td>per batch</td>
+<td><code>rc_batch_control</code> + results</td>
+</tr>
+<tr>
+<td>D02</td>
+<td>per-file row-count parity</td>
+<td>per file</td>
+<td>new <code>dimension</code> value</td>
+</tr>
+<tr>
+<td>D03</td>
+<td>duplicate id count</td>
+<td>per batch</td>
+<td>new <code>dimension</code> + <code>audit_trail</code></td>
+</tr>
+<tr>
+<td>D04</td>
+<td>reprocess row-count check</td>
+<td>per batch</td>
+<td><code>audit_trail.action = NOTIFY</code></td>
+</tr>
+<tr>
+<td>D05</td>
+<td>recurring dim. variance</td>
+<td>per batch</td>
+<td>recurring level-2 pass</td>
+</tr>
+</tbody>
+</table>
+<ol>
+<li><strong>D01</strong> is the check task 2 already runs each batch (<code>batch_id = 9</code> above) - carried forward here as the baseline detective control, not a new recommendation.</li>
+<li><strong>D02</strong> is the single highest-value new check: task 3 confirmed both <code>*_MIDNIGHT.dat</code> files as 100% absent from Bronze (20/20 rows) - a per-file row-count check would have caught this the same day, before Finance noticed the batch-level gap.</li>
+<li><strong>D05</strong> reruns task 2's one-off dimensional pass on every batch instead of only when investigating a reported mismatch, so an <code>ingestion_file</code>-concentrated variance is caught the day it occurs.</li>
+<li>all four new rows (<code>D02</code>-<code>D05</code>) fit inside <code>rc_reconciliation_results</code>/<code>rc_audit_trail</code> as additional <code>dimension</code>/<code>action</code> values, not new tables - the schema extension is additive.</li>
+</ol>
+<h2 id="prioritisation">Prioritisation</h2>
+<p>Severity reflects the dollar/row impact confirmed in the root-cause analysis; effort reflects implementation cost against the existing schema.</p>
+<table>
+<thead>
+<tr>
+<th>id</th>
+<th>control</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>D02</td>
+<td>per-file row-count parity</td>
+</tr>
+<tr>
+<td>P01</td>
+<td>business-date derivation fix</td>
+</tr>
+<tr>
+<td>P02</td>
+<td>idempotent upsert on load</td>
+</tr>
+<tr>
+<td>D03</td>
+<td>duplicate-id count per batch</td>
+</tr>
+<tr>
+<td>P03</td>
+<td>mandatory load reason code</td>
+</tr>
+<tr>
+<td>D04</td>
+<td>reprocess-batch count check</td>
+</tr>
+<tr>
+<td>P04</td>
+<td>publish gate on <code>FAIL</code> status</td>
+</tr>
+<tr>
+<td>D05</td>
+<td>recurring dimensional variance</td>
+</tr>
+<tr>
+<td>D01</td>
+<td>batch parity (already running)</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Reading the list</strong>: </p>
+<ul>
+<li><strong>P0</strong> items close the two confirmed hypotheses at the source (P01, P02) and give the earliest possible detection of the specific failure mode already observed (D02).</li>
+<li><strong>P1</strong> items catch the same failure modes one layer later - after a bad batch lands rather than before. </li>
+<li><strong>P2</strong> formalizes a check task 2 already proved useful but only ran once. None of these controls resolve the <a href="../assessment-1-root-cause-analysis/#unexplained-residual">5-row unexplained residual</a> </li>
+<li><strong>D02 and D05</strong> raise the odds a similar future occurrence is caught even if its mechanism is never fully explained.</li>
 </ul></div>
             </div>
         </div>

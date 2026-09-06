@@ -57,4 +57,14 @@ Every level-3 count reconciles exactly to the injected catalog once the decision
 
 ## Task 3 - Root-Cause Investigation
 
-pending - not yet implemented (09.07).
+| task ref | check                        | expected (issue-log)              | measured        | match |
+| -------- | ----------------------------- | ---------------------------------- | ---------------- | ----- |
+| 03.01    | near-UTC-midnight population   | `utc_sgt_midnight_boundary`=20      | 20 [01]           | yes   |
+| 03.02    | reprocessing-batch population  | `duplicate_in_bronze_reprocessed`=8 | 8 [02]            | yes   |
+| 03.03    | unexplained residual           | `missing_in_bronze_unrelated`=5     | 5 [03]            | yes   |
+
+01. **03.01** hypothesis 1's near-UTC-midnight flag (`source_extract_ts` in `[23:45,23:59]` UTC) identifies exactly the 20 rows tagged `utc_sgt_midnight_boundary`, with zero false positives and zero false negatives against that tag.
+02. **03.02** hypothesis 2's Bronze-only-duplicate-plus-`-R`-batch-tag test identifies exactly the 8 rows tagged `duplicate_in_bronze_reprocessed`.
+03. **03.03** the deliverable's "unexplained residual" (5 rows fitting neither hypothesis) is exactly the population the issue log separately tags `missing_in_bronze_unrelated` - the deliverable correctly left this open rather than forcing it under either hypothesis.
+
+Root cause is fully and correctly attributed: every one of the 33 measured "missing in Bronze" rows resolves to exactly one issue-log population (20 + 8 + 5 = 33, matching task 2's audit row `02.03.02`), and the deliverable's own boundary between "confirmed" and "open" tracks the injected catalog's boundary exactly.

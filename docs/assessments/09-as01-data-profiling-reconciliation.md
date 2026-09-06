@@ -40,7 +40,7 @@
 | 09.04 | 04  | closed  | task 1 - data profiling                  |
 | 09.05 | 05  | closed  | task 2 - source-to-bronze reconciliation |
 | 09.06 | 06  | closed  | exception dataset                        |
-| 09.07 | 07  | pending | task 3 - root-cause investigation        |
+| 09.07 | 07  | closed  | task 3 - root-cause investigation        |
 | 09.08 | 08  | pending | dq-control recommendations               |
 | 09.09 | 09  | pending | dashboard mock-up                        |
 | 09.10 | 10  | pending | notebook consolidation and clean rerun   |
@@ -490,9 +490,11 @@ Added the "Level 3 - Record-Level Classification" section: business key `transac
 
 edit locations: `09.EL.01, 09.EL.05`
 
-_boilerplate - expand during 09.07_
+_closed 09.07_ - two hypotheses raised by task 2's open questions, each stated, evidenced, and confirmed or left open on its own terms.
 
-Add the evidence queries for the timezone/business-date hypothesis, quantify the financial impact, identify the affected dimensions, and state remediation. Write the root-cause analysis deliverable.
+Added the "Task 3 - Root-Cause Investigation" section: **hypothesis 1** (near-UTC-midnight extraction timing, from `source_extract_ts`'s own schema documentation) - a crosstab of a `[23:45,23:59]` UTC flag against Bronze presence shows a perfect split, all 20 near-midnight rows absent from Bronze and no other row in that window; confirmed. **hypothesis 2** (Bronze-only duplicates trace to a reprocessing batch) - Bronze's own `batch_id` column shows all 8 unexplained duplicate ids carry a plain daily batch plus a `-R`-suffixed batch, recurring on 4 of 5 business dates; confirmed. The financial-impact bridge (source total - 25 genuinely-missing rows + 8 reprocessing-batch extra rows) closes task 2's entire level 1 local-currency variance to a `0.00` residual - no third mechanism needed. 5 further "missing in Bronze" rows fit neither hypothesis and are stated as an open, unresolved residual rather than forced under one.
+
+Wrote `results/assessment-1/assessment-1-root-cause-analysis.md` with both hypotheses, the evidence tables, the financial bridge, affected dimensions, the unexplained residual, remediation, and permanent preventive controls. Updated `assessment-1-audit.md`'s Task 3 section confirming both populations and the residual match the injected catalog's `utc_sgt_midnight_boundary` (20), `duplicate_in_bronze_reprocessed` (8), and `missing_in_bronze_unrelated` (5) tags exactly - the ground-truth knowledge stays contained there, never in the deliverable itself.
 
 ### 7. DQ-control recommendations
 

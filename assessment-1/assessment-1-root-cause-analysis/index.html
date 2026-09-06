@@ -78,6 +78,34 @@
               <ul class="nav flex-column">
               </ul>
             </li>
+            <li class="nav-item" data-bs-level="2"><a href="#hypothesis-1-near-utc-midnight-extraction-timing" class="nav-link">Hypothesis 1 - near-UTC-midnight extraction timing</a>
+              <ul class="nav flex-column">
+              </ul>
+            </li>
+            <li class="nav-item" data-bs-level="2"><a href="#hypothesis-2-bronze-only-duplicates-trace-to-a-reprocessing-batch" class="nav-link">Hypothesis 2 - Bronze-only duplicates trace to a reprocessing batch</a>
+              <ul class="nav flex-column">
+              </ul>
+            </li>
+            <li class="nav-item" data-bs-level="2"><a href="#financial-impact" class="nav-link">Financial impact</a>
+              <ul class="nav flex-column">
+              </ul>
+            </li>
+            <li class="nav-item" data-bs-level="2"><a href="#affected-dimensions" class="nav-link">Affected dimensions</a>
+              <ul class="nav flex-column">
+              </ul>
+            </li>
+            <li class="nav-item" data-bs-level="2"><a href="#unexplained-residual" class="nav-link">Unexplained residual</a>
+              <ul class="nav flex-column">
+              </ul>
+            </li>
+            <li class="nav-item" data-bs-level="2"><a href="#remediation" class="nav-link">Remediation</a>
+              <ul class="nav flex-column">
+              </ul>
+            </li>
+            <li class="nav-item" data-bs-level="2"><a href="#permanent-preventive-controls" class="nav-link">Permanent preventive controls</a>
+              <ul class="nav flex-column">
+              </ul>
+            </li>
               </ul>
             </li>
         </ul>
@@ -86,10 +114,188 @@
                     <div class="col-md-9" role="main">
 
 <h1 id="assessment-1-root-cause-analysis">Assessment 1 - Root-Cause Analysis</h1>
+<p><strong>Task 3 - Root-Cause Investigation</strong></p>
+<p>See <a href="../assessment-1-overview/">overview</a> for the scenario, source/Bronze table shapes, and the seeded-vs-production scale statement. See <a href="../assessment-1-reconciliation-results/">assessment-1-reconciliation-results.md</a> and <a href="../assessment-1-exception-dataset/">assessment-1-exception-dataset.md</a> for the two open questions investigated below.</p>
 <h2 id="sources">Sources</h2>
 <ul>
-<li>notebook: <a href="https://github.com/yayfalafels/de-financial-accounting-demo/blob/main/notebooks/assessment1_profiling.ipynb">assessment1_profiling.ipynb</a></li>
-<li>batch: <code>reconciliation.rc_batch_control.batch_id = &lt;n&gt;</code></li>
+<li>notebook: <a href="https://github.com/yayfalafels/de-financial-accounting-demo/blob/main/notebooks/assessment1_profiling.ipynb">assessment1_profiling.ipynb</a> -&gt; "Task 3 - Root-Cause Investigation" section</li>
+<li>batch: <code>reconciliation.rc_batch_control.batch_id = 9</code> (same measured totals as levels 1-2)</li>
+<li>ground-truth verification of every count below: <a href="../assessment-1-audit/">assessment-1-audit.md</a></li>
+</ul>
+<h2 id="hypothesis-1-near-utc-midnight-extraction-timing">Hypothesis 1 - near-UTC-midnight extraction timing</h2>
+<p><code>source_extract_ts</code>'s schema documentation notes source timestamps are UTC while ingestion buckets by a Singapore (UTC+8) business date. <strong>Hypothesis</strong>: rows missing from Bronze concentrate among source rows extracted in the last 15 minutes before UTC midnight, since that window falls at 07:45-08:00 the <em>next</em> Singapore calendar day - a plausible business-date boundary mismatch.</p>
+<p><strong>Evidence</strong>: flagging every source row by <code>source_extract_ts</code> in <code>[23:45, 23:59]</code> UTC and crossing it against Bronze presence:</p>
+<table>
+<thead>
+<tr>
+<th>id</th>
+<th>near-UTC-midnight</th>
+<th>in Bronze</th>
+<th>rows</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>01</td>
+<td>no</td>
+<td>yes</td>
+<td>1985</td>
+</tr>
+<tr>
+<td>02</td>
+<td>no</td>
+<td>no</td>
+<td>5</td>
+</tr>
+<tr>
+<td>03</td>
+<td>yes</td>
+<td>no</td>
+<td>20</td>
+</tr>
+<tr>
+<td>04</td>
+<td>yes</td>
+<td>yes</td>
+<td>0</td>
+</tr>
+</tbody>
+</table>
+<p>Every one of the 20 near-UTC-midnight rows is absent from Bronze, and no near-UTC-midnight row is present - a perfect split. All 20 sit in the five <code>*_MIDNIGHT.dat</code>-suffixed files already flagged by task 2's dimensional reconciliation as the two largest <code>ingestion_file</code> variances. <strong>Confirmed</strong> for these 20 rows; 5 further missing rows do not fit this pattern (see <a href="#unexplained-residual">Unexplained residual</a>).</p>
+<h2 id="hypothesis-2-bronze-only-duplicates-trace-to-a-reprocessing-batch">Hypothesis 2 - Bronze-only duplicates trace to a reprocessing batch</h2>
+<p>Of the 18 <code>transaction_id</code>s duplicated in Bronze, 10 are also duplicated in source (Bronze mirroring source) - the other 8 are unique in source but appear twice in Bronze, unexplained by task 2's business-column comparison. Bronze carries its own <code>batch_id</code> column. <strong>Hypothesis</strong>: these 8 are two loads of the same file under two different batch runs.</p>
+<p><strong>Evidence</strong>: all 8 have one row under a plain daily <code>batch_id</code> (e.g. <code>BATCH-20260817</code>) and a second under the same date with a <code>-R</code> suffix (<code>BATCH-20260817-R</code>):</p>
+<table>
+<thead>
+<tr>
+<th>id</th>
+<th>business date</th>
+<th>plain batch rows</th>
+<th><code>-R</code> batch rows</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>01</td>
+<td>2026-08-17</td>
+<td>395</td>
+<td>4</td>
+</tr>
+<tr>
+<td>02</td>
+<td>2026-08-18</td>
+<td>398</td>
+<td>1</td>
+</tr>
+<tr>
+<td>03</td>
+<td>2026-08-19</td>
+<td>397</td>
+<td>2</td>
+</tr>
+<tr>
+<td>04</td>
+<td>2026-08-20</td>
+<td>400</td>
+<td>0</td>
+</tr>
+<tr>
+<td>05</td>
+<td>2026-08-21</td>
+<td>395</td>
+<td>1</td>
+</tr>
+</tbody>
+</table>
+<p>A <code>-R</code> batch exists for 4 of the 5 business dates, each reloading only a handful of rows (1-4) rather than the whole day's file. <strong>Confirmed</strong>: a small partial reprocessing event recurs on nearly every business date.</p>
+<h2 id="financial-impact">Financial impact</h2>
+<p><code>local_currency_amount</code> is already normalised to one currency, so it sums directly regardless of <code>currency_code</code>. The two hypotheses above, taken together as a bridge from the source total to the Bronze total, close the entire level 1 local-currency variance:</p>
+<table>
+<thead>
+<tr>
+<th>id</th>
+<th>step</th>
+<th>amount</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>01</td>
+<td>source total <code>local_currency_amount</code></td>
+<td>56,551,777.54</td>
+</tr>
+<tr>
+<td>02</td>
+<td>less: genuinely missing from Bronze (25 rows)</td>
+<td>-810,694.96</td>
+</tr>
+<tr>
+<td>03</td>
+<td>plus: Bronze reprocessing-batch extra (8 rows)</td>
+<td>+268,029.12</td>
+</tr>
+<tr>
+<td>04</td>
+<td>= bridge estimate</td>
+<td>56,009,111.70</td>
+</tr>
+<tr>
+<td>05</td>
+<td>actual Bronze total <code>local_currency_amount</code></td>
+<td>56,009,111.70</td>
+</tr>
+<tr>
+<td>06</td>
+<td><strong>unexplained residual</strong></td>
+<td><strong>0.00</strong></td>
+</tr>
+</tbody>
+</table>
+<p>No further mechanism is needed to explain task 2's level 1 local-currency variance - it is fully accounted for by the missing-record and reprocessing-batch populations above.</p>
+<h2 id="affected-dimensions">Affected dimensions</h2>
+<table>
+<thead>
+<tr>
+<th>id</th>
+<th>population</th>
+<th>branches</th>
+<th>products</th>
+<th>currencies</th>
+<th>dates</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>01</td>
+<td>genuinely missing (25 rows)</td>
+<td>14</td>
+<td>4</td>
+<td>5</td>
+<td>5</td>
+</tr>
+<tr>
+<td>02</td>
+<td>reprocessing-batch extra (8 rows)</td>
+<td>6</td>
+<td>3</td>
+<td>n/a [01]</td>
+<td>4</td>
+</tr>
+</tbody>
+</table>
+<ol>
+<li>reprocessing-batch rows were not broken out by currency; both populations otherwise span nearly every branch, product, and business date rather than concentrating in one - the near-UTC-midnight timing and the <code>-R</code> batch tag are the only dimensions found to correlate.</li>
+</ol>
+<h2 id="unexplained-residual">Unexplained residual</h2>
+<p>5 of the 33 "missing in Bronze" rows fit neither hypothesis: not near-UTC-midnight (extracted between 00:42 and 10:51 UTC), not in a <code>*_MIDNIGHT.dat</code> file, and spread across 5 different branches, dates, and ingestion files with no value shared by more than one row. Their combined <code>local_currency_amount</code> is 192,165.88 - remains open, not resolved by this investigation.</p>
+<h2 id="remediation">Remediation</h2>
+<p>Reload the 25 genuinely-missing rows into Bronze from source, keyed by <code>transaction_id</code>. For the 8 reprocessing-batch duplicates, remove the extra <code>-R</code> row for each affected <code>transaction_id</code> once its content is confirmed identical to the original load.</p>
+<h2 id="permanent-preventive-controls">Permanent preventive controls</h2>
+<ul>
+<li>convert <code>source_extract_ts</code> to the ingestion business timezone (or derive the business date from <code>transaction_date</code> directly) before assigning a record to a daily ingestion file, so a UTC timestamp in the last minutes of the day is no longer bucketed under the wrong Singapore business date</li>
+<li>add a same-day source-file-to-Bronze row-count check per <code>ingestion_file</code>, alerting when Bronze's count for a file is lower than source's - this would have caught both <code>*_MIDNIGHT.dat</code> files immediately</li>
+<li>make Bronze ingestion idempotent on <code>transaction_id</code> (upsert rather than append) so a reprocessing run cannot introduce a second row for an already-loaded id</li>
+<li>tag every Bronze batch load with a reason code (initial vs. reprocess), and alert when a reprocess batch's row count for a file doesn't match the original - the <code>-R</code> suffix already present in this data shows the signal exists, it just isn't monitored</li>
 </ul></div>
             </div>
         </div>

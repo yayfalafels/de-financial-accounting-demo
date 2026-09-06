@@ -303,7 +303,46 @@
 </ol>
 <p>Every level-3 count reconciles exactly to the injected catalog once the decision order's own documented exclusions are accounted for - no unexplained residual.</p>
 <h2 id="task-3-root-cause-investigation">Task 3 - Root-Cause Investigation</h2>
-<p>pending - not yet implemented (09.07).</p></div>
+<table>
+<thead>
+<tr>
+<th>task ref</th>
+<th>check</th>
+<th>expected (issue-log)</th>
+<th>measured</th>
+<th>match</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>03.01</td>
+<td>near-UTC-midnight population</td>
+<td><code>utc_sgt_midnight_boundary</code>=20</td>
+<td>20 [01]</td>
+<td>yes</td>
+</tr>
+<tr>
+<td>03.02</td>
+<td>reprocessing-batch population</td>
+<td><code>duplicate_in_bronze_reprocessed</code>=8</td>
+<td>8 [02]</td>
+<td>yes</td>
+</tr>
+<tr>
+<td>03.03</td>
+<td>unexplained residual</td>
+<td><code>missing_in_bronze_unrelated</code>=5</td>
+<td>5 [03]</td>
+<td>yes</td>
+</tr>
+</tbody>
+</table>
+<ol>
+<li><strong>03.01</strong> hypothesis 1's near-UTC-midnight flag (<code>source_extract_ts</code> in <code>[23:45,23:59]</code> UTC) identifies exactly the 20 rows tagged <code>utc_sgt_midnight_boundary</code>, with zero false positives and zero false negatives against that tag.</li>
+<li><strong>03.02</strong> hypothesis 2's Bronze-only-duplicate-plus-<code>-R</code>-batch-tag test identifies exactly the 8 rows tagged <code>duplicate_in_bronze_reprocessed</code>.</li>
+<li><strong>03.03</strong> the deliverable's "unexplained residual" (5 rows fitting neither hypothesis) is exactly the population the issue log separately tags <code>missing_in_bronze_unrelated</code> - the deliverable correctly left this open rather than forcing it under either hypothesis.</li>
+</ol>
+<p>Root cause is fully and correctly attributed: every one of the 33 measured "missing in Bronze" rows resolves to exactly one issue-log population (20 + 8 + 5 = 33, matching task 2's audit row <code>02.03.02</code>), and the deliverable's own boundary between "confirmed" and "open" tracks the injected catalog's boundary exactly.</p></div>
             </div>
         </div>
 

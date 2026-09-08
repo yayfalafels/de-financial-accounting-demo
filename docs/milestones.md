@@ -10,8 +10,8 @@
 | 06 | 06  | closed  | power bi dashboard setup                         | 
 | 07 | 07  | closed  | jupyter notebook workspace setup                 | 
 | 08 | 08  | closed  | assessment deliverables conventions              | 
-| 09 | 09  | open    | assessment 1 - source-to-bronze profiling recon  | 
-| 10 | 10  | pending | assessment 2 - financial accounting gl recon     | 
+| 09 | 09  | closed  | assessment 1 - source-to-bronze profiling recon  | 
+| 10 | 10  | open    | assessment 2 - financial accounting gl recon     | 
 | 11 | 11  | pending | assessment 3 - regulatory dq lineage dashboard   | 
 
 **01. scope requirements tasks** — read `docs/design/asssignment.md` and `docs/design/development-environment.md` and lay out / maintain this table: dev env build-out sequenced ahead of the three graded assessments, each producing its own `docs/features/<id>-<name>.md` tracker when work on it starts. 

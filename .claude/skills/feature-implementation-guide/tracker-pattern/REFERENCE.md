@@ -1,18 +1,10 @@
----
-name: feature-tracker-workflow
-description: spec-first feature-tracker document pattern (scope -> design -> test strategy/cases -> edit locations -> implement -> validate) for planning and running one feature end-to-end in any codebase - the section skeleton, id cross-reference scheme, and which stages an AI agent drafts/executes vs where a human must checkpoint. Portable to APIs, fullstack apps, or any other project - not tied to this repo's domain. Load before starting a new feature spec/tracker doc, or when asked to plan a feature "spec-first" / "design doc first".
----
-
-## relevant skills
-
-- markdown-tables - apply it to every table in the tracker (id leftmost column, fixed width, <115 char rows, long text migrated to footnotes)
-- feature-implementation-guide - this repo's concrete mechanics for the Implement/Validate sections below (log file naming, error-handling wrappers, the issues/diagnostic-step table format). This skill defines the document *shape* those sections live in, not the tooling inside them - a project without that skill defines its own equivalent, matched to its own stack.
-
-## what this is
+# the feature-tracker document pattern
 
 A single markdown file per feature that is simultaneously the spec, the design doc, the test plan, and the progress tracker. It is written mostly *before* code exists and then filled in section by section, in order, as work actually happens - so at any point in time the file's fill-state IS the project's state, not a stale plan next to the real work.
 
-This is the generic pattern behind `docs/features/*.md` and `docs/assessments/*.md` in this repo, stripped of their postgres/spark/financial-domain specifics. Reuse it for a feature in any project - an API endpoint, a fullstack feature, a migration, an infra change.
+This is the generic pattern behind `docs/features/*.md` and `docs/assessments/*.md` in this repo. This pattern itself is portable to a feature in any project - an API endpoint, a fullstack feature, a migration, an infra change; a project without this skill defines its own equivalent for the concrete mechanics, matched to its own stack. `../implementation/REFERENCE.md` and `../validation/REFERENCE.md` are *this repo's* concrete mechanics for two of the seven stages below, not part of the portable shape.
+
+**boilerplate:** `templates/feature-tracker.md` in this folder is a copy-paste starting file matching this repo's actual conventions (Contents block, References section, Guideline footer) - copy it to `docs/features/<NN>-<name>.md` or `docs/assessments/<NN>-<name>.md` when starting a new tracker.
 
 ## the seven sections, in fill order
 
@@ -81,12 +73,15 @@ Numbered steps mirroring the edit-locations table, each opening with its own `ed
 
 Carve out explicitly any step that structurally requires a human - a GUI-only tool, third-party auth, an account only a person holds. Don't leave these implicit; name them as a distinct line so they aren't silently skipped or silently assumed automatable.
 
+Load `../implementation/REFERENCE.md` for this repo's concrete mechanics at this stage - re-runnable scripts, `.env` parameterization, error handling, logging.
+
 ### 07 Validate
 
 - an **Issues** table, one row per first-out failure actually hit, each expanded into its own diagnostic section
 - a first-out failure is logged as data, kept structurally separate from the diagnostic steps taken about it, and any root cause stays framed as a **hypothesis** until evidence confirms it
 - a **user actions** line listing anything a human had to physically do (click through a Desktop app, approve a deploy, authenticate) - the explicit human-in-the-loop seam, kept separate from what the agent did on its own
-- the exact issue-table columns, diagnostic-step fields, and log-file conventions belong to this repo's `feature-implementation-guide` skill (or its equivalent elsewhere) - not restated here, so there's one place that convention can change
+
+Load `../validation/REFERENCE.md` for this repo's concrete issue-table columns, diagnostic-step fields, and log-file conventions at this stage (or a project's own equivalent, matched to its own stack) - not restated here, so there's one place that convention can change.
 
 ## id cross-reference scheme
 
@@ -130,7 +125,9 @@ Add more categories only when a feature actually needs them (this repo's assessm
 
 Not every feature needs all seven sections at full weight. A one-file bugfix can collapse Design (high level) and Design (detailed) into one short Design section and skip the Guideline footer. Keep the order and the id scheme even when sections are thin - consistency of shape is what makes many trackers, written over a long time by different sessions, still cross-reference cleanly.
 
-## minimal template
+## generic minimal skeleton (any codebase)
+
+For a project that doesn't have this repo's `templates/feature-tracker.md` conventions (Contents block, References section, Guideline footer), this bare skeleton keeps the same section order and id scheme:
 
 ```md
 # <feature name> - Feature tracker

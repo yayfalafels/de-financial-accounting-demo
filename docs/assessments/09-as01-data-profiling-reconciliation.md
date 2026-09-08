@@ -44,10 +44,10 @@
 | 09.10 | 08  | closed  | notebook consolidation and clean rerun   |
 | 09.11 | 09  | closed  | deliverable review and status promotion  |
 | 09.08 | 10  | closed  | dq-control recommendations               |
-| 09.09 | 11  | open    | dashboard mock-up                        |
-| 09.IS | 12  | pending | validate                                 |
-| 09.12 | 13  | pending | publish assessment site                  |
-
+| 09.IS | 11  | closed  | validate                                 |
+| 09.12 | 12  | closed  | publish assessment site                  |
+| 09.09 | 13  | drop    | dashboard mock-up                        |
+ 
 ## Scope
 
 answer Assessment 1 of the **assignment design doc** end to end - profile `src_transaction_daily` and `bronze.transaction_daily`, reconcile source to Bronze at batch, dimensional, and record level, explain the missing-record symptom, and publish the resulting deliverable set together with the assignment context that motivated it - see [milestones.md](../milestones.md)'s `assessment 1` entry for the milestone-level statement this tracker executes.

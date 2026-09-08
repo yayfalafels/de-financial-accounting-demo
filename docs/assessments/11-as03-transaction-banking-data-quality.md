@@ -33,23 +33,23 @@
 
 ## Tasks
 
-| id    | seq | status  | milestone                                     |
-| ----- | --- | ------- | ----------------------------------------------- |
-| 11.01 | 01  | closed  | design                                          |
-| 11.02 | 02  | pending | prerequisites and seed data readiness           |
-| 11.03 | 03  | pending | assessment scope and context write-up           |
-| 11.04 | 04  | pending | task 1 - transaction banking profiling          |
-| 11.05 | 05  | pending | task 2 - end-to-end reconciliation              |
-| 11.06 | 06  | pending | exception dataset                               |
-| 11.07 | 07  | pending | task 3 - complex issue detection                |
-| 11.08 | 08  | pending | task 4 - data lineage documentation             |
-| 11.09 | 09  | pending | task 5 - Power BI executive dashboard           |
-| 11.10 | 10  | pending | performance-optimization notes                  |
-| 11.11 | 11  | pending | five-minute presentation summary                |
-| 11.12 | 12  | pending | notebook consolidation and clean rerun          |
-| 11.13 | 13  | pending | deliverable review and status promotion         |
-| 11.14 | 14  | pending | publish assessment site                         |
-| 11.IS | 15  | pending | validate                                        |
+| id    | seq | status  | milestone                               |
+| ----- | --- | ------- | --------------------------------------- |
+| 11.01 | 01  | closed  | design                                  |
+| 11.02 | 02  | pending | prerequisites and seed data readiness   |
+| 11.03 | 03  | pending | assessment scope and context write-up   |
+| 11.04 | 04  | pending | task 1 - transaction banking profiling  |
+| 11.05 | 05  | pending | task 2 - end-to-end reconciliation      |
+| 11.06 | 06  | pending | exception dataset                       |
+| 11.07 | 07  | pending | task 3 - complex issue detection        |
+| 11.08 | 08  | pending | task 4 - data lineage documentation     |
+| 11.09 | 09  | pending | task 5 - Power BI executive dashboard   |
+| 11.10 | 10  | pending | performance-optimization notes          |
+| 11.11 | 11  | pending | five-minute presentation summary        |
+| 11.12 | 12  | pending | notebook consolidation and clean rerun  |
+| 11.13 | 13  | pending | deliverable review and status promotion |
+| 11.14 | 14  | pending | publish assessment site                 |
+| 11.IS | 15  | pending | validate                                |
 
 ## Scope
 

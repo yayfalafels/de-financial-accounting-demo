@@ -1,7 +1,7 @@
 # Assessment 2 - Financial Accounting and General Ledger Reconciliation - Feature tracker
 >Review the guidelines before performing any actions including edits on the document
 
-## 10 (pending) assessment 2 - financial accounting and GL reconciliation
+## 10 (open) assessment 2 - financial accounting and GL reconciliation
 
 ## Contents
 
@@ -32,12 +32,12 @@
 
 ## Tasks
 
-| id    | seq | status  | milestone                                |
+| id    | seq | status  | milestone                                 |
 | ----- | --- | ------- | ----------------------------------------- |
 | 10.01 | 01  | closed  | design                                    |
-| 10.02 | 02  | pending | prerequisites and seed data readiness     |
-| 10.03 | 03  | pending | assessment scope and context write-up     |
-| 10.04 | 04  | pending | task 1 - GL integrity and reconciliation  |
+| 10.02 | 02  | closed  | prerequisites and seed data readiness     |
+| 10.03 | 03  | closed  | assessment scope and context write-up     |
+| 10.04 | 04  | closed  | task 1 - GL integrity and reconciliation  |
 | 10.05 | 05  | pending | task 2 - accounting mapping validation    |
 | 10.06 | 06  | pending | exception dataset                         |
 | 10.07 | 07  | pending | task 3 - finance variance investigation   |
@@ -50,11 +50,21 @@
 
 ## Scope
 
-Assessment 2 of the **assignment design doc** end to end - validate `finance.gl_balance` arithmetic integrity, independently recompute GL movements from `bronze.finance_transactions`, validate `ref.accounting_mapping`, explain the SGD-scale finance variance symptom, design a reusable reconciliation framework, and publish the resulting deliverable set together with the assignment context that motivated it - see [milestones.md](../milestones.md)'s `assessment 2` entry for the milestone-level statement this tracker executes.
+Assessment 2 of the **assignment design doc** end to end 
+
+- validate `finance.gl_balance` arithmetic integrity
+- independently recompute GL movements from `bronze.finance_transactions`
+- validate `ref.accounting_mapping`
+- explain the SGD-scale finance variance symptom,
+- design a reusable reconciliation framework
+- publish the resulting deliverable set together with the assignment context that motivated it 
+
+see [milestones.md](../milestones.md)'s `assessment 2` entry for the milestone-level statement this tracker executes.
 
 **assessment scope**
 
-- **scenario** Finance reports that balances generated from the new data platform do not reconcile with the bank's General Ledger.  trace the cause(s) to: 
+- **scenario** Finance reports that balances generated from the new data platform do not reconcile with the bank's General Ledger.  
+- **the problem** platform closing balance disagrees with the expected closing balance by a material amount. trace the cause(s) to: 
   - source data
   - ingestion
   - transformation
@@ -62,34 +72,34 @@ Assessment 2 of the **assignment design doc** end to end - validate `finance.gl_
   - accounting classification
   - duplicate transactions
   - missing transactions
-- **the problem** platform closing balance disagrees with the expected closing balance by a material amount
+
 - **checks to perform**
 
 | id       | task ref | scope                  | check                                                |
-| -------- | -------- | ----------------------- | ----------------------------------------------------- |
-| 10.CK.01 | 01.01    | GL integrity            | opening + debit - credit = closing arithmetic check   |
-| 10.CK.02 | 01.02    | GL integrity            | recomputed debit movement vs `gl_balance.debit_movement`  |
-| 10.CK.03 | 01.03    | GL integrity            | recomputed credit movement vs `gl_balance.credit_movement` |
-| 10.CK.04 | 01.04    | dim reconcile            | legal entity                                          |
-| 10.CK.05 | 01.05    | dim reconcile            | GL account                                            |
-| 10.CK.06 | 01.06    | dim reconcile            | cost center                                           |
-| 10.CK.07 | 01.07    | dim reconcile            | currency                                              |
-| 10.CK.08 | 01.08    | dim reconcile            | accounting date                                       |
-| 10.CK.09 | 02.01    | mapping validate         | transaction posted to expected GL account             |
-| 10.CK.10 | 02.02    | mapping validate         | mapping effective-date validity                       |
-| 10.CK.11 | 02.03    | mapping validate         | transactions with missing accounting mapping          |
-| 10.CK.12 | 02.04    | mapping validate         | overlapping effective-date mapping ranges             |
-| 10.CK.13 | 02.05    | mapping validate         | expired mapping still referenced                      |
-| 10.CK.14 | 02.06    | mapping validate         | product mapped to multiple GL accounts unexpectedly   |
-| 10.CK.15 | 03.01    | variance investigation   | duplicate accounting entry                            |
-| 10.CK.16 | 03.02    | variance investigation   | transaction posted twice under a different id         |
-| 10.CK.17 | 03.03    | variance investigation   | incorrect debit/credit indicator                      |
-| 10.CK.18 | 03.04    | variance investigation   | incorrect FX conversion                               |
-| 10.CK.19 | 03.05    | variance investigation   | missing accounting mapping's variance contribution    |
-| 10.CK.20 | 03.06    | variance investigation   | transaction posted one accounting day late            |
-| 10.CK.21 | 03.07    | variance investigation   | incorrect legal-entity allocation                     |
-| 10.CK.22 | 03.08    | variance investigation   | incorrect cost-center assignment                      |
-| 10.CK.23 | 04.01    | framework metrics        | source/Bronze/GL counts, amounts, variance, status    |
+| -------- | -------- | ---------------------- | ----------------------------------------------------- |
+| 10.CK.01 | 01.01    | GL integrity           | opening + debit - credit = closing arithmetic check   |
+| 10.CK.02 | 01.02    | GL integrity           | recomputed debit movement vs `gl_balance.debit_movement`  |
+| 10.CK.03 | 01.03    | GL integrity           | recomputed credit movement vs `gl_balance.credit_movement` |
+| 10.CK.04 | 01.04    | dim reconcile          | legal entity                                          |
+| 10.CK.05 | 01.05    | dim reconcile          | GL account                                            |
+| 10.CK.06 | 01.06    | dim reconcile          | cost center                                           |
+| 10.CK.07 | 01.07    | dim reconcile          | currency                                              |
+| 10.CK.08 | 01.08    | dim reconcile          | accounting date                                       |
+| 10.CK.09 | 02.01    | mapping validate       | transaction posted to expected GL account             |
+| 10.CK.10 | 02.02    | mapping validate       | mapping effective-date validity                       |
+| 10.CK.11 | 02.03    | mapping validate       | transactions with missing accounting mapping          |
+| 10.CK.12 | 02.04    | mapping validate       | overlapping effective-date mapping ranges             |
+| 10.CK.13 | 02.05    | mapping validate       | expired mapping still referenced                      |
+| 10.CK.14 | 02.06    | mapping validate       | product mapped to multiple GL accounts unexpectedly   |
+| 10.CK.15 | 03.01    | variance investigation | duplicate accounting entry                            |
+| 10.CK.16 | 03.02    | variance investigation | transaction posted twice under a different id         |
+| 10.CK.17 | 03.03    | variance investigation | incorrect debit/credit indicator                      |
+| 10.CK.18 | 03.04    | variance investigation | incorrect FX conversion                               |
+| 10.CK.19 | 03.05    | variance investigation | missing accounting mapping's variance contribution    |
+| 10.CK.20 | 03.06    | variance investigation | transaction posted one accounting day late            |
+| 10.CK.21 | 03.07    | variance investigation | incorrect legal-entity allocation                     |
+| 10.CK.22 | 03.08    | variance investigation | incorrect cost-center assignment                      |
+| 10.CK.23 | 04.01    | framework metrics      | source/Bronze/GL counts, amounts, variance, status    |
 
 - **task 1 - validate accounting integrity** - confirm `opening_balance + debit_movement - credit_movement = closing_balance` on `finance.gl_balance`, identify violations, then independently recompute expected debit/credit movements from `bronze.finance_transactions` and reconcile against the GL at legal entity, GL account, cost center, currency, and accounting date
 
@@ -693,21 +703,53 @@ Implementation order is prerequisites -> assessment context -> GL integrity -> m
 
 edit locations: none
 
-Run the [prerequisites](#prerequisites) steps in order, confirming the evidence column for each. Record the seed run's issue counts as the baseline every later ground-truth comparison is made against. Do not start task 1 until every prerequisite reports `[PASS]`.
+_closed 10.02_ - ran every [prerequisites](#prerequisites) step in order; the host VM restarted mid-session (all containers exited 255, uptime reset), so the full sequence was rerun end to end from a cold state for the evidence below:
+
+| id       | evidence observed                                              |
+| -------- | ------------------------------------------------------------------ |
+| 10.PR.01 | `[PASS]` docker 29.7.2 + python3.14 + venv module                  |
+| 10.PR.02 | `[PASS]` DDL applied; 12 non-system tables confirmed [01]          |
+| 10.PR.03 | `[PASS]` `docker ps`: 5/5 full-profile containers `Up`             |
+| 10.PR.04 | `[PASS]` `bronze.finance_transactions`/`gl_balance`/`accounting_mapping` = 1523/589/22 rows [02] |
+| 10.PR.05 | `[PASS]` all row-count and ground-truth checks vs. `issue-log.csv` [03] |
+| 10.PR.06 | `[PASS]` connectivity notebook executed clean in 22s [04]          |
+| 10.PR.07 | `[PASS]` `07-deliverables-scaffold.sh --check` current for all three assessments |
+
+01. **10.PR.02** direct `information_schema.tables` query, spanning `public/bronze/finance/ref/reconciliation/regulatory/source`.
+02. **10.PR.04** identical counts on a second reseed - deterministic under `MOCK_DATA_SEED=42`.
+03. **10.PR.05** 300 rows/34 categories overall; includes `gl_balance arithmetic violations >= 3: 5` and `overlapping/duplicate mapping rows... >= 3: 6`.
+04. **10.PR.06** summary marker `[PASS] 00-template-connectivity-check: overall status=PASS`; first failed twice under host resource contention (`CellTimeoutError` at 120s, then a diagnostic 300s) - diagnosed and closed as [10.IS.01](#validate) before this clean-rerun evidence was captured.
+
+Independent direct-SQL inspection (bypassing the seed/validate scripts' own self-report) confirmed the same baseline: `SELECT COUNT(*)` on all three Assessment 2 tables matched the seed log exactly, and the tracker's own [10.CK.01](#gl-integrity-design--task-1) arithmetic-integrity query against `finance.gl_balance` returned 5 violations, matching `issue-log.csv`'s `arithmetic_integrity_violation` count exactly.
+
+Baseline for later ground-truth comparison, from `bronze.finance_transactions`'s 61 issue-log rows (1523 total rows / 1523 distinct `transaction_id`): 15 `duplicate_accounting_entry`, 8 `posted_twice_different_id`, 10 `incorrect_dr_cr_indicator`, 3 `incorrect_fx_conversion`, 12 `posted_one_day_late`, 6 `incorrect_legal_entity`, 7 `incorrect_cost_center`; `finance.gl_balance`'s 5 `arithmetic_integrity_violation` rows; `ref.accounting_mapping`'s 7 rows (2 `expired_mapping_still_used`, 3 `overlapping_effective_dates`, 2 `product_multiple_gl_accounts`).
 
 ### 2. Assessment scope and context write-up
 
 edit locations: `10.EL.11, 10.EL.12, 10.EL.13`
 
-Author `results/assessment-2/assessment-2-overview.md` per [assessment context documentation](#assessment-context-documentation): the Assessment 2 scenario, the three dataset shapes, Tasks 1-4, the expected deliverable list, and the scale statement contrasting the assignment's SGD 8.4B-scale figures with this demo's seeded volume budget. Link it from `results/index.md`, and add it to `mkdocs.yml`'s navigation only if the strict build cannot reach it through that link.
+_closed 10.03_ - authored [`results/assessment-2/assessment-2-overview.md`](../../results/assessment-2/assessment-2-overview.md): the scenario verbatim from `docs/design/assignment.md`'s Assessment 2 section, all three table shapes (columns matched 1:1 against `data/schemas/as02-*-schema.json`, not re-typed from the assignment prose), Tasks 1-4, the expected deliverable list, and the scale statement (SGD 8,428,770,121.46 expected / SGD 8,431,992,337.18 platform / SGD 3,222,215.72 variance at production scale vs. this seed run's 1,523/589-row budget). Linked from `results/index.md`. `mkdocs.yml` nav (`10.EL.13`) was **not** touched - the strict build reaches the overview through that link alone (confirmed at 10.04's `07-deliverables-scaffold.sh --check` pass), per the design footnote.
 
-This step is done before any analysis write-up so each later deliverable can be authored with its context line already pointing at an existing page.
+This step was done before the task 1 write-up so its deliverable could be authored with its context line already pointing at an existing page.
 
 ### 3. Task 1 - GL integrity and reconciliation
 
 edit locations: `10.EL.01, 10.EL.02`
 
-Implement **10.CK.01**-**10.CK.08** exactly as specified in [GL integrity design](#gl-integrity-design--task-1) - the arithmetic check, the `recomputed` CTE, and the per-dimension roll-up are not re-derived here, only translated into notebook cells against the seeded tables. Write results into `reconciliation.rc_*` under one `batch_id` (`assessment_id = 'assessment-2'`, `dimension` per row per the [reconciliation framework design](#reconciliation-framework-design--task-4) metrics table). Write the reconciliation results deliverable citing that `batch_id` and the overview page.
+_closed 10.04_ - **10.CK.01**-**10.CK.08** implemented in `notebooks/assessment2_gl_reconciliation.ipynb`'s "Task 1 - GL Integrity and Reconciliation" section, executed headlessly against the freshly seeded database (containers came up cold - see [10.02](#1-prerequisites-and-seed-data-readiness)'s evidence table for that seed run's baseline).
+
+| check                | result                                          |
+| ---------------------- | -------------------------------------------------- |
+| 10.CK.01 arithmetic     | 5 violations (589 rows checked) [01]              |
+| 10.CK.02/10.CK.03 recompute | 284/589 keys exceed the 0.01 movement tolerance |
+| 10.CK.04-10.CK.08 dimensional | every dimension `FAIL`s except `currency=SGD` [02] |
+
+01. **10.CK.01** matches `issue-log.csv`'s `arithmetic_integrity_violation` count exactly.
+02. **10.CK.04-10.CK.08** `currency=SGD` is `0.0%`; `EUR`/`USD` fail widest (45.78%/34.12%).
+
+**implementation decision** - the first pass of 10.CK.01 cast `finance.gl_balance`'s four `decimal(20,2)` columns to `double` before comparing, which introduced floating-point rounding noise (`~1e-12`) and inflated the true 5 violations to 203 false ones; fixed by keeping that specific comparison in native decimal arithmetic (double stays safe for the 0.01-tolerance movement/dimensional checks further down, where the noise is far below the threshold). Caught by comparing against the direct-SQL ground truth already captured in [10.02](#1-prerequisites-and-seed-data-readiness)'s evidence, not left unnoticed.
+
+`row_count` and `amount` (the two dimensions `reconciliation.rc_reconciliation_results.dimension`'s closed enum supports - the same constraint [09](09-as01-data-profiling-reconciliation.md#workflow-cycle) hit for its own level 1 totals) were written to a fresh `batch_id=12` (`assessment_id = 'assessment-2'`, the first row that assessment id has ever carried in `rc_batch_control`) - confirmed via direct SQL against `rc_reconciliation_results WHERE batch_id = 12`, independent of the notebook's own printed summary. Overall batch status: `FAIL`. Wrote [`results/assessment-2/assessment-2-reconciliation-results.md`](../../results/assessment-2/assessment-2-reconciliation-results.md) citing that batch and the overview page, and added the task 1 row to [`assessment-2-audit.md`](../../results/assessment-2/assessment-2-audit.md).
 
 ### 4. Task 2 - accounting mapping validation
 
@@ -764,24 +806,40 @@ Commit the reviewed work, run `scripts/08-assessment-site.sh build` for the stri
 - inventory all first out exceptions and issues encountered in this table
 - for each issue, create an issue section and use this section to document diagnostics and resolution steps
 
-| id       | seq | status  | issue                                    |
-| -------- | --- | ------- | ----------------------------------------- |
-| 10.IS.01 | 01  | pending | \<first out exception\>                  |
+_10.02 run (prerequisites and seed data readiness): one exception surfaced, logged below - every other prerequisite step reported `[PASS]` on its first attempt._
 
-_10.IS.01 (pending) \<first out exception\>_
+| id       | seq | status | issue                                                    |
+| -------- | --- | ------ | ----------------------------------------------------------- |
+| 10.IS.01 | 01  | closed | notebook connectivity check timed out under host contention |
+
+_10.IS.01 (closed) notebook connectivity check timed out under host contention_
 
 **problem description**
+
+`scripts/06-notebook-validate.sh` (10.PR.06) failed twice in a row - the template connectivity notebook's trivial `spark.range(1000).count()` cell exceeded nbconvert's `ExecutePreprocessor.timeout` (120s, then a manually-raised 300s diagnostic run), while the Spark standalone cluster itself reported two alive workers with 0 cores/memory in use throughout.
 
 **exception**
 
 ```log
+nbclient.exceptions.CellTimeoutError: A cell timed out while it was being executed, after 120 seconds.
+The message was: Cell execution timed out.
+Here is a preview of the cell contents:
+-------------------
+spark = (
+    SparkSession.builder.master("spark://spark-master:7077")
+    .appName("00-template-connectivity-check")
+    .getOrCreate()
+)
+spark_check_count = spark.range(1000).count()
 ```
 
 **triggering actions**
 
+ran `./scripts/06-notebook-validate.sh` for 10.PR.06 right after `01-dev-env-setup.sh`/`03-mock-data-seed.sh`, while a second concurrent Claude Code session and the VS Code extension host were active on the same 3.8 GiB/8-vCPU WSL2 VM; the host also restarted mid-diagnosis (all containers exited 255, `uptime` reset to minutes), independently confirming host-level pressure rather than a notebook or Spark defect.
+
 **hypothesis**
 
-- use hypothesis framing until a validated fix is applied
+host CPU/memory contention (load average observed up to 25 on 8 cores, swap fully exhausted) was slowing JVM scheduling past the fixed 120s nbconvert timeout; the Spark standalone cluster wiring itself was not broken.
 
 **diagnostic steps**
 
@@ -790,13 +848,24 @@ _10.IS.01 (pending) \<first out exception\>_
 - assume re-run and validation, these are not diagnostic steps
 - keep the step description brief, use the diagnostics details section to elaborate actions and learnings for each step
 
-| id          | seq | status  | step                                 |
-| ----------- | --- | ------- | ------------------------------------- |
-| 10.IS.01.01 | 01  | pending | \<diagnostic step 01\>               |
+| id          | seq | status | step                                            |
+| ----------- | --- | ------ | ---------------------------------------------------- |
+| 10.IS.01.01 | 01  | closed | checked host load/memory during the hang [01]        |
+| 10.IS.01.02 | 02  | closed | isolated Spark local mode vs. cluster mode [02]      |
+| 10.IS.01.03 | 03  | closed | traced a bare cluster-mode job end to end [03]       |
+| 10.IS.01.04 | 04  | closed | reran nbconvert once host load settled - passed      |
+
+01. **10.IS.01.01** `free -h`/`uptime` showed swap exhausted and load average 18-25 on an 8-vCPU host; a mid-diagnosis WSL restart reset load to near-zero.
+02. **10.IS.01.02** `local[2]` mode completed `spark.range(1000).count()` in ~14s inside the same container, isolating the slowdown to the standalone-cluster path specifically.
+03. **10.IS.01.03** a `docker exec` Python driver against `spark://spark-master:7077` (bypassing the Jupyter kernel entirely) registered, ran both stages, and shut down cleanly in ~12s - worker executor stderr shows `Finished task 0.0 in stage 0.0`/`stage 2.0` for every attempt, including ones nbconvert reported as timed out.
 
 **diagnostic details**
 
+Executor stderr on both workers confirmed `Successfully registered with driver` and full task completion for every attempt - the driver-executor RPC path was healthy throughout; what varied was elapsed wall-clock time under contention. No code or script change was needed: `06-notebook-validate.sh` and `00_template_connectivity_check.ipynb` are unmodified from [07](../features/07-jupyter-notebook-workspace-setup.md)'s closed design. This is an environment-capacity constraint on this WSL2 host (3.8 GiB RAM, frequently oversubscribed by concurrent Claude Code sessions and the VS Code extension host), not a defect in this tracker's prerequisite ordering - carried forward as an operating note for 10.10's notebook rerun, which will hit the same cluster-mode path at greater scale.
+
 **validation evidence**
+
+Rerun once host load dropped (load average 0.19-3.72): `[PASS] [07.IS] nbconvert execution completed - no cell raised` in 22s wall-clock, summary marker `[PASS] 00-template-connectivity-check: overall status=PASS`, cross-checked against `src_transaction_daily` row count 2010 via both JDBC and psycopg2 paths.
 
 **user actions**
 

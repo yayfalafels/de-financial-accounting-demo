@@ -78,6 +78,10 @@
               <ul class="nav flex-column">
               </ul>
             </li>
+            <li class="nav-item" data-bs-level="2"><a href="#task-1-gl-integrity-and-reconciliation" class="nav-link">Task 1 - GL Integrity and Reconciliation</a>
+              <ul class="nav flex-column">
+              </ul>
+            </li>
               </ul>
             </li>
         </ul>
@@ -86,11 +90,44 @@
                     <div class="col-md-9" role="main">
 
 <h1 id="assessment-2-ground-truth-audit">Assessment 2 - Ground-Truth Audit</h1>
+<p>Cross-checks every measured count published in this assessment's deliverables against <code>data/mock/issue-log.csv</code> (gitignored, generated locally by the seed run - not a repo path), organized by assignment task and subtask rather than by deliverable.</p>
 <h2 id="sources">Sources</h2>
 <ul>
 <li>notebook: <a href="https://github.com/yayfalafels/de-financial-accounting-demo/blob/main/notebooks/assessment2_gl_reconciliation.ipynb">assessment2_gl_reconciliation.ipynb</a></li>
-<li>batch: <code>reconciliation.rc_batch_control.batch_id = &lt;n&gt;</code></li>
-</ul></div>
+<li>deliverable audited: <a href="../assessment-2-reconciliation-results/">assessment-2-reconciliation-results.md</a></li>
+</ul>
+<h2 id="task-1-gl-integrity-and-reconciliation">Task 1 - GL Integrity and Reconciliation</h2>
+<table>
+<thead>
+<tr>
+<th>task ref</th>
+<th>check</th>
+<th>expected (issue-log)</th>
+<th>measured</th>
+<th>match</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>01.01</td>
+<td>arithmetic integrity</td>
+<td><code>arithmetic_integrity_violation</code>=5</td>
+<td>5</td>
+<td>yes</td>
+</tr>
+<tr>
+<td>01.02-08</td>
+<td>recomputation/dim recon</td>
+<td>n/a [01]</td>
+<td>see reconciliation-results</td>
+<td>n/a</td>
+</tr>
+</tbody>
+</table>
+<ol>
+<li><strong>01.02-08</strong> has no single injected-issue tag of its own - the widespread dimensional variance these checks surface is the combined effect of every task 3 issue category (duplicate entries, wrong dr/cr indicator, FX conversion, missing mappings, late posting, misallocated legal entity/cost center) landing in <code>bronze.finance_transactions</code>, decomposed by category only once task 3 runs.</li>
+</ol>
+<p>All measured values are read live via PySpark JDBC against postgres in the notebook section cited above, not hand-typed against the ground truth.</p></div>
             </div>
         </div>
 

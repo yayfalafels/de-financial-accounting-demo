@@ -8,7 +8,7 @@
         
         
         <link rel="shortcut icon" href="../../img/favicon.ico">
-        <title>Assessment 2 - Reconciliation Results - Financial Accounting Assessments</title>
+        <title>Assessment 2 - Overview - Financial Accounting Assessments</title>
         <link href="../../css/bootstrap.min.css" rel="stylesheet">
         <link href="../../css/fontawesome.min.css" rel="stylesheet">
         <link href="../../css/brands.min.css" rel="stylesheet">
@@ -72,25 +72,29 @@
     <div id="toc-collapse" class="navbar-collapse collapse card bg-body-tertiary">
         <ul class="nav flex-column">
             
-            <li class="nav-item" data-bs-level="1"><a href="#assessment-2-reconciliation-results" class="nav-link">Assessment 2 - Reconciliation Results</a>
+            <li class="nav-item" data-bs-level="1"><a href="#assessment-2-overview" class="nav-link">Assessment 2 - Overview</a>
               <ul class="nav flex-column">
-            <li class="nav-item" data-bs-level="2"><a href="#sources" class="nav-link">Sources</a>
-              <ul class="nav flex-column">
-              </ul>
-            </li>
-            <li class="nav-item" data-bs-level="2"><a href="#10ck01-arithmetic-integrity" class="nav-link">10.CK.01 - arithmetic integrity</a>
+            <li class="nav-item" data-bs-level="2"><a href="#scenario" class="nav-link">Scenario</a>
               <ul class="nav flex-column">
               </ul>
             </li>
-            <li class="nav-item" data-bs-level="2"><a href="#10ck02-10ck03-independent-movement-recomputation" class="nav-link">10.CK.02 / 10.CK.03 - independent movement recomputation</a>
+            <li class="nav-item" data-bs-level="2"><a href="#transaction-dataset-bronzefinance_transactions" class="nav-link">Transaction dataset - bronze.finance_transactions</a>
               <ul class="nav flex-column">
               </ul>
             </li>
-            <li class="nav-item" data-bs-level="2"><a href="#10ck04-10ck08-dimensional-reconciliation" class="nav-link">10.CK.04 - 10.CK.08 - dimensional reconciliation</a>
+            <li class="nav-item" data-bs-level="2"><a href="#general-ledger-dataset-financegl_balance" class="nav-link">General Ledger dataset - finance.gl_balance</a>
               <ul class="nav flex-column">
               </ul>
             </li>
-            <li class="nav-item" data-bs-level="2"><a href="#write-back-to-reconciliationrc_" class="nav-link">write-back to reconciliation.rc_*</a>
+            <li class="nav-item" data-bs-level="2"><a href="#accounting-mapping-dataset-refaccounting_mapping" class="nav-link">Accounting mapping dataset - ref.accounting_mapping</a>
+              <ul class="nav flex-column">
+              </ul>
+            </li>
+            <li class="nav-item" data-bs-level="2"><a href="#tasks" class="nav-link">Tasks</a>
+              <ul class="nav flex-column">
+              </ul>
+            </li>
+            <li class="nav-item" data-bs-level="2"><a href="#expected-deliverables" class="nav-link">Expected deliverables</a>
               <ul class="nav flex-column">
               </ul>
             </li>
@@ -101,142 +105,180 @@
 </div></div>
                     <div class="col-md-9" role="main">
 
-<h1 id="assessment-2-reconciliation-results">Assessment 2 - Reconciliation Results</h1>
-<p>status: draft</p>
-<p><strong>Task 1 - GL Integrity and Reconciliation</strong></p>
-<p>See <a href="../assessment-2-overview/">overview</a> for the scenario, table shapes, and the seeded-vs-production scale statement.</p>
-<h2 id="sources">Sources</h2>
-<ul>
-<li>notebook: <a href="https://github.com/yayfalafels/de-financial-accounting-demo/blob/main/notebooks/assessment2_gl_reconciliation.ipynb">assessment2_gl_reconciliation.ipynb</a> -&gt; "Task 1 - GL Integrity and Reconciliation" section</li>
-<li>batch: <code>reconciliation.rc_batch_control.batch_id = 12</code></li>
-<li>ground-truth verification of the arithmetic-integrity count: <a href="../assessment-2-audit/">assessment-2-audit.md</a></li>
-</ul>
-<h2 id="10ck01-arithmetic-integrity">10.CK.01 - arithmetic integrity</h2>
-<p><code>opening_balance + debit_movement - credit_movement = closing_balance</code> checked on every <code>finance.gl_balance</code> row, exact equality (no rounding tolerance - all four columns are <code>decimal(20,2)</code> and the expression is pure addition/subtraction).</p>
+<h1 id="assessment-2-overview">Assessment 2 - Overview</h1>
+<h2 id="scenario">Scenario</h2>
+<p>The Finance division reports that balances generated from the new data platform do not reconcile with the bank's General Ledger. The candidate is asked to determine whether the issue originates from source data, ingestion, data transformation, FX conversion, accounting classification, duplicate transactions, or missing transactions. Three datasets are available: a transaction-level feed, the General Ledger, and an accounting mapping reference table.</p>
+<blockquote>
+<p>DISCLAIMER: Scaled down mock demo</p>
+</blockquote>
+<p>The assignment scenario states an <strong>Expected Closing Balance of SGD 8,428,770,121.46</strong> against a <strong>Platform Closing Balance of SGD 8,431,992,337.18</strong> - a <strong>SGD 3,222,215.72</strong> variance at production scale. This demo's seeded volume budget is far smaller by design (<code>MOCK_DATA_FINANCE_TXN_PER_DAY=300</code>, <code>MOCK_DATA_DAYS=5</code>), producing 1,523 <code>bronze.finance_transactions</code> rows against 589 <code>finance.gl_balance</code> rows for the most recent seed run. Every measurement published in this assessment's deliverables is a finding against that seeded volume, with the assignment's SGD-billion figures cited here only as the scenario framing that motivated the check - never mistaken for a production-scale result, and never a target the seeded data is expected to reproduce exactly.</p>
+<h2 id="transaction-dataset-bronzefinance_transactions">Transaction dataset - <code>bronze.finance_transactions</code></h2>
 <table>
 <thead>
 <tr>
-<th>check</th>
-<th>rows checked</th>
-<th>violations</th>
+<th>column</th>
+<th>description</th>
 </tr>
 </thead>
 <tbody>
 <tr>
-<td>10.CK.01</td>
-<td>589</td>
-<td>5</td>
-</tr>
-</tbody>
-</table>
-<p><strong>implementation note</strong> - the first pass of this check cast the four decimal columns to <code>double</code> before comparing, which introduced floating-point rounding noise (<code>~1e-12</code>) and inflated the count to 203 false violations; fixed by keeping the comparison in native <code>decimal(20,2)</code> arithmetic. The corrected count (5) matches the ground-truth audit exactly.</p>
-<h2 id="10ck02-10ck03-independent-movement-recomputation">10.CK.02 / 10.CK.03 - independent movement recomputation</h2>
-<p>Expected debit/credit movements independently recomputed from <code>bronze.finance_transactions</code>, grouped on the same five-key grain as <code>finance.gl_balance</code> (<code>accounting_date, legal_entity, gl_account, cost_center, currency</code>), joining <code>posting_date</code> to <code>accounting_date</code> - the GL is dated by <em>posting</em>, not by <code>transaction_date</code>. Tolerance: <code>0.01</code> (one minor-currency-unit) applied independently to each side, via a full outer join so a key present on only one side still surfaces as a variance.</p>
-<table>
-<thead>
-<tr>
-<th>check</th>
-<th>keys compared</th>
-<th>keys with a variance beyond tolerance</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td>10.CK.02 / 10.CK.03</td>
-<td>589</td>
-<td>284</td>
-</tr>
-</tbody>
-</table>
-<h2 id="10ck04-10ck08-dimensional-reconciliation">10.CK.04 - 10.CK.08 - dimensional reconciliation</h2>
-<p>The same recomputation rolled up to one dimension at a time. Status: <code>PASS</code> if <code>\|variance %\| &lt; 0.1</code>, <code>WARNING</code> if <code>&lt; 1</code>, else <code>FAIL</code>.</p>
-<table>
-<thead>
-<tr>
-<th>id</th>
-<th>dimension</th>
-<th>distinct values</th>
-<th>worst variance %</th>
-<th>status</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td>10.CK.04</td>
-<td>legal_entity</td>
-<td>4</td>
-<td>12.2325% (LE4)</td>
-<td>FAIL</td>
+<td>transaction_id</td>
+<td>unique transaction identifier</td>
 </tr>
 <tr>
-<td>10.CK.05</td>
-<td>gl_account</td>
-<td>15</td>
-<td>14.3507% (GL1009)</td>
-<td>FAIL</td>
+<td>account_id</td>
+<td>customer/account identifier</td>
 </tr>
 <tr>
-<td>10.CK.06</td>
-<td>cost_center</td>
-<td>10</td>
-<td>14.3507% (CC10)</td>
-<td>FAIL</td>
+<td>transaction_date</td>
+<td>business transaction date</td>
 </tr>
 <tr>
-<td>10.CK.07</td>
+<td>posting_date</td>
+<td>accounting posting date</td>
+</tr>
+<tr>
+<td>transaction_amount</td>
+<td>transaction amount</td>
+</tr>
+<tr>
 <td>currency</td>
-<td>3</td>
-<td>45.7804% (EUR)</td>
-<td>FAIL</td>
+<td>ISO currency</td>
 </tr>
 <tr>
-<td>10.CK.08</td>
-<td>accounting_date</td>
-<td>5</td>
-<td>11.8745% (2026-08-19)</td>
-<td>FAIL</td>
+<td>exchange_rate</td>
+<td>FX conversion rate</td>
+</tr>
+<tr>
+<td>local_amount</td>
+<td>amount converted to local currency</td>
+</tr>
+<tr>
+<td>debit_credit_indicator</td>
+<td>DEBIT / CREDIT</td>
+</tr>
+<tr>
+<td>product_code</td>
+<td>banking product</td>
+</tr>
+<tr>
+<td>branch_code</td>
+<td>booking branch</td>
+</tr>
+<tr>
+<td>gl_account</td>
+<td>GL account posted to</td>
+</tr>
+<tr>
+<td>cost_center</td>
+<td>cost center posted to</td>
+</tr>
+<tr>
+<td>legal_entity</td>
+<td>legal entity posted to</td>
 </tr>
 </tbody>
 </table>
-<p><strong>10.CK.07 currency finding</strong> - <code>SGD</code> reconciles exactly (<code>0.0%</code> variance), while <code>EUR</code> (45.78%) and <code>USD</code> (34.12%) both fail by a wide margin. Every other dimension's variance is spread broadly across most of its values (e.g. all four legal entities and all five accounting dates FAIL in a similar 9-12% band) rather than concentrated in one or two outliers - <code>currency</code> is the one dimension where the finding is a clean split rather than a spread, worth carrying into task 3's investigation as the leading candidate dimension.</p>
-<p><strong>findings</strong> - every dimension FAILs the reconciliation status threshold except <code>currency=SGD</code>; this is the batch-level symptom the assignment scenario describes (platform closing balance materially disagreeing with the expected/recomputed figure), not a narrow one-record miss. Decomposing <em>why</em> - duplicate entries, wrong debit/credit indicator, FX conversion, missing mappings, late posting, misallocated legal entity/cost center - is task 3's job, not re-derived here.</p>
-<h2 id="write-back-to-reconciliationrc_">write-back to <code>reconciliation.rc_*</code></h2>
-<p><code>reconciliation.rc_reconciliation_results.dimension</code> is a closed set (<code>row_count</code>, <code>amount</code>) fixed by the reconciliation control-table schema; the fine-grained per-dimension detail above is reported in the notebook and this deliverable only, following the same split <a href="../../assessment-1/assessment-1-reconciliation-results/">Assessment 1's reconciliation results</a> draws for its own level 1 batch totals.</p>
+<h2 id="general-ledger-dataset-financegl_balance">General Ledger dataset - <code>finance.gl_balance</code></h2>
 <table>
 <thead>
 <tr>
-<th>dimension</th>
-<th>source [01]</th>
-<th>target [02]</th>
-<th>variance</th>
-<th>variance %</th>
-<th>status</th>
+<th>column</th>
+<th>description</th>
 </tr>
 </thead>
 <tbody>
 <tr>
-<td>row_count</td>
-<td>1523</td>
-<td>589</td>
-<td>-934</td>
-<td>-61.3263%</td>
-<td>FAIL</td>
+<td>accounting_date</td>
+<td>GL accounting date</td>
 </tr>
 <tr>
-<td>amount</td>
-<td>16999151.01</td>
-<td>12996847.89</td>
-<td>-4002303.12</td>
-<td>-23.5441%</td>
-<td>FAIL</td>
+<td>legal_entity</td>
+<td>legal entity</td>
+</tr>
+<tr>
+<td>gl_account</td>
+<td>GL account</td>
+</tr>
+<tr>
+<td>cost_center</td>
+<td>cost center</td>
+</tr>
+<tr>
+<td>currency</td>
+<td>ISO currency</td>
+</tr>
+<tr>
+<td>opening_balance</td>
+<td>balance at period open</td>
+</tr>
+<tr>
+<td>debit_movement</td>
+<td>total debit movement</td>
+</tr>
+<tr>
+<td>credit_movement</td>
+<td>total credit movement</td>
+</tr>
+<tr>
+<td>closing_balance</td>
+<td>balance at period close</td>
 </tr>
 </tbody>
 </table>
-<ol>
-<li><code>source</code> = <code>bronze.finance_transactions</code> (<code>COUNT(*)</code> / <code>SUM(local_amount)</code>).</li>
-<li><code>target</code> = <code>finance.gl_balance</code> (<code>COUNT(*)</code> / <code>SUM(closing_balance)</code>).</li>
-</ol>
-<p><code>batch_id=12</code> is the first <code>assessment_id = 'assessment-2'</code> row <code>reconciliation.rc_batch_control</code> carries - confirmed via direct SQL against <code>reconciliation.rc_reconciliation_results WHERE batch_id = 12</code>, independent of the notebook's own printed summary. Overall batch status: <code>FAIL</code>.</p></div>
+<h2 id="accounting-mapping-dataset-refaccounting_mapping">Accounting mapping dataset - <code>ref.accounting_mapping</code></h2>
+<table>
+<thead>
+<tr>
+<th>column</th>
+<th>description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>product_code</td>
+<td>banking product</td>
+</tr>
+<tr>
+<td>transaction_type</td>
+<td>DEBIT / CREDIT</td>
+</tr>
+<tr>
+<td>expected_gl_account</td>
+<td>GL account a matching transaction should post to</td>
+</tr>
+<tr>
+<td>expected_cost_center</td>
+<td>cost center a matching transaction should post to</td>
+</tr>
+<tr>
+<td>effective_start_date</td>
+<td>mapping rule start date</td>
+</tr>
+<tr>
+<td>effective_end_date</td>
+<td>mapping rule end date, nullable = open-ended</td>
+</tr>
+</tbody>
+</table>
+<h2 id="tasks">Tasks</h2>
+<ul>
+<li><strong>task 1 - validate accounting integrity</strong> - confirm <code>opening_balance + debit_movement - credit_movement = closing_balance</code> on <code>finance.gl_balance</code>, identify violations, then independently recompute expected debit/credit movements from <code>bronze.finance_transactions</code> and reconcile against the GL at legal entity, GL account, cost center, currency, and accounting date</li>
+<li><strong>task 2 - validate accounting mapping</strong> - using <code>ref.accounting_mapping</code>, confirm transactions post to their expected GL account, validate mapping effective dates, identify missing/overlapping/expired mappings and products mapped to multiple GL accounts, and produce an exception output (<code>Transaction, Product, Actual GL, Expected GL, Accounting Date, Exception</code>)</li>
+<li><strong>task 3 - investigate a finance variance</strong> - explain the SGD-scale closing-balance variance, structured rather than transaction-by-transaction, covering duplicate accounting entries, transactions posted twice under a different id, incorrect debit/credit indicators, incorrect FX conversion, missing accounting mappings, transactions posted one accounting day late, incorrect legal-entity allocation, and incorrect cost-center assignment</li>
+<li><strong>task 4 - create a reconciliation framework</strong> - design a reusable, daily-run framework generating source/Bronze/GL counts and amounts, absolute/percentage variance, exception count, and reconciliation status, with configurable tolerance rules (absolute, percentage, currency-specific, account-specific), <code>PASS</code>/<code>WARNING</code>/<code>FAIL</code> status assignment, and a persistence design for audit and historical analysis</li>
+</ul>
+<h2 id="expected-deliverables">Expected deliverables</h2>
+<ul>
+<li>SQL / notebook</li>
+<li>GL reconciliation output</li>
+<li>accounting mapping validation</li>
+<li>identified root causes of the variance</li>
+<li>exception dataset</li>
+<li>reconciliation-framework design</li>
+<li>business-facing summary</li>
+</ul>
+<p>see <a href="../">README.md</a> for current submission status.</p></div>
             </div>
         </div>
 

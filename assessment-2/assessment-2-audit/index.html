@@ -82,6 +82,10 @@
               <ul class="nav flex-column">
               </ul>
             </li>
+            <li class="nav-item" data-bs-level="2"><a href="#task-2-accounting-mapping-validation" class="nav-link">Task 2 - Accounting Mapping Validation</a>
+              <ul class="nav flex-column">
+              </ul>
+            </li>
               </ul>
             </li>
         </ul>
@@ -94,7 +98,7 @@
 <h2 id="sources">Sources</h2>
 <ul>
 <li>notebook: <a href="https://github.com/yayfalafels/de-financial-accounting-demo/blob/main/notebooks/assessment2_gl_reconciliation.ipynb">assessment2_gl_reconciliation.ipynb</a></li>
-<li>deliverable audited: <a href="../assessment-2-reconciliation-results/">assessment-2-reconciliation-results.md</a></li>
+<li>deliverables audited: <a href="../assessment-2-reconciliation-results/">assessment-2-reconciliation-results.md</a>, <a href="../assessment-2-mapping-validation/">assessment-2-mapping-validation.md</a>, <a href="../assessment-2-exception-dataset/">assessment-2-exception-dataset.md</a></li>
 </ul>
 <h2 id="task-1-gl-integrity-and-reconciliation">Task 1 - GL Integrity and Reconciliation</h2>
 <table>
@@ -127,7 +131,61 @@
 <ol>
 <li><strong>01.02-08</strong> has no single injected-issue tag of its own - the widespread dimensional variance these checks surface is the combined effect of every task 3 issue category (duplicate entries, wrong dr/cr indicator, FX conversion, missing mappings, late posting, misallocated legal entity/cost center) landing in <code>bronze.finance_transactions</code>, decomposed by category only once task 3 runs.</li>
 </ol>
-<p>All measured values are read live via PySpark JDBC against postgres in the notebook section cited above, not hand-typed against the ground truth.</p></div>
+<h2 id="task-2-accounting-mapping-validation">Task 2 - Accounting Mapping Validation</h2>
+<table>
+<thead>
+<tr>
+<th>task ref</th>
+<th>check</th>
+<th>expected (issue-log)</th>
+<th>measured</th>
+<th>match</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>02.02</td>
+<td>mapping effective-date</td>
+<td><code>expired_mapping_still_used</code>=2 [01]</td>
+<td>0</td>
+<td>no [01]</td>
+</tr>
+<tr>
+<td>02.04</td>
+<td>overlapping mapping</td>
+<td><code>overlapping_effective_dates</code>=3</td>
+<td>8 pairs / 6 combos [02]</td>
+<td>yes</td>
+</tr>
+<tr>
+<td>02.06</td>
+<td>multi-GL mapping</td>
+<td><code>product_multiple_gl_accounts</code>=2</td>
+<td>4 combos [02]</td>
+<td>yes</td>
+</tr>
+<tr>
+<td>02.01</td>
+<td>GL_MISMATCH</td>
+<td>n/a [03]</td>
+<td>403 rows / 319 txns</td>
+<td>n/a</td>
+</tr>
+<tr>
+<td>02.03</td>
+<td>MAPPING_NOT_FOUND</td>
+<td>n/a [03]</td>
+<td>385 rows</td>
+<td>n/a</td>
+</tr>
+</tbody>
+</table>
+<ol>
+<li><strong>02.02</strong> <code>EXPIRED_MAPPING</code>=0 despite <code>issue-log.csv</code> naming 2 <code>expired_mapping_still_used</code> rows - both expired-row references land on a <code>(product_code, transaction_type)</code> pair that <em>also</em> carries a currently-valid mapping row, so per the design's own <code>NOT EXISTS</code> clause they classify as <code>GL_MISMATCH</code> (posted against the wrong, expired account while a valid one existed) rather than <code>EXPIRED_MAPPING</code> - confirmed by direct SQL: both injected rows appear in the <code>GL_MISMATCH</code> set. Not a defect - the design section states this combination explicitly ("that combination is GL_MISMATCH ... not EXPIRED_MAPPING").</li>
+<li><strong>02.04/02.06</strong> <code>issue-log.csv</code>'s counts (3 overlapping-date rows, 2 multi-GL rows) undercount the <em>pairs</em>/<em>combos</em> these two checks report, because a single injected conflict (e.g. one extra mapping row for <code>P1/DEBIT</code>) can produce more than one overlapping pair or push a combo's distinct-GL count above the multi-GL threshold - all 6 distinct (product, type) combos across both checks (<code>P1/CREDIT</code>, <code>P1/DEBIT</code>, <code>P4/DEBIT</code>, <code>P5/DEBIT</code>, <code>P8/CREDIT</code>, <code>P9/CREDIT</code>) are traceable to the 7 <code>ref.accounting_mapping</code> issue-log rows (2 <code>expired_mapping_still_used</code> + 3 <code>overlapping_effective_dates</code> + 2 <code>product_multiple_gl_accounts</code>).</li>
+<li><strong>02.01/02.03</strong> have no single injected-issue tag of their own: <code>GL_MISMATCH</code> is 99.5% explained by the 6 mapping-conflict combos above (401/403 rows - 4 from <code>10.CK.14</code>'s multi-GL combos, 2 more from <code>10.CK.12</code>'s overlapping-window combos) plus a 2-row unexplained residual (see mapping-validation deliverable); <code>MAPPING_NOT_FOUND</code> is a structural <code>ref.accounting_mapping</code> coverage gap (5 of the 20 <code>(product, type)</code> combos transactions actually use have no mapping row at all), not an individually injected defect.</li>
+</ol>
+<p>All measured values are read live via Spark SQL against postgres in the notebook section cited above, not hand-typed against the ground truth.</p></div>
             </div>
         </div>
 

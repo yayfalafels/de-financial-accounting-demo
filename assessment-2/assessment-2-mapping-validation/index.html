@@ -78,6 +78,22 @@
               <ul class="nav flex-column">
               </ul>
             </li>
+            <li class="nav-item" data-bs-level="2"><a href="#checks" class="nav-link">Checks</a>
+              <ul class="nav flex-column">
+              </ul>
+            </li>
+            <li class="nav-item" data-bs-level="2"><a href="#10ck09-finding-gl_mismatch-traces-mostly-to-mapping-conflicts-not-transaction-data" class="nav-link">10.CK.09 finding - GL_MISMATCH traces mostly to mapping conflicts, not transaction data</a>
+              <ul class="nav flex-column">
+              </ul>
+            </li>
+            <li class="nav-item" data-bs-level="2"><a href="#10ck11-finding-mapping_not_found-is-a-reference-table-coverage-gap" class="nav-link">10.CK.11 finding - MAPPING_NOT_FOUND is a reference-table coverage gap</a>
+              <ul class="nav flex-column">
+              </ul>
+            </li>
+            <li class="nav-item" data-bs-level="2"><a href="#exception-output" class="nav-link">Exception output</a>
+              <ul class="nav flex-column">
+              </ul>
+            </li>
               </ul>
             </li>
         </ul>
@@ -87,11 +103,159 @@
 
 <h1 id="assessment-2-accounting-mapping-validation">Assessment 2 - Accounting Mapping Validation</h1>
 <p>status: draft</p>
+<p><strong>Task 2 - Accounting Mapping Validation</strong></p>
+<p>See <a href="../assessment-2-overview/">overview</a> for the scenario, table shapes, and the seeded-vs-production scale statement.</p>
 <h2 id="sources">Sources</h2>
 <ul>
-<li>notebook: <code>notebooks/assessment2_gl_reconciliation.ipynb</code></li>
-<li>batch: <code>reconciliation.rc_batch_control.batch_id = &lt;n&gt;</code></li>
-</ul></div>
+<li>notebook: <a href="https://github.com/yayfalafels/de-financial-accounting-demo/blob/main/notebooks/assessment2_gl_reconciliation.ipynb">assessment2_gl_reconciliation.ipynb</a> -&gt; "Task 2 - Accounting Mapping Validation" section</li>
+<li>cited by notebook section, not a <code>reconciliation.rc_batch_control.batch_id</code> - task 2 findings are not written to <code>reconciliation.rc_*</code> (see the tracker's workflow cycle note 01)</li>
+<li>ground-truth verification: <a href="../assessment-2-audit/">assessment-2-audit.md</a></li>
+<li>unioned into the minimum-columns exception dataset: <a href="../assessment-2-exception-dataset/">assessment-2-exception-dataset.md</a></li>
+</ul>
+<h2 id="checks">Checks</h2>
+<table>
+<thead>
+<tr>
+<th>id</th>
+<th>check</th>
+<th>result</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>10.CK.09</td>
+<td>posted to expected GL account</td>
+<td>403 rows / 319 txns - <code>GL_MISMATCH</code> [01]</td>
+</tr>
+<tr>
+<td>10.CK.10</td>
+<td>mapping effective-date validity</td>
+<td>0 - <code>NO_EFFECTIVE_MAPPING</code></td>
+</tr>
+<tr>
+<td>10.CK.11</td>
+<td>missing accounting mapping</td>
+<td>385 rows - <code>MAPPING_NOT_FOUND</code></td>
+</tr>
+<tr>
+<td>10.CK.12</td>
+<td>overlapping effective-date mapping ranges</td>
+<td>8 pairs, 6 (product, type) combos [02]</td>
+</tr>
+<tr>
+<td>10.CK.13</td>
+<td>expired mapping still referenced</td>
+<td>0 - <code>EXPIRED_MAPPING</code></td>
+</tr>
+<tr>
+<td>10.CK.14</td>
+<td>product mapped to multiple GL accounts</td>
+<td>4 combos [03]</td>
+</tr>
+</tbody>
+</table>
+<ol>
+<li><strong>10.CK.09</strong> <code>GL_MISMATCH</code> - see the breakdown below.</li>
+<li><strong>10.CK.12</strong> <code>P1/CREDIT</code>, <code>P1/DEBIT</code>, <code>P4/DEBIT</code>, <code>P5/DEBIT</code>, <code>P8/CREDIT</code>, <code>P9/CREDIT</code>.</li>
+<li><strong>10.CK.14</strong> <code>P1/DEBIT</code>=3 accounts, <code>P1/CREDIT</code>=2, <code>P9/CREDIT</code>=2, <code>P5/DEBIT</code>=2.</li>
+</ol>
+<h2 id="10ck09-finding-gl_mismatch-traces-mostly-to-mapping-conflicts-not-transaction-data">10.CK.09 finding - GL_MISMATCH traces mostly to mapping conflicts, not transaction data</h2>
+<p>Breaking the 403 <code>GL_MISMATCH</code> rows down by <code>(product_code, debit_credit_indicator)</code>:</p>
+<table>
+<thead>
+<tr>
+<th>product / type</th>
+<th>rows</th>
+<th>distinct transactions</th>
+<th>explained by 10.CK.12/10.CK.14?</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>P1 / DEBIT</td>
+<td>167</td>
+<td>83</td>
+<td>yes - 3 conflicting mapping rows (10.CK.14)</td>
+</tr>
+<tr>
+<td>P1 / CREDIT</td>
+<td>83</td>
+<td>83</td>
+<td>yes - 2 conflicting mapping rows (10.CK.14)</td>
+</tr>
+<tr>
+<td>P9 / CREDIT</td>
+<td>80</td>
+<td>80</td>
+<td>yes - 2 conflicting mapping rows (10.CK.14)</td>
+</tr>
+<tr>
+<td>P5 / DEBIT</td>
+<td>64</td>
+<td>64</td>
+<td>yes - 2 conflicting mapping rows (10.CK.14)</td>
+</tr>
+<tr>
+<td>P4 / DEBIT</td>
+<td>4</td>
+<td>4</td>
+<td>yes - overlapping mapping window (10.CK.12)</td>
+</tr>
+<tr>
+<td>P8 / CREDIT</td>
+<td>3</td>
+<td>3</td>
+<td>yes - overlapping mapping window (10.CK.12)</td>
+</tr>
+<tr>
+<td>P8 / DEBIT</td>
+<td>1</td>
+<td>1</td>
+<td>no</td>
+</tr>
+<tr>
+<td>P3 / DEBIT</td>
+<td>1</td>
+<td>1</td>
+<td>no</td>
+</tr>
+</tbody>
+</table>
+<p>401 of the 403 rows (99.5%) sit on <code>(product, type)</code> pairs <code>10.CK.12</code>/<code>10.CK.14</code> independently flag as carrying conflicting mapping definitions - <code>P1/DEBIT</code>'s 167 rows over 83 distinct transactions is the join-fanout the design predicted (a transaction matching more than one mapping row is evaluated against each match independently, so it can appear more than once). Only 2 rows (<code>P8/DEBIT</code>, <code>P3/DEBIT</code>, one transaction each) are <strong>not</strong> explained by a mapping conflict - a genuine per-transaction GL miscoding, carried forward as an open residual for task 3.</p>
+<h2 id="10ck11-finding-mapping_not_found-is-a-reference-table-coverage-gap">10.CK.11 finding - MAPPING_NOT_FOUND is a reference-table coverage gap</h2>
+<p>All 385 rows fall on five <code>(product_code, debit_credit_indicator)</code> pairs that have <strong>no row at all</strong> in <code>ref.accounting_mapping</code> (<code>P7/CREDIT</code>=91, <code>P4/CREDIT</code>=85, <code>P2/DEBIT</code>=77, <code>P10/CREDIT</code>=74, <code>P6/CREDIT</code>=58) - <code>ref.accounting_mapping</code>'s 22 rows cover 15 of the 20 <code>(product, type)</code> combinations actually posted in <code>bronze.finance_transactions</code>; these five are structurally absent from the reference table rather than individually mis-tagged. No <code>issue-log.csv</code> tag names this directly (see <a href="../assessment-2-audit/">assessment-2-audit.md</a>) - it is a mapping-table coverage characteristic of the seed data, not a per-row injected defect.</p>
+<h2 id="exception-output">Exception output</h2>
+<p>The assignment's shape - <code>Transaction, Product, Actual GL, Expected GL, Accounting Date, Exception</code> - applied to the four per-transaction checks (<code>10.CK.09</code>, <code>10.CK.10</code>, <code>10.CK.11</code>, <code>10.CK.13</code>); <code>10.CK.12</code>/<code>10.CK.14</code> are mapping-level findings with no <code>transaction_id</code> to key on, reported separately above. Full 788-row output is in the notebook's <code>exception_output</code> cell; a sample:</p>
+<table>
+<thead>
+<tr>
+<th>Transaction</th>
+<th>Product</th>
+<th>Actual GL</th>
+<th>Expected GL</th>
+<th>Accounting Date</th>
+<th>Exception</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>FTX-0000008</td>
+<td>P1</td>
+<td>GL1007</td>
+<td>GL1014</td>
+<td>2026-08-17</td>
+<td>GL_MISMATCH</td>
+</tr>
+<tr>
+<td>FTX-0000019</td>
+<td>P10</td>
+<td>GL9999</td>
+<td>-</td>
+<td>2026-08-17</td>
+<td>MAPPING_NOT_FOUND</td>
+</tr>
+</tbody>
+</table></div>
             </div>
         </div>
 

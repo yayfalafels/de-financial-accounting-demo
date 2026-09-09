@@ -78,7 +78,7 @@
               <ul class="nav flex-column">
               </ul>
             </li>
-            <li class="nav-item" data-bs-level="2"><a href="#coverage-task-2-categories-only-extended-in-1007" class="nav-link">Coverage - task 2 categories only, extended in 10.07</a>
+            <li class="nav-item" data-bs-level="2"><a href="#coverage-task-2-categories-only" class="nav-link">Coverage - task 2 categories only</a>
               <ul class="nav flex-column">
               </ul>
             </li>
@@ -95,55 +95,48 @@
 
 <h1 id="assessment-2-exception-dataset">Assessment 2 - Exception Dataset</h1>
 <p>status: draft</p>
-<p><strong>Task 2 - Accounting Mapping Validation (exception dataset)</strong></p>
-<p>See <a href="../assessment-2-overview/">overview</a> for the scenario, table shapes, and the seeded-vs-production scale statement. See <a href="../assessment-2-mapping-validation/">assessment-2-mapping-validation.md</a> for the per-check breakdown.</p>
+<p><strong>Task 2 - Accounting Mapping Validation</strong></p>
+<p>See <a href="../assessment-2-overview/">overview</a> for the scenario, table shapes, and the seeded-vs-production scale statement. See <a href="../assessment-2-mapping-validation/">mapping-validation</a> for the per-check breakdown.</p>
 <h2 id="sources">Sources</h2>
 <ul>
 <li>notebook: <a href="https://github.com/yayfalafels/de-financial-accounting-demo/blob/main/notebooks/assessment2_gl_reconciliation.ipynb">assessment2_gl_reconciliation.ipynb</a> -&gt; "Exception Dataset" section</li>
 <li>cited by notebook section, not a <code>reconciliation.rc_batch_control.batch_id</code> - see the coverage note below</li>
-<li>ground-truth verification: <a href="../assessment-2-audit/">assessment-2-audit.md</a></li>
 </ul>
-<h2 id="coverage-task-2-categories-only-extended-in-1007">Coverage - task 2 categories only, extended in 10.07</h2>
-<p>This dataset unions the row sets from <strong>10.CK.09</strong>-<strong>10.CK.14</strong> (task 2's own mapping-validation checks). <strong>10.CK.15</strong>-<strong>10.CK.22</strong> (task 3's variance-investigation categories: duplicate entries, wrong debit/credit indicator, FX conversion, late posting, misallocated legal entity/cost center) are added when task 3 (10.07) runs - this deliverable is extended in that cycle rather than restating numbers not yet produced. <code>10.CK.12</code>/<code>10.CK.14</code> are mapping-level findings with no <code>transaction_id</code> to key on and are not part of this per-transaction dataset - see the mapping-validation deliverable for those two.</p>
+<h2 id="coverage-task-2-categories-only">Coverage - task 2 categories only</h2>
+<p>This dataset unions the row sets from <strong>10.CK.09</strong>-<strong>10.CK.14</strong> (task 2's own mapping-validation checks). <strong>10.CK.15</strong>-<strong>10.CK.22</strong> (task 3's variance-investigation categories: duplicate entries, wrong debit/credit indicator, FX conversion, late posting, misallocated legal entity/cost center) are added when task 3 runs - this deliverable is extended in that cycle rather than restating numbers not yet produced. <code>10.CK.12</code>/<code>10.CK.14</code> are mapping-level findings with no <code>transaction_id</code> to key on and are not part of this per-transaction dataset - see the mapping-validation deliverable for those two.</p>
 <h2 id="exception-dataset-schema">Exception dataset schema</h2>
-<p>Minimum columns: <code>transaction_id</code>, <code>issue_type</code>, <code>source_value</code>, <code>gl_value</code>, <code>variance</code>. No <code>batch_id</code> column - task 2 findings are cited by notebook section, not a <code>reconciliation.rc_batch_control</code> batch (see the tracker's workflow cycle note 01; only task 1/4 write to <code>reconciliation.rc_*</code>). <code>source_value</code>/<code>gl_value</code> hold the transaction's actual <code>gl_account</code> and the mapping's <code>expected_gl_account</code> respectively, where a mapping exists; <code>variance</code> is unused for these categories (no numeric amount is being compared) and stays <code>NULL</code>.</p>
+<p>Minimum columns: <code>transaction_id</code>, <code>issue_type</code>, <code>source_value</code>, <code>gl_value</code>, <code>variance</code>. No <code>batch_id</code> column - task 2 findings are cited by notebook section, not a <code>reconciliation.rc_batch_control</code> batch. Only task 1/4 write to <code>reconciliation.rc_*</code>. <code>source_value</code>/<code>gl_value</code> hold the transaction's actual <code>gl_account</code> and the mapping's <code>expected_gl_account</code> respectively, where a mapping exists; <code>variance</code> is unused for these categories (no numeric amount is being compared) and stays <code>NULL</code>.</p>
 <table>
 <thead>
 <tr>
 <th>issue_type</th>
 <th>rows</th>
-<th>materialisation</th>
 </tr>
 </thead>
 <tbody>
 <tr>
 <td><code>GL_MISMATCH</code></td>
 <td>403</td>
-<td>see exception rows</td>
 </tr>
 <tr>
 <td><code>NO_EFFECTIVE_MAPPING</code></td>
 <td>0</td>
-<td>-</td>
 </tr>
 <tr>
 <td><code>MAPPING_NOT_FOUND</code></td>
 <td>385</td>
-<td>see exception rows</td>
 </tr>
 <tr>
 <td><code>EXPIRED_MAPPING</code></td>
 <td>0</td>
-<td>-</td>
 </tr>
 <tr>
 <td><strong>total</strong></td>
 <td><strong>788</strong></td>
-<td></td>
 </tr>
 </tbody>
 </table>
-<p><strong>Materialisation</strong>: the full 788-row exception dataset lives in the notebook's own cell output (<code>exception_dataset</code>, cached and printed by class), git-tracked as part of the committed, executed notebook. This deliverable embeds only representative rows below.</p>
+<p><strong>Materialisation</strong>: the full per-category 788-row  (394 more <code>GL_MISMATCH</code>, 383 more <code>MAPPING_NOT_FOUND</code>) exception dataset lives in the notebook's own cell output (<code>exception_dataset</code>, cached and printed by class). This deliverable embeds only representative rows below.</p>
 <table>
 <thead>
 <tr>
@@ -184,8 +177,7 @@
 <td>-</td>
 </tr>
 </tbody>
-</table>
-<p>Full per-category rows (394 more <code>GL_MISMATCH</code>, 383 more <code>MAPPING_NOT_FOUND</code>) are in the notebook output, not reproduced here.</p></div>
+</table></div>
             </div>
         </div>
 

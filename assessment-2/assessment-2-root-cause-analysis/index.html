@@ -191,13 +191,36 @@
 <td>-</td>
 <td><strong>-791,560.28</strong></td>
 </tr>
+<tr>
+<td>less: dimensional-only categories [05]</td>
+<td>-</td>
+<td>-146,182.63</td>
+</tr>
+<tr>
+<td>less: value double-counted across categories [06]</td>
+<td>-</td>
+<td>-125,566.69</td>
+</tr>
+<tr>
+<td><strong>adjusted bottom-up sum</strong></td>
+<td>-</td>
+<td><strong>4,522,114.08</strong></td>
+</tr>
+<tr>
+<td><strong>adjusted residual</strong> [07]</td>
+<td>-</td>
+<td><strong>-519,810.96</strong></td>
+</tr>
 </tbody>
 </table>
 <ol>
 <li><strong>indicator</strong> checked indirectly, by looking for a Ledger key where the debit and credit variance from Task 1's recomputation cancel to near zero while neither is individually zero (the signature a single flipped transaction would leave if it were the only cause of variance at that key) - no key in this dataset showed that signature. A single flipped transaction's effect can be present but too small to surface this way once a key already carries a larger variance from another cause; this check did not find a category-specific population it could isolate.</li>
 <li><strong>late posting</strong> - 12 transactions post exactly one calendar day after their transaction date, but none of the 12 materially closes the prior day's own movement variance at the same key when moved back a day, so none is confirmed as this category's cause rather than a normal one-day processing lag.</li>
 <li><strong>independent Ledger total variance</strong> - the absolute difference between the Ledger's total closing balance and the independently recomputed total transaction value, from Task 1 - the top-down figure this bottom-up decomposition is checked against.</li>
-<li><strong>unexplained residual</strong> = independent Ledger total variance - bottom-up sum. Negative here, meaning the categories together attribute <em>more</em> value than the single top-line variance - consistent with not every category being a pure driver of that one total: legal-entity and cost-center misclassification move a transaction's value between sub-totals without changing the grand total, so their inclusion in the bottom-up sum does not correspondingly reduce the top-down figure. The residual is reported as found, not adjusted to zero.</li>
+<li><strong>unexplained residual</strong> = independent Ledger total variance - bottom-up sum. Negative here, meaning the categories together attribute <em>more</em> value than the single top-line variance.</li>
+<li><strong>dimensional-only categories</strong> - incorrect legal-entity allocation and incorrect cost-center assignment reassign a transaction between sub-totals without changing the Ledger's grand total, so their value should not have been counted toward the bottom-up sum in the first place; removing it is a correction, not an assumption.</li>
+<li><strong>double-counted value</strong> - measured directly, not assumed: the transactions flagged by duplicate/re-posted entry, incorrect FX conversion, and missing accounting mapping are pooled, and the value counted more than once (a transaction appearing in more than one of the three) is the gap between the sum with repeats and the sum over distinct transaction ids. All of it traces to the overlap between duplicate/re-posted entries and missing accounting mapping; no overlap was found between FX conversion and either of the other two.</li>
+<li><strong>adjusted residual</strong> = independent Ledger total variance - adjusted bottom-up sum. These two corrections account for 271,749.32 of the original 791,560.28 residual (34.3%) - the remaining 519,810.96 is a genuine unexplained residual, not closed by either predicted cause.</li>
 </ol>
 <h2 id="duplicate-re-posted-accounting-entries">Duplicate / re-posted accounting entries</h2>
 <p>Business fields (every column except the transaction id) hashed per transaction, grouped by posting date; every row sharing a hash and posting date beyond the first is flagged, indicating either the same entry recorded twice or the same transaction re-posted under a different id - the two scenarios the assignment names separately are not distinguishable from this data alone, since both leave an identical signature. 21 rows flagged this way, contributing 255,845.35.</p>
@@ -208,7 +231,7 @@
 <h2 id="incorrect-cost-center-assignment">Incorrect cost-center assignment</h2>
 <p>The accounting mapping table does carry an expected cost center, so this check reuses the same effective-dated join as the accounting mapping validation. 8 distinct transactions flagged (a transaction matching more than one active mapping row is checked against each independently, so the raw row count is higher before removing that duplication), contributing 85,485.13.</p>
 <h2 id="unexplained-residual">Unexplained residual</h2>
-<p>The bottom-up sum of category contributions (4,793,863.40) exceeds the independent top-line Ledger variance (4,002,303.12) by 791,560.28. The categories above are not partitions of a single known total the way a source-to-target record diff would be - legal-entity and cost-center misclassification redistribute value between sub-totals without changing the Ledger's grand total, so summing them alongside categories that genuinely move the total (duplicates, unmapped transactions, FX errors) overstates what the bottom-up sum should be compared against. Separately, two of the eight named categories (incorrect debit/credit indicator, posted one accounting day late) returned no confirmed population from the methods used - this investigation cannot rule out that either is present but too small, or too entangled with a larger co-occurring cause at the same Ledger key, to isolate with the checks used here.</p>
+<p>The bottom-up sum of category contributions (4,793,863.40) exceeds the independent top-line Ledger variance (4,002,303.12) by 791,560.28. Two specific, testable predictions were checked against that gap directly rather than assumed to explain it: removing the two dimensional-only categories (legal-entity and cost-center misclassification, which redistribute value between sub-totals without changing the Ledger's grand total) and removing the value double-counted where a transaction is flagged by more than one of the remaining checks (measured directly - all of it traces to overlap between duplicate/re-posted entries and missing accounting mapping) together account for 271,749.32 of the gap, 34.3%. The remaining 519,810.96 stays a genuine unexplained residual - not closed by either predicted cause, and not forced to zero. Separately, two of the eight named categories (incorrect debit/credit indicator, posted one accounting day late) returned no confirmed population from the methods used - this investigation cannot rule out that either is present but too small, or too entangled with a larger co-occurring cause at the same Ledger key, to isolate with the checks used here.</p>
 <h2 id="remediation">Remediation</h2>
 <ul>
 <li>reload or confirm the accounting mapping table's coverage for every product/transaction-type combination actually posted, so every transaction can be validated against an expected GL account and cost center</li>

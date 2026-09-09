@@ -12,7 +12,7 @@ See [overview](assessment-2-overview.md) for the scenario, table shapes, and the
 
 ## Method
 
-Each of the categories the scenario names is checked independently rather than searched for transaction by transaction. A category's contribution is the sum of `local_amount` across the transactions it flags; categories are not guaranteed mutually exclusive (a single transaction can be flagged by more than one check), so the sum of contributions below is not expected to equal the total reconciliation variance from Task 1 exactly - it is read as the value this investigation can attribute to each named cause, with any gap called out explicitly rather than forced to close.
+Each of the categories the scenario names is checked independently rather than searched for transaction by transaction. A category's contribution is the sum of `local_amount` across the transactions it flags. Two totals are then compared: the single top-line variance between the Ledger's total and the independently recomputed transaction total (the same figure the scenario's own reported variance is an instance of), and the bottom-up sum of every category's contribution. Categories are not guaranteed mutually exclusive (a single transaction can be flagged by more than one check), so the two totals are not expected to match exactly - any gap is reported as an unexplained residual rather than forced to close.
 
 ## Findings
 
@@ -25,9 +25,14 @@ Each of the categories the scenario names is checked independently rather than s
 | posted one accounting day late              | 0 [02]       | -                      |
 | incorrect legal-entity allocation            | 6            | 60,697.50              |
 | incorrect cost-center assignment              | 8            | 85,485.13              |
+| **independent Ledger total variance** [03] | -          | **4,002,303.12**      |
+| **bottom-up sum of the categories above**   | -          | **4,793,863.40**      |
+| **unexplained residual** [04]               | -          | **-791,560.28**       |
 
 01. **indicator** checked indirectly, by looking for a Ledger key where the debit and credit variance from Task 1's recomputation cancel to near zero while neither is individually zero (the signature a single flipped transaction would leave if it were the only cause of variance at that key) - no key in this dataset showed that signature. A single flipped transaction's effect can be present but too small to surface this way once a key already carries a larger variance from another cause; this check did not find a category-specific population it could isolate.
 02. **late posting** - 12 transactions post exactly one calendar day after their transaction date, but none of the 12 materially closes the prior day's own movement variance at the same key when moved back a day, so none is confirmed as this category's cause rather than a normal one-day processing lag.
+03. **independent Ledger total variance** - the absolute difference between the Ledger's total closing balance and the independently recomputed total transaction value, from Task 1 - the top-down figure this bottom-up decomposition is checked against.
+04. **unexplained residual** = independent Ledger total variance - bottom-up sum. Negative here, meaning the categories together attribute *more* value than the single top-line variance - consistent with not every category being a pure driver of that one total: legal-entity and cost-center misclassification move a transaction's value between sub-totals without changing the grand total, so their inclusion in the bottom-up sum does not correspondingly reduce the top-down figure. The residual is reported as found, not adjusted to zero.
 
 ## Duplicate / re-posted accounting entries
 
@@ -47,7 +52,7 @@ The accounting mapping table does carry an expected cost center, so this check r
 
 ## Unexplained residual
 
-The categories above are not partitions of a single known total the way a source-to-target record diff would be, so no single residual figure is computed here. Two of the eight named categories (incorrect debit/credit indicator, posted one accounting day late) returned no confirmed population from the methods used - this investigation cannot rule out that either is present but too small, or too entangled with a larger co-occurring cause at the same Ledger key, to isolate with the checks used here.
+The bottom-up sum of category contributions (4,793,863.40) exceeds the independent top-line Ledger variance (4,002,303.12) by 791,560.28. The categories above are not partitions of a single known total the way a source-to-target record diff would be - legal-entity and cost-center misclassification redistribute value between sub-totals without changing the Ledger's grand total, so summing them alongside categories that genuinely move the total (duplicates, unmapped transactions, FX errors) overstates what the bottom-up sum should be compared against. Separately, two of the eight named categories (incorrect debit/credit indicator, posted one accounting day late) returned no confirmed population from the methods used - this investigation cannot rule out that either is present but too small, or too entangled with a larger co-occurring cause at the same Ledger key, to isolate with the checks used here.
 
 ## Remediation
 

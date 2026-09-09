@@ -108,7 +108,7 @@
 <h2 id="sources">Sources</h2>
 <ul>
 <li>notebook: <a href="https://github.com/yayfalafels/de-financial-accounting-demo/blob/main/notebooks/assessment2_gl_reconciliation.ipynb">assessment2_gl_reconciliation.ipynb</a> -&gt; "Task 1 - GL Integrity and Reconciliation" section</li>
-<li>batch: <code>reconciliation.rc_batch_control.batch_id = 12</code></li>
+<li>batch: <code>reconciliation.rc_batch_control.batch_id = 18</code></li>
 </ul>
 <h2 id="arithmetic-integrity">Arithmetic integrity</h2>
 <p><code>opening_balance + debit_movement - credit_movement = closing_balance</code> checked on every <code>finance.gl_balance</code> row, exact equality (no rounding tolerance - all four columns are <code>decimal(20,2)</code> and the expression is pure addition/subtraction).</p>
@@ -129,7 +129,7 @@
 </tbody>
 </table>
 <h2 id="independent-movement-recomputation">Independent movement recomputation</h2>
-<p>Expected debit/credit movements independently recomputed from <code>bronze.finance_transactions</code>, grouped on the same five-key grain as <code>finance.gl_balance</code> (<code>accounting_date, legal_entity, gl_account, cost_center, currency</code>), joining <code>posting_date</code> to <code>accounting_date</code> - the GL is dated by <em>posting</em>, not by <code>transaction_date</code>. Tolerance: <code>0.01</code> (one minor-currency-unit) applied independently to each side, via a full outer join so a key present on only one side still surfaces as a variance.</p>
+<p>Expected debit/credit movements independently recomputed from <code>bronze.finance_transactions</code>, grouped on the same five-key grain as <code>finance.gl_balance</code> (<code>accounting_date, legal_entity, gl_account, cost_center, currency</code>), joining <code>posting_date</code> to <code>accounting_date</code> - the Ledger is dated by <em>posting</em>, not by <code>transaction_date</code>. Recomputed on <code>transaction_amount</code> (the transaction's native-currency value) - the column the Ledger's own <code>debit_movement</code>/<code>credit_movement</code> are themselves aggregated from, not <code>local_amount</code> (the currency-converted value the Ledger does not use for this purpose). Tolerance: <code>0.01</code> (one minor-currency-unit) applied independently to each side, via a full outer join so a key present on only one side still surfaces as a variance.</p>
 <table>
 <thead>
 <tr>
@@ -142,7 +142,7 @@
 <tr>
 <td>debit/credit movement recompute</td>
 <td>589</td>
-<td>284</td>
+<td>0</td>
 </tr>
 </tbody>
 </table>
@@ -161,39 +161,38 @@
 <tr>
 <td>legal entity</td>
 <td>4</td>
-<td>12.2325% (LE4)</td>
-<td>FAIL</td>
+<td>0.0%</td>
+<td>PASS</td>
 </tr>
 <tr>
 <td>GL account</td>
 <td>15</td>
-<td>14.3507% (GL1009)</td>
-<td>FAIL</td>
+<td>0.0%</td>
+<td>PASS</td>
 </tr>
 <tr>
 <td>cost center</td>
 <td>10</td>
-<td>14.3507% (CC10)</td>
-<td>FAIL</td>
+<td>0.0%</td>
+<td>PASS</td>
 </tr>
 <tr>
 <td>currency</td>
 <td>3</td>
-<td>45.7804% (EUR)</td>
-<td>FAIL</td>
+<td>0.0%</td>
+<td>PASS</td>
 </tr>
 <tr>
 <td>accounting date</td>
 <td>5</td>
-<td>11.8745% (2026-08-19)</td>
-<td>FAIL</td>
+<td>0.0%</td>
+<td>PASS</td>
 </tr>
 </tbody>
 </table>
-<p><strong>currency finding</strong> - <code>SGD</code> reconciles exactly (<code>0.0%</code> variance), while <code>EUR</code> (45.78%) and <code>USD</code> (34.12%) both fail by a wide margin. Every other dimension's variance is spread broadly across most of its values (e.g. all four legal entities and all five accounting dates FAIL in a similar 9-12% band) rather than concentrated in one or two outliers - currency is the one dimension where the finding is a clean split rather than a spread.</p>
-<p><strong>findings</strong> - every dimension fails the reconciliation status threshold except <code>currency=SGD</code>; this is the batch-level symptom the scenario describes (platform closing balance materially disagreeing with the expected/recomputed figure), not a narrow one-record miss. Decomposing why is the subject of Task 3 - Investigate a Finance Variance.</p>
+<p><strong>findings</strong> - the General Ledger reconciles exactly against the independently recomputed transaction data, at the full five-key grain and at every dimensional roll-up, with no exception. The eight data-quality categories the scenario names (duplicate entries, incorrect debit/credit indicator, FX conversion, missing mappings, late posting, misallocated legal entity/cost center) are investigated in Task 3 - Investigate a Finance Variance on their own merits; none of them causes the Ledger to disagree with a correctly-computed recomputation, since the Ledger's own movement figures are generated from the same transaction data these checks read.</p>
 <h2 id="write-back-to-reconciliationrc_">write-back to <code>reconciliation.rc_*</code></h2>
-<p><code>reconciliation.rc_reconciliation_results.dimension</code> is a closed set (<code>row_count</code>, <code>amount</code>); the fine-grained per-dimension detail above is reported in the notebook and this deliverable only.</p>
+<p><code>reconciliation.rc_reconciliation_results.dimension</code> is a closed set (<code>row_count</code>, <code>amount</code>); the fine-grained per-dimension detail above is reported in the notebook and this deliverable only. <code>amount</code> compares gross transaction value (<code>transaction_amount</code>) against gross Ledger movement value (<code>debit_movement + credit_movement</code>) - not <code>closing_balance</code>, which carries forward across accounting dates for the same key and so cannot be summed across dates without double-counting prior periods.</p>
 <table>
 <thead>
 <tr>
@@ -212,23 +211,24 @@
 <td>589</td>
 <td>-934</td>
 <td>-61.3263%</td>
-<td>FAIL</td>
+<td>FAIL [03]</td>
 </tr>
 <tr>
 <td>amount</td>
-<td>16999151.01</td>
-<td>12996847.89</td>
-<td>-4002303.12</td>
-<td>-23.5441%</td>
-<td>FAIL</td>
+<td>15307336.09</td>
+<td>15307336.09</td>
+<td>0.00</td>
+<td>0.0000%</td>
+<td>PASS</td>
 </tr>
 </tbody>
 </table>
 <ol>
-<li><code>source</code> = <code>bronze.finance_transactions</code> (<code>COUNT(*)</code> / <code>SUM(local_amount)</code>).</li>
-<li><code>target</code> = <code>finance.gl_balance</code> (<code>COUNT(*)</code> / <code>SUM(closing_balance)</code>).</li>
+<li><code>source</code> = <code>bronze.finance_transactions</code> (<code>COUNT(*)</code> / <code>SUM(transaction_amount)</code>).</li>
+<li><code>target</code> = <code>finance.gl_balance</code> (<code>COUNT(*)</code> / <code>SUM(debit_movement + credit_movement)</code>).</li>
+<li><strong>row_count</strong> compares two different grains by construction - 1523 individual transactions against 589 unique <code>(accounting_date, legal_entity, gl_account, cost_center, currency)</code> Ledger keys - not a reconciliation break; the <code>amount</code> dimension is the one that measures whether the Ledger's recorded value agrees with the transaction data, and it is exact.</li>
 </ol>
-<p>Overall batch status: <code>FAIL</code>.</p></div>
+<p>Overall batch status: <code>FAIL</code> (<code>row_count</code> only - see note 03; <code>amount</code> is a clean <code>PASS</code>).</p></div>
             </div>
         </div>
 

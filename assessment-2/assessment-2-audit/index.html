@@ -127,13 +127,13 @@
 <td>01.02-08</td>
 <td>recomputation/dim recon</td>
 <td>n/a [01]</td>
-<td>see reconciliation-results</td>
+<td>0 keys, all PASS</td>
 <td>n/a</td>
 </tr>
 </tbody>
 </table>
 <ol>
-<li><strong>01.02-08</strong> has no single injected-issue tag of its own - the widespread dimensional variance these checks surface is the combined effect of every task 3 issue category (duplicate entries, wrong dr/cr indicator, FX conversion, missing mappings, late posting, misallocated legal entity/cost center) landing in <code>bronze.finance_transactions</code>, decomposed by category only once task 3 runs.</li>
+<li><strong>01.02-08</strong> has no single injected-issue tag of its own. The first pass of this check recomputed movements from <code>local_amount</code> and found every dimension failing except <code>currency=SGD</code> - traced to a basis error, not a data-quality finding: <code>finance.gl_balance</code>'s own movement figures are aggregated from <code>transaction_amount</code>, not <code>local_amount</code> (confirmed directly against the seed generator's own GL-aggregation code). Recomputing on the correct basis reconciles every key exactly - see <code>docs/assessments/10-as02-financial-accounting-gl.md</code>, issue <code>10.IS.02</code>, for the full diagnostic trail.</li>
 </ol>
 <h2 id="task-2-accounting-mapping-validation">Task 2 - Accounting Mapping Validation</h2>
 <table>
@@ -249,8 +249,8 @@
 <ol>
 <li><strong>expected</strong> column values are issue-log row counts for <code>duplicate_accounting_entry</code>, <code>posted_twice_different_id</code>, <code>incorrect_dr_cr_indicator</code>, <code>incorrect_fx_conversion</code>, <code>posted_one_day_late</code>, <code>incorrect_legal_entity</code>, <code>incorrect_cost_center</code> respectively.</li>
 <li><strong>03.01/02</strong> both scenarios manifest identically in the data (same business fields hashed, different transaction id) and are detected by one query per the design; <code>issue-log.csv</code> tags 23 rows across the two categories combined, the notebook's single detection finds 21 - a 2-row shortfall not further isolated by this run.</li>
-<li><strong>03.03</strong> the indirect detection method (a Ledger key where debit and credit variance cancel to near zero) found no candidate in this dataset, despite 10 tagged rows existing - every key in this dataset already carries variance from other co-occurring causes (missing mappings foremost), which swamps a single flipped transaction's cancellation signature at the same key. A limitation of this detection method against this particular dataset, not evidence the 10 rows don't exist.</li>
-<li><strong>03.06</strong> the raw day-shift candidate count (12) matches the tagged count exactly - the detection step itself is accurate - but the confirmation step (requiring a candidate's amount to closely match its prior day's own shortfall at the same five-key grain) rejected all 12, for the same reason as <strong>03.03</strong>: other co-occurring variance at each key swamps the single-transaction signal the confirmation step looks for. The root-cause deliverable reports this honestly as 0 confirmed rather than overriding the method's own result with the ground truth.</li>
+<li><strong>03.03</strong> the indirect detection method (a Ledger key where debit and credit variance cancel to near zero) found no candidate, despite 10 tagged rows existing. Confirmed structural, not a detection-method weakness: <code>finance.gl_balance</code> is aggregated from the same (already-mutated) transaction rows this check reads, so a flipped indicator is baked into the Ledger and the recomputation identically - there is no cancellation signature to find via this method, on any dataset generated this way. Finding a wrong indicator needs a rule external to Ledger-vs-transaction reconciliation (e.g. an expected normal balance per GL account).</li>
+<li><strong>03.06</strong> the raw day-shift candidate count (12) matches the tagged count exactly - the detection step itself is accurate - but the confirmation step (requiring a candidate's amount to closely match its prior day's own shortfall) rejected all 12, for the same structural reason as <strong>03.03</strong>: the Ledger is built from each transaction's own (possibly late) posting date, so the Ledger and the recomputation already agree on where a late-posted transaction lands - there is no shortfall left to match against. The root-cause deliverable reports this as 0 confirmed rather than overriding the method's own result with the ground truth.</li>
 </ol>
 <p>All measured values are read live via Spark SQL/PySpark against postgres in the notebook section cited above, not hand-typed against the ground truth.</p></div>
             </div>

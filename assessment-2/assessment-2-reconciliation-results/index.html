@@ -78,15 +78,15 @@
               <ul class="nav flex-column">
               </ul>
             </li>
-            <li class="nav-item" data-bs-level="2"><a href="#10ck01-arithmetic-integrity" class="nav-link">10.CK.01 - arithmetic integrity</a>
+            <li class="nav-item" data-bs-level="2"><a href="#arithmetic-integrity" class="nav-link">Arithmetic integrity</a>
               <ul class="nav flex-column">
               </ul>
             </li>
-            <li class="nav-item" data-bs-level="2"><a href="#10ck02-10ck03-independent-movement-recomputation" class="nav-link">10.CK.02 / 10.CK.03 - independent movement recomputation</a>
+            <li class="nav-item" data-bs-level="2"><a href="#independent-movement-recomputation" class="nav-link">Independent movement recomputation</a>
               <ul class="nav flex-column">
               </ul>
             </li>
-            <li class="nav-item" data-bs-level="2"><a href="#10ck04-10ck08-dimensional-reconciliation" class="nav-link">10.CK.04 - 10.CK.08 - dimensional reconciliation</a>
+            <li class="nav-item" data-bs-level="2"><a href="#dimensional-reconciliation" class="nav-link">Dimensional reconciliation</a>
               <ul class="nav flex-column">
               </ul>
             </li>
@@ -103,15 +103,14 @@
 
 <h1 id="assessment-2-reconciliation-results">Assessment 2 - Reconciliation Results</h1>
 <p>status: draft</p>
-<p><strong>Task 1 - GL Integrity and Reconciliation</strong></p>
+<p><strong>Task 1 - Validate Accounting Integrity</strong></p>
 <p>See <a href="../assessment-2-overview/">overview</a> for the scenario, table shapes, and the seeded-vs-production scale statement.</p>
 <h2 id="sources">Sources</h2>
 <ul>
 <li>notebook: <a href="https://github.com/yayfalafels/de-financial-accounting-demo/blob/main/notebooks/assessment2_gl_reconciliation.ipynb">assessment2_gl_reconciliation.ipynb</a> -&gt; "Task 1 - GL Integrity and Reconciliation" section</li>
 <li>batch: <code>reconciliation.rc_batch_control.batch_id = 12</code></li>
-<li>ground-truth verification of the arithmetic-integrity count: <a href="../assessment-2-audit/">assessment-2-audit.md</a></li>
 </ul>
-<h2 id="10ck01-arithmetic-integrity">10.CK.01 - arithmetic integrity</h2>
+<h2 id="arithmetic-integrity">Arithmetic integrity</h2>
 <p><code>opening_balance + debit_movement - credit_movement = closing_balance</code> checked on every <code>finance.gl_balance</code> row, exact equality (no rounding tolerance - all four columns are <code>decimal(20,2)</code> and the expression is pure addition/subtraction).</p>
 <table>
 <thead>
@@ -123,14 +122,13 @@
 </thead>
 <tbody>
 <tr>
-<td>10.CK.01</td>
+<td>arithmetic integrity</td>
 <td>589</td>
 <td>5</td>
 </tr>
 </tbody>
 </table>
-<p><strong>implementation note</strong> - the first pass of this check cast the four decimal columns to <code>double</code> before comparing, which introduced floating-point rounding noise (<code>~1e-12</code>) and inflated the count to 203 false violations; fixed by keeping the comparison in native <code>decimal(20,2)</code> arithmetic. The corrected count (5) matches the ground-truth audit exactly.</p>
-<h2 id="10ck02-10ck03-independent-movement-recomputation">10.CK.02 / 10.CK.03 - independent movement recomputation</h2>
+<h2 id="independent-movement-recomputation">Independent movement recomputation</h2>
 <p>Expected debit/credit movements independently recomputed from <code>bronze.finance_transactions</code>, grouped on the same five-key grain as <code>finance.gl_balance</code> (<code>accounting_date, legal_entity, gl_account, cost_center, currency</code>), joining <code>posting_date</code> to <code>accounting_date</code> - the GL is dated by <em>posting</em>, not by <code>transaction_date</code>. Tolerance: <code>0.01</code> (one minor-currency-unit) applied independently to each side, via a full outer join so a key present on only one side still surfaces as a variance.</p>
 <table>
 <thead>
@@ -142,18 +140,17 @@
 </thead>
 <tbody>
 <tr>
-<td>10.CK.02 / 10.CK.03</td>
+<td>debit/credit movement recompute</td>
 <td>589</td>
 <td>284</td>
 </tr>
 </tbody>
 </table>
-<h2 id="10ck04-10ck08-dimensional-reconciliation">10.CK.04 - 10.CK.08 - dimensional reconciliation</h2>
+<h2 id="dimensional-reconciliation">Dimensional reconciliation</h2>
 <p>The same recomputation rolled up to one dimension at a time. Status: <code>PASS</code> if <code>\|variance %\| &lt; 0.1</code>, <code>WARNING</code> if <code>&lt; 1</code>, else <code>FAIL</code>.</p>
 <table>
 <thead>
 <tr>
-<th>id</th>
 <th>dimension</th>
 <th>distinct values</th>
 <th>worst variance %</th>
@@ -162,46 +159,41 @@
 </thead>
 <tbody>
 <tr>
-<td>10.CK.04</td>
-<td>legal_entity</td>
+<td>legal entity</td>
 <td>4</td>
 <td>12.2325% (LE4)</td>
 <td>FAIL</td>
 </tr>
 <tr>
-<td>10.CK.05</td>
-<td>gl_account</td>
+<td>GL account</td>
 <td>15</td>
 <td>14.3507% (GL1009)</td>
 <td>FAIL</td>
 </tr>
 <tr>
-<td>10.CK.06</td>
-<td>cost_center</td>
+<td>cost center</td>
 <td>10</td>
 <td>14.3507% (CC10)</td>
 <td>FAIL</td>
 </tr>
 <tr>
-<td>10.CK.07</td>
 <td>currency</td>
 <td>3</td>
 <td>45.7804% (EUR)</td>
 <td>FAIL</td>
 </tr>
 <tr>
-<td>10.CK.08</td>
-<td>accounting_date</td>
+<td>accounting date</td>
 <td>5</td>
 <td>11.8745% (2026-08-19)</td>
 <td>FAIL</td>
 </tr>
 </tbody>
 </table>
-<p><strong>10.CK.07 currency finding</strong> - <code>SGD</code> reconciles exactly (<code>0.0%</code> variance), while <code>EUR</code> (45.78%) and <code>USD</code> (34.12%) both fail by a wide margin. Every other dimension's variance is spread broadly across most of its values (e.g. all four legal entities and all five accounting dates FAIL in a similar 9-12% band) rather than concentrated in one or two outliers - <code>currency</code> is the one dimension where the finding is a clean split rather than a spread, worth carrying into task 3's investigation as the leading candidate dimension.</p>
-<p><strong>findings</strong> - every dimension FAILs the reconciliation status threshold except <code>currency=SGD</code>; this is the batch-level symptom the assignment scenario describes (platform closing balance materially disagreeing with the expected/recomputed figure), not a narrow one-record miss. Decomposing <em>why</em> - duplicate entries, wrong debit/credit indicator, FX conversion, missing mappings, late posting, misallocated legal entity/cost center - is task 3's job, not re-derived here.</p>
+<p><strong>currency finding</strong> - <code>SGD</code> reconciles exactly (<code>0.0%</code> variance), while <code>EUR</code> (45.78%) and <code>USD</code> (34.12%) both fail by a wide margin. Every other dimension's variance is spread broadly across most of its values (e.g. all four legal entities and all five accounting dates FAIL in a similar 9-12% band) rather than concentrated in one or two outliers - currency is the one dimension where the finding is a clean split rather than a spread.</p>
+<p><strong>findings</strong> - every dimension fails the reconciliation status threshold except <code>currency=SGD</code>; this is the batch-level symptom the scenario describes (platform closing balance materially disagreeing with the expected/recomputed figure), not a narrow one-record miss. Decomposing why is the subject of Task 3 - Investigate a Finance Variance.</p>
 <h2 id="write-back-to-reconciliationrc_">write-back to <code>reconciliation.rc_*</code></h2>
-<p><code>reconciliation.rc_reconciliation_results.dimension</code> is a closed set (<code>row_count</code>, <code>amount</code>) fixed by the reconciliation control-table schema; the fine-grained per-dimension detail above is reported in the notebook and this deliverable only, following the same split <a href="../../assessment-1/assessment-1-reconciliation-results/">Assessment 1's reconciliation results</a> draws for its own level 1 batch totals.</p>
+<p><code>reconciliation.rc_reconciliation_results.dimension</code> is a closed set (<code>row_count</code>, <code>amount</code>); the fine-grained per-dimension detail above is reported in the notebook and this deliverable only.</p>
 <table>
 <thead>
 <tr>
@@ -236,7 +228,7 @@
 <li><code>source</code> = <code>bronze.finance_transactions</code> (<code>COUNT(*)</code> / <code>SUM(local_amount)</code>).</li>
 <li><code>target</code> = <code>finance.gl_balance</code> (<code>COUNT(*)</code> / <code>SUM(closing_balance)</code>).</li>
 </ol>
-<p><code>batch_id=12</code> is the first <code>assessment_id = 'assessment-2'</code> row <code>reconciliation.rc_batch_control</code> carries - confirmed via direct SQL against <code>reconciliation.rc_reconciliation_results WHERE batch_id = 12</code>, independent of the notebook's own printed summary. Overall batch status: <code>FAIL</code>.</p></div>
+<p>Overall batch status: <code>FAIL</code>.</p></div>
             </div>
         </div>
 

@@ -86,6 +86,10 @@
               <ul class="nav flex-column">
               </ul>
             </li>
+            <li class="nav-item" data-bs-level="2"><a href="#task-3-investigate-a-finance-variance" class="nav-link">Task 3 - Investigate a Finance Variance</a>
+              <ul class="nav flex-column">
+              </ul>
+            </li>
               </ul>
             </li>
         </ul>
@@ -98,7 +102,7 @@
 <h2 id="sources">Sources</h2>
 <ul>
 <li>notebook: <a href="https://github.com/yayfalafels/de-financial-accounting-demo/blob/main/notebooks/assessment2_gl_reconciliation.ipynb">assessment2_gl_reconciliation.ipynb</a></li>
-<li>deliverables audited: <a href="../assessment-2-reconciliation-results/">assessment-2-reconciliation-results.md</a>, <a href="../assessment-2-mapping-validation/">assessment-2-mapping-validation.md</a>, <a href="../assessment-2-exception-dataset/">assessment-2-exception-dataset.md</a></li>
+<li>deliverables audited: <a href="../assessment-2-reconciliation-results/">assessment-2-reconciliation-results.md</a>, <a href="../assessment-2-mapping-validation/">assessment-2-mapping-validation.md</a>, <a href="../assessment-2-exception-dataset/">assessment-2-exception-dataset.md</a>, <a href="../assessment-2-root-cause-analysis/">assessment-2-root-cause-analysis.md</a></li>
 </ul>
 <h2 id="task-1-gl-integrity-and-reconciliation">Task 1 - GL Integrity and Reconciliation</h2>
 <table>
@@ -183,10 +187,72 @@
 <ol>
 <li><strong>02.02</strong> <code>EXPIRED_MAPPING</code>=0 despite <code>issue-log.csv</code> naming 2 <code>expired_mapping_still_used</code> rows - both expired-row references land on a <code>(product_code, transaction_type)</code> pair that <em>also</em> carries a currently-valid mapping row, so per the design's own <code>NOT EXISTS</code> clause they classify as <code>GL_MISMATCH</code> (posted against the wrong, expired account while a valid one existed) rather than <code>EXPIRED_MAPPING</code> - confirmed by direct SQL: both injected rows appear in the <code>GL_MISMATCH</code> set. Not a defect - the design section states this combination explicitly ("that combination is GL_MISMATCH ... not EXPIRED_MAPPING").</li>
 <li><strong>02.04/02.06</strong> <code>issue-log.csv</code>'s counts (3 overlapping-date rows, 2 multi-GL rows) undercount the <em>pairs</em>/<em>combos</em> these two checks report, because a single injected conflict (e.g. one extra mapping row for <code>P1/DEBIT</code>) can produce more than one overlapping pair or push a combo's distinct-GL count above the multi-GL threshold - all 6 distinct (product, type) combos across both checks (<code>P1/CREDIT</code>, <code>P1/DEBIT</code>, <code>P4/DEBIT</code>, <code>P5/DEBIT</code>, <code>P8/CREDIT</code>, <code>P9/CREDIT</code>) are traceable to the 7 <code>ref.accounting_mapping</code> issue-log rows (2 <code>expired_mapping_still_used</code> + 3 <code>overlapping_effective_dates</code> + 2 <code>product_multiple_gl_accounts</code>).</li>
-<li><strong>02.01</strong> has no single injected-issue tag of its own: <code>GL_MISMATCH</code> is 99.5% explained by the 6 mapping-conflict combos above (401/403 rows - 4 from <code>10.CK.14</code>'s multi-GL combos, 2 more from <code>10.CK.12</code>'s overlapping-window combos) plus a 2-row unexplained residual (see mapping-validation deliverable).</li>
-<li><strong>02.03</strong> deliberately injected (<code>gen_assessment2()</code>'s <code>missing_combos</code>, catalog issue 03 in <code>docs/features/04-seed-mock-data.md</code>) but never logged to <code>issue-log.csv</code> until that feature's <code>04.IS.03</code> was fixed - previously reported here as an unexplained "n/a" data characteristic; corrected once the seed generator's <code>log_issue()</code> gap was fixed and reseeded. The 5 tagged combos (<code>P2/DEBIT</code>, <code>P4/CREDIT</code>, <code>P6/CREDIT</code>, <code>P7/CREDIT</code>, <code>P10/CREDIT</code>) match the 5 combos the notebook's <code>MAPPING_NOT_FOUND</code> query independently finds exactly, and the underlying seeded data (row counts, <code>bronze.finance_transactions</code>/<code>ref.accounting_mapping</code> content) is unchanged by the fix - it only corrected the ground-truth log, confirmed by an identical reseed under <code>MOCK_DATA_SEED=42</code>.</li>
+<li><strong>02.01</strong> has no single injected-issue tag of its own: <code>GL_MISMATCH</code> is 99.5% explained by the 6 mapping-conflict combos above (401/403 rows - 4 from task ref 02.06's multi-GL combos, 2 more from task ref 02.04's overlapping-window combos) plus a 2-row unexplained residual (see mapping-validation deliverable).</li>
+<li><strong>02.03</strong> deliberately injected (<code>gen_assessment2()</code>'s <code>missing_combos</code>, catalog issue 03 in <code>docs/features/04-seed-mock-data.md</code>). The 5 tagged combos (<code>P2/DEBIT</code>, <code>P4/CREDIT</code>, <code>P6/CREDIT</code>, <code>P7/CREDIT</code>, <code>P10/CREDIT</code>) match the 5 combos the notebook's <code>MAPPING_NOT_FOUND</code> query independently finds exactly</li>
 </ol>
-<p>All measured values are read live via Spark SQL against postgres in the notebook section cited above, not hand-typed against the ground truth.</p></div>
+<h2 id="task-3-investigate-a-finance-variance">Task 3 - Investigate a Finance Variance</h2>
+<table>
+<thead>
+<tr>
+<th>task ref</th>
+<th>check</th>
+<th>expected (issue-log) [01]</th>
+<th>measured</th>
+<th>match</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>03.01/02</td>
+<td>duplicate / re-posted entry</td>
+<td>15 + 8 [02]</td>
+<td>21 rows</td>
+<td>close</td>
+</tr>
+<tr>
+<td>03.03</td>
+<td>incorrect debit/credit indicator</td>
+<td>10 [03]</td>
+<td>0</td>
+<td>no</td>
+</tr>
+<tr>
+<td>03.04</td>
+<td>incorrect FX conversion</td>
+<td>3</td>
+<td>3</td>
+<td>yes</td>
+</tr>
+<tr>
+<td>03.06</td>
+<td>posted one accounting day late</td>
+<td>12 [04]</td>
+<td>12 / 0 [04]</td>
+<td>partial</td>
+</tr>
+<tr>
+<td>03.07</td>
+<td>incorrect legal-entity allocation</td>
+<td>6</td>
+<td>6</td>
+<td>yes</td>
+</tr>
+<tr>
+<td>03.08</td>
+<td>incorrect cost-center assignment</td>
+<td>7</td>
+<td>8 distinct</td>
+<td>close</td>
+</tr>
+</tbody>
+</table>
+<ol>
+<li><strong>expected</strong> column values are issue-log row counts for <code>duplicate_accounting_entry</code>, <code>posted_twice_different_id</code>, <code>incorrect_dr_cr_indicator</code>, <code>incorrect_fx_conversion</code>, <code>posted_one_day_late</code>, <code>incorrect_legal_entity</code>, <code>incorrect_cost_center</code> respectively.</li>
+<li><strong>03.01/02</strong> both scenarios manifest identically in the data (same business fields hashed, different transaction id) and are detected by one query per the design; <code>issue-log.csv</code> tags 23 rows across the two categories combined, the notebook's single detection finds 21 - a 2-row shortfall not further isolated by this run.</li>
+<li><strong>03.03</strong> the indirect detection method (a Ledger key where debit and credit variance cancel to near zero) found no candidate in this dataset, despite 10 tagged rows existing - every key in this dataset already carries variance from other co-occurring causes (missing mappings foremost), which swamps a single flipped transaction's cancellation signature at the same key. A limitation of this detection method against this particular dataset, not evidence the 10 rows don't exist.</li>
+<li><strong>03.06</strong> the raw day-shift candidate count (12) matches the tagged count exactly - the detection step itself is accurate - but the confirmation step (requiring a candidate's amount to closely match its prior day's own shortfall at the same five-key grain) rejected all 12, for the same reason as <strong>03.03</strong>: other co-occurring variance at each key swamps the single-transaction signal the confirmation step looks for. The root-cause deliverable reports this honestly as 0 confirmed rather than overriding the method's own result with the ground truth.</li>
+</ol>
+<p>All measured values are read live via Spark SQL/PySpark against postgres in the notebook section cited above, not hand-typed against the ground truth.</p></div>
             </div>
         </div>
 

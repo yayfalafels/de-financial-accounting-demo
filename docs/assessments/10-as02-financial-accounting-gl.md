@@ -38,8 +38,8 @@
 | 10.02 | 02  | closed  | prerequisites and seed data readiness     |
 | 10.03 | 03  | closed  | assessment scope and context write-up     |
 | 10.04 | 04  | closed  | task 1 - GL integrity and reconciliation  |
-| 10.05 | 05  | pending | task 2 - accounting mapping validation    |
-| 10.06 | 06  | pending | exception dataset                         |
+| 10.05 | 05  | closed  | task 2 - accounting mapping validation    |
+| 10.06 | 06  | closed  | exception dataset                         |
 | 10.07 | 07  | pending | task 3 - finance variance investigation   |
 | 10.08 | 08  | pending | task 4 - reconciliation framework design  |
 | 10.09 | 09  | pending | business-facing summary                   |
@@ -755,13 +755,28 @@ _closed 10.04_ - **10.CK.01**-**10.CK.08** implemented in `notebooks/assessment2
 
 edit locations: `10.EL.01, 10.EL.03`
 
-Implement **10.CK.09**-**10.CK.14** exactly as specified in [mapping validation design](#mapping-validation-design--task-2), tagging each flagged row with its `issue_type` from [exception dataset](#exception-dataset)'s vocabulary table. Produce the exception output in the assignment's stated shape (`Transaction, Product, Actual GL, Expected GL, Accounting Date, Exception`). Write the mapping validation deliverable.
+_closed 10.05_ - **10.CK.09**-**10.CK.14** implemented in `notebooks/assessment2_gl_reconciliation.ipynb`'s "Task 2 - Accounting Mapping Validation" section, via Spark SQL over temp views (`finance_transactions`, `accounting_mapping`) rather than the DataFrame API - the effective-dated join and the self-joins for overlap/multi-GL detection read directly as the design's own SQL, doubling as the notebook's effective-dated-joins demonstration. Executed headlessly against the same seeded database as 10.04, no cell errors.
+
+| check                | result                                              |
+| ----------------------- | ------------------------------------------------------ |
+| 10.CK.09 GL_MISMATCH     | 403 rows / 319 distinct transactions                   |
+| 10.CK.10 NO_EFFECTIVE_MAPPING | 0                                                  |
+| 10.CK.11 MAPPING_NOT_FOUND | 385 rows                                              |
+| 10.CK.12 OVERLAPPING_MAPPING | 8 pairs, 6 (product, type) combos                   |
+| 10.CK.13 EXPIRED_MAPPING | 0                                                       |
+| 10.CK.14 MULTI_GL_MAPPING | 4 (product, type) combos                               |
+
+**finding** - 401 of 403 `GL_MISMATCH` rows (99.5%) sit on the same 6 `(product, type)` combos `10.CK.12`/`10.CK.14` independently flag as carrying conflicting mapping definitions - a mapping-data conflict, not scattered per-transaction miscoding; only 2 rows are a genuine unexplained residual. `MAPPING_NOT_FOUND`'s 385 rows all fall on 5 `(product, type)` combos with **no** mapping row at all - `ref.accounting_mapping`'s 22 rows structurally cover only 15 of the 20 combos transactions actually use.
+
+**caught during review, fixed before publishing** - the first pass of the mapping-validation write-up mislabeled `P4/DEBIT` (4 rows) and `P8/CREDIT` (3 rows) as an unexplained residual; direct SQL against `10.CK.12`'s own overlapping-pairs query showed both combos are in fact covered by an overlapping mapping window, just not by `10.CK.14`'s multi-GL check - corrected the deliverable and audit before this step closed, dropping the residual from 9 rows to the genuine 2 (`P8/DEBIT`, `P3/DEBIT`).
+
+Produced the exception output in the assignment's stated shape (`Transaction, Product, Actual GL, Expected GL, Accounting Date, Exception`, 788 rows across the four per-transaction checks - `10.CK.12`/`10.CK.14` are mapping-level and reported separately). Wrote [`results/assessment-2/assessment-2-mapping-validation.md`](../../results/assessment-2/assessment-2-mapping-validation.md) and the task 2 rows in [`assessment-2-audit.md`](../../results/assessment-2/assessment-2-audit.md).
 
 ### 5. Exception dataset
 
 edit locations: `10.EL.01, 10.EL.04`
 
-Union the row sets from **10.CK.09**-**10.CK.22** into the exception dataset's minimum columns per [exception dataset](#exception-dataset), one row per `(transaction_id, issue_type)` pair, and reconcile detected rows against `issue-log.csv`. Write the exception dataset deliverable, sampling in the markdown and pointing at the full output.
+_closed 10.06_ - unioned the row sets from **10.CK.09**-**10.CK.14** (task 2's own checks) into the exception dataset's minimum columns (`transaction_id, issue_type, source_value, gl_value, variance`) - 788 rows total (403 `GL_MISMATCH`, 385 `MAPPING_NOT_FOUND`). **10.CK.15**-**10.CK.22** (task 3's categories) are not yet available and are explicitly deferred to [10.07](#6-task-3---finance-variance-investigation)'s cycle rather than restated ahead of that run, per [10.WS.04](#workflow-cycle)'s rule against restating a number the notebook did not produce in the same run. No `batch_id` per row - task 2/exception-dataset findings are cited by notebook section, not written to `reconciliation.rc_*`, per [workflow cycle](#workflow-cycle) note 01. Wrote [`results/assessment-2/assessment-2-exception-dataset.md`](../../results/assessment-2/assessment-2-exception-dataset.md), sampling in the markdown and pointing at the notebook's full cell output.
 
 ### 6. Task 3 - finance variance investigation
 

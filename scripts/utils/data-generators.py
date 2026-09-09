@@ -350,6 +350,10 @@ def gen_assessment2(out_dir: Path) -> None:
     missing_combos = set(combos[:5])  # issue 03: no mapping row at all
     mapped_combos = combos[5:]
 
+    for product, ttype in sorted(missing_combos):
+        log_issue("ref.accounting_mapping", f"{product}|{ttype}",
+                   "missing_accounting_mapping", "a mapping row exists", "no row for this product/type combo")
+
     gl_by_combo: dict[tuple, tuple[str, str]] = {}
     for i, (product, ttype) in enumerate(mapped_combos):
         gl = GL_ACCOUNTS[i % len(GL_ACCOUNTS)]

@@ -538,6 +538,7 @@ If any check disagrees with its expected result, the most likely cause is a rese
 | -------- | --- | ------ | ------------------------------------------------------- | 
 | 04.IS.01 | 01  | closed | schema-inspect.py regression from constraint relaxation | 
 | 04.IS.02 | 02  | closed | unrealistic fx rates                                    | 
+| 04.IS.03 | 03  | closed | missing accounting mapping never logged to issue-log.csv | 
 
 _04.IS.01 (closed) schema-inspect.py regression from constraint relaxation_
 
@@ -614,6 +615,24 @@ def fx_rate(currency: str) -> Decimal:
     return Decimal(str(round(anchor * jitter, 8)))
 
 ```
+
+_04.IS.03 (closed) missing accounting mapping never logged to issue-log.csv_
+
+**problem description**
+
+Found during Assessment 2's task 2 (10.05) review: `ref.accounting_mapping`'s "no mapping row at all" issue (catalog id 03, `gen_assessment2()`'s `missing_combos`) has always been deliberately injected - 5 of the 20 `(product_code, debit_credit_indicator)` combos are excluded from the mapping table by design - but unlike every sibling issue in the same function (`overlapping_effective_dates`, `expired_mapping_still_used`, `product_multiple_gl_accounts`, each with its own `log_issue()` call), this one never called `log_issue()`. `issue-log.csv` - the ground-truth catalog every assessment's audit deliverable checks against - had no row for it at all, even though the catalog table above and `04-mock-data-validate.sh`'s Validate checklist (`04.08.09`) both already documented "5 combos" as the expected count. The downstream symptom: Assessment 2's own ground-truth audit had nothing to check `MAPPING_NOT_FOUND`'s 385-row finding against, and first reported it as an unexplained "n/a" data characteristic rather than the intentional, correctly-sized issue it actually is.
+
+**resolution**
+
+added the missing `log_issue()` call, tagged `missing_accounting_mapping`, one row per excluded combo:
+
+```python
+for product, ttype in sorted(missing_combos):
+    log_issue("ref.accounting_mapping", f"{product}|{ttype}",
+               "missing_accounting_mapping", "a mapping row exists", "no row for this product/type combo")
+```
+
+Reseeded and confirmed: `issue-log.csv` now carries 5 `missing_accounting_mapping` rows (`P2|DEBIT`, `P4|CREDIT`, `P6|CREDIT`, `P7|CREDIT`, `P10|CREDIT` under the fixed `MOCK_DATA_SEED=42`), and every table's row count is unchanged from before the fix (a logging-only change - `missing_combos`'s selection and every downstream RNG draw were untouched). Assessment 2's audit deliverable updated to match against the new tag instead of reporting "n/a".
 
 ## Guideline
 

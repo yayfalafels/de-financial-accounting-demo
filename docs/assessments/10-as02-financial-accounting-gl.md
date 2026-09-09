@@ -38,8 +38,8 @@
 | 10.02 | 02  | closed  | prerequisites and seed data readiness     |
 | 10.03 | 03  | closed  | assessment scope and context write-up     |
 | 10.04 | 04  | closed  | task 1 - GL integrity and reconciliation  |
-| 10.05 | 05  | closed  | task 2 - accounting mapping validation    |
-| 10.06 | 06  | closed  | exception dataset                         |
+| 10.05 | 05  | open    | task 2 - accounting mapping validation    |
+| 10.06 | 06  | open    | exception dataset                         |
 | 10.07 | 07  | pending | task 3 - finance variance investigation   |
 | 10.08 | 08  | pending | task 4 - reconciliation framework design  |
 | 10.09 | 09  | pending | business-facing summary                   |
@@ -769,6 +769,8 @@ _closed 10.05_ - **10.CK.09**-**10.CK.14** implemented in `notebooks/assessment2
 **finding** - 401 of 403 `GL_MISMATCH` rows (99.5%) sit on the same 6 `(product, type)` combos `10.CK.12`/`10.CK.14` independently flag as carrying conflicting mapping definitions - a mapping-data conflict, not scattered per-transaction miscoding; only 2 rows are a genuine unexplained residual. `MAPPING_NOT_FOUND`'s 385 rows all fall on 5 `(product, type)` combos with **no** mapping row at all - `ref.accounting_mapping`'s 22 rows structurally cover only 15 of the 20 combos transactions actually use.
 
 **caught during review, fixed before publishing** - the first pass of the mapping-validation write-up mislabeled `P4/DEBIT` (4 rows) and `P8/CREDIT` (3 rows) as an unexplained residual; direct SQL against `10.CK.12`'s own overlapping-pairs query showed both combos are in fact covered by an overlapping mapping window, just not by `10.CK.14`'s multi-GL check - corrected the deliverable and audit before this step closed, dropping the residual from 9 rows to the genuine 2 (`P8/DEBIT`, `P3/DEBIT`).
+
+**second catch, this one a real seed-data defect** - the first write-up also described `MAPPING_NOT_FOUND` as an unexplained "structural coverage gap" with no ground-truth tag to check it against, per user direction this was investigated rather than left as an assessment-level finding: `gen_assessment2()` (feature 04) has *always* deliberately injected this exact scenario (`missing_combos`, catalog issue 03) but never called `log_issue()` for it, unlike every sibling issue in the same function - so `issue-log.csv` genuinely had no row for it, this was not a misreading. Fixed at the source ([04.IS.03](../features/04-seed-mock-data.md)), reseeded (data unchanged - a logging-only fix, confirmed identical row counts), and this deliverable/the audit corrected to report `MAPPING_NOT_FOUND` as the intentional, exactly-matched issue category it is, not an open question.
 
 Produced the exception output in the assignment's stated shape (`Transaction, Product, Actual GL, Expected GL, Accounting Date, Exception`, 788 rows across the four per-transaction checks - `10.CK.12`/`10.CK.14` are mapping-level and reported separately). Wrote [`results/assessment-2/assessment-2-mapping-validation.md`](../../results/assessment-2/assessment-2-mapping-validation.md) and the task 2 rows in [`assessment-2-audit.md`](../../results/assessment-2/assessment-2-audit.md).
 

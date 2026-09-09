@@ -761,6 +761,8 @@ _closed 10.04_ - **10.CK.01**-**10.CK.08** implemented in `notebooks/assessment2
 
 `row_count` and `amount` (the two dimensions `reconciliation.rc_reconciliation_results.dimension`'s closed enum supports - the same constraint [09](09-as01-data-profiling-reconciliation.md#workflow-cycle) hit for its own level 1 totals) were written to a fresh `batch_id=12` (`assessment_id = 'assessment-2'`, the first row that assessment id has ever carried in `rc_batch_control`) - confirmed via direct SQL against `rc_reconciliation_results WHERE batch_id = 12`, independent of the notebook's own printed summary. Overall batch status: `FAIL`. Wrote [`results/assessment-2/assessment-2-reconciliation-results.md`](../../results/assessment-2/assessment-2-reconciliation-results.md) citing that batch and the overview page, and added the task 1 row to [`assessment-2-audit.md`](../../results/assessment-2/assessment-2-audit.md).
 
+**superseded by [10.IS.02](#validate)** - the movement recomputation above (`10.CK.02`-`10.CK.08`, the "every dimension `FAIL`s except `currency=SGD`" finding) and the write-back `amount` dimension both used `local_amount` where the Ledger's own `debit_movement`/`credit_movement` are aggregated from `transaction_amount` - a basis error, confirmed directly against the seed generator's own GL-aggregation code and fixed in the notebook. Recomputing on `transaction_amount`: **0 of 589 keys exceed tolerance, every dimension `PASS`es at `0.0%`, and the write-back `amount` dimension matches exactly (15,307,336.09 = 15,307,336.09)** - re-executed clean, a fresh `batch_id=18` written, `results/assessment-2/assessment-2-reconciliation-results.md` and the task 1 row in `assessment-2-audit.md` rewritten to the corrected findings. See [10.IS.02](#validate) for the full diagnostic trail from residual to root cause.
+
 ### 4. Task 2 - accounting mapping validation
 
 edit locations: `10.EL.01, 10.EL.03`
@@ -810,7 +812,7 @@ _closed 10.07_ - **10.CK.15**-**10.CK.22** implemented in the notebook's varianc
 02. **10.CK.20** the raw candidate count matches ground truth exactly; see note below on why confirmation still rejected all 12.
 03. **10.CK.22** 11 raw rows before removing mapping-conflict join fan-out, 85,485.13.
 
-**10.CK.17/10.CK.20 both underperformed against the ground truth** (0 found vs. 10 tagged; 0 confirmed vs. 12 tagged) - direct-SQL comparison against `issue-log.csv` in the audit deliverable traced both to the same cause: every Ledger key in this seeded dataset already carries variance from other co-occurring issues (missing mappings foremost), which swamps the single-transaction cancellation/shortfall signature both checks look for. Not a code defect - the design's own indirect detection method (cancel-to-zero, shortfall-match) is genuinely limited against a dataset this densely stacked with simultaneous issues. Reported honestly in the root-cause deliverable as 0 found/confirmed rather than substituting the known ground-truth count.
+**10.CK.17/10.CK.20 both underperformed against the ground truth** (0 found vs. 10 tagged; 0 confirmed vs. 12 tagged) - initially attributed to co-occurring variance swamping the signal at each key; **superseded by [10.IS.02](#validate)'s finding** that this is structural, not a swamped signal: `finance.gl_balance` is aggregated from the same (already-mutated) transaction rows these checks read, so both a flipped indicator and a late posting date are baked into the Ledger and the recomputation identically, on any dataset generated this way - there is no signal for either method to find, regardless of how much other variance is present. Reported honestly in the root-cause deliverable as 0 found/confirmed rather than substituting the known ground-truth count.
 
 **caught during review, fixed before publishing** - the first pass of **10.CK.22** reported 11 raw joined rows without checking for the same mapping-conflict join fan-out already documented for **10.CK.09** in 10.05 (a transaction matching more than one active mapping row is evaluated against each match independently); corrected to report both the raw row count and the distinct-transaction count (8), matching **10.CK.09**'s own precedent.
 
@@ -820,7 +822,9 @@ Wrote [`results/assessment-2/assessment-2-root-cause-analysis.md`](../../results
 
 **top-down/bottom-up reconciliation added per user direction** - three rows appended to the notebook's decomposition cell and the root-cause deliverable's findings table: the independent Ledger total variance (`gl_amount - txn_amount` from 10.04's write-back, reused rather than recomputed - 4,002,303.12), the bottom-up sum of the seven category contributions above (4,793,863.40), and the residual between them (-791,560.28).
 
-**the residual's stated cause was then tested, per user direction, rather than left asserted** - two more rows measure it directly instead of assuming it: removing **10.CK.21**/**10.CK.22** (legal-entity/cost-center misclassification, which redistribute value between sub-totals without changing the Ledger's grand total) accounts for 146,182.63; removing the value double-counted where a transaction is flagged by more than one of the remaining checks (computed via a union-minus-distinct over the three category row sets, not assumed - traced entirely to overlap between **10.CK.15/16** and **10.CK.19**) accounts for another 125,566.69. Together these two predictions explain 271,749.32 of the original gap (34.3%) - the remaining 519,810.96 is reported as a genuine unexplained residual, not closed by either predicted cause and not forced to zero.
+**the residual's stated cause was then tested, per user direction, rather than left asserted** - two more rows measure it directly instead of assuming it: removing **10.CK.21**/**10.CK.22** (legal-entity/cost-center misclassification, which redistribute value between sub-totals without changing the Ledger's grand total) accounts for 146,182.63; removing the value double-counted where a transaction is flagged by more than one of the remaining checks (computed via a union-minus-distinct over the three category row sets, not assumed - traced entirely to overlap between **10.CK.15/16** and **10.CK.19**) accounts for another 125,566.69. Together these two predictions explain 271,749.32 of the original gap (34.3%) - the remaining 519,810.96 was reported as a genuine unexplained residual, not closed by either predicted cause and not forced to zero.
+
+**fully resolved - see [10.IS.02](#validate)** - per user direction ("solve it"), the remaining 65.7% was diagnosed rather than left open: querying `finance.gl_balance` directly showed it is a chained daily ledger (`opening_balance` on day N equals `closing_balance` on day N-1 for the same key), so the write-back `amount` dimension's `SUM(closing_balance)` was summing a cumulative stock across 5 accounting dates against a flat flow (`SUM(local_amount)`) - not comparable. Counterfactual removal tests on the bottom-up side (excluding unmapped, then duplicate, transactions from the recomputation) each made variance *worse*, the opposite of the working hypothesis, which was the signal to inspect the top-down side instead of continuing to patch the bottom-up one. Reading `scripts/utils/data-generators.py`'s `gen_assessment2()` directly showed `finance.gl_balance`'s `debit_movement`/`credit_movement` are aggregated from `transaction_amount`, not `local_amount` - every recomputation in this notebook from 10.04 onward used the wrong column. Recomputed on `transaction_amount`: **0 of 589 keys exceed tolerance, independent Ledger total variance = 0.00 exactly.** The eight named categories are correctly detected, real, and individually significant findings (duplicate entries, FX errors, unmapped transactions, misclassified legal entity/cost center) - none of them, individually or combined, was ever going to close a Ledger-level gap, because the true gap was 0.00 all along; the apparent ~4M/~792K figures were artifacts of two compounding basis errors in this tracker's own implementation, not evidence of a deeper unexplained data-quality problem. Notebook, reconciliation-results, root-cause-analysis, and audit all rewritten to the corrected findings and re-executed clean.
 
 ### 7. Task 4 - reconciliation framework design
 
@@ -864,6 +868,7 @@ _10.02 run (prerequisites and seed data readiness): one exception surfaced, logg
 | id       | seq | status | issue                                                    |
 | -------- | --- | ------ | ----------------------------------------------------------- |
 | 10.IS.01 | 01  | closed | notebook connectivity check timed out under host contention |
+| 10.IS.02 | 02  | closed | GL movement recomputation used the wrong amount column       |
 
 _10.IS.01 (closed) notebook connectivity check timed out under host contention_
 
@@ -919,6 +924,60 @@ Executor stderr on both workers confirmed `Successfully registered with driver` 
 **validation evidence**
 
 Rerun once host load dropped (load average 0.19-3.72): `[PASS] [07.IS] nbconvert execution completed - no cell raised` in 22s wall-clock, summary marker `[PASS] 00-template-connectivity-check: overall status=PASS`, cross-checked against `src_transaction_daily` row count 2010 via both JDBC and psycopg2 paths.
+
+_10.IS.02 (closed) GL movement recomputation used the wrong amount column_
+
+**problem description**
+
+10.07's top-down/bottom-up variance reconciliation, added and then tested at user request, would not close: the independent Ledger total variance (4,002,303.12) and the bottom-up sum of Task 3's seven category contributions (4,793,863.40) left a residual of -791,560.28; two specific, testable corrections (removing the dimensional-only categories, removing measured double-counting between categories) explained only 271,749.32 of it (34.3%), leaving 519,810.96 genuinely unexplained. The user asked for this to be solved, not left open.
+
+**exception**
+
+```log
+<no error - the notebook and every script ran clean; this is a numeric discrepancy in a
+reconciliation that should close, not a runtime failure>
+```
+
+**triggering actions**
+
+ran the notebook's Task 1 (GL integrity) and Task 3 (variance investigation) sections against the seeded database, per the normal workflow cycle; the residual was visible in the decomposition cell's own printed output, not from an error.
+
+**hypothesis**
+
+- use hypothesis framing until a validated fix is applied
+
+initially: the residual is caused by one or more of Task 3's eight named categories not being fully/correctly attributed (an incomplete bottom-up decomposition). Revised after diagnostic steps 3-5 falsified that: the residual is not a Task 3 attribution problem at all, but a basis error in Task 1's own movement recomputation - the wrong transaction-amount column was used for the recomputation from the start, and the true root cause was in this tracker's own implementation, not in the seeded data.
+
+**diagnostic steps**
+
+- first out exception is NOT a diagnostic step
+- diagnostic steps reveal information or apply a fix
+- assume re-run and validation, these are not diagnostic steps
+- keep the step description brief, use the diagnostic details section to elaborate actions and learnings for each step
+
+| id          | seq | status | step                                                    |
+| ----------- | --- | ------ | ------------------------------------------------------------ |
+| 10.IS.02.01 | 01  | closed | checked whether the Ledger is a chained stock or a flow [01]  |
+| 10.IS.02.02 | 02  | closed | checked per-key movement-variance sign consistency [02]       |
+| 10.IS.02.03 | 03  | closed | tested the "missing mapping" category causally [03]           |
+| 10.IS.02.04 | 04  | closed | tested the "duplicate entry" category causally [04]           |
+| 10.IS.02.05 | 05  | closed | tested a fully-combined correction [05]                       |
+| 10.IS.02.06 | 06  | closed | inspected the seed generator's GL aggregation source [06]     |
+| 10.IS.02.07 | 07  | closed | recomputed movement using `transaction_amount` [07]           |
+
+**diagnostic details**
+
+01. (closed) queried one `(legal_entity, gl_account, cost_center, currency)` key's rows across all 5 accounting dates: `opening_balance` on day N equals `closing_balance` on day N-1 exactly, every time - `finance.gl_balance` is a chained running-balance (stock) ledger, not an independent daily flow. This meant 10.04's "amount" dimension top-down figure (`SUM(closing_balance)` across all 589 rows, spanning 5 dates, compared against `SUM(local_amount)` across all transactions) was summing a cumulative stock measure against a flow measure - not a valid comparison basis, and not what should have been used as the top-down variance in 10.07's reconciliation.
+02. (closed) checked the sign of `debit_variance`/`credit_variance` at every one of the 589 keys from the existing movement recomputation: 167 keys have a negative debit variance, 137 a negative credit variance, **zero** keys of either sign are positive. Every discrepant key has the Ledger reading *lower* than the recomputation, never higher - confirming the already-computed `total_gl_variance` (sum of absolute per-key variances, 1,691,814.92) is a clean, sign-consistent, flow-basis figure equal to the plain global difference, unlike the stock-based one - the figure that should have anchored 10.07's decomposition instead of the one actually used.
+03. (closed) recomputed movement with every "missing accounting mapping" transaction *excluded*, expecting variance to fall (the working hypothesis: these transactions inflate the recomputation relative to the Ledger). It rose instead, from 1,691,814.92 to 5,184,155.87 - the opposite of the hypothesis. This transaction population was already correctly reflected in the Ledger; counting its face value (4,387,367.89) as a variance contribution in 10.07 was backwards from the start.
+04. (closed) same test for "duplicate / re-posted entries": excluding them raised variance too (1,691,814.92 to 1,783,952.65), again counter to the working hypothesis that removing an erroneous extra posting should bring the recomputation closer to the Ledger.
+05. (closed) combined every plausible correction at once - deduplication, FX-amount correction, legal-entity reassignment to the account's majority-vote value, cost-center reassignment to the mapping's expected value - into one recomputation, expecting the largest drop yet. Variance rose sharply instead, to 6,415,780.65. Three independent tests all moving the same direction, away from the working hypothesis, was the signal to stop patching the bottom-up side and question the top-down side instead.
+06. (closed) read `scripts/utils/data-generators.py`'s `gen_assessment2()` directly: `finance.gl_balance`'s `debit_movement`/`credit_movement` are aggregated from the same (already-mutated, post-injected-issue) transaction rows Task 1/3 already use - but keyed on `r["transaction_amount"]` (line ~527), not `r["local_amount"]`. Every recomputation in this tracker's notebook, from 10.04 onward, grouped and summed `local_amount`.
+07. (closed) reran the movement recomputation with `transaction_amount` substituted for `local_amount`, everything else unchanged (same grouping key, same full outer join): **total variance 0.00, 0 of 589 keys outside tolerance.** Root cause confirmed and the fix validated in the same step - this is not a hypothesis still being narrowed, the corrected basis accounts for the entire movement variance exactly.
+
+**validation evidence**
+
+Direct SQL against the freshly seeded database (`MOCK_DATA_SEED=42`, same seed run 10.04-10.07 used): `SUM(ABS(debit_variance)) + SUM(ABS(credit_variance)) = 0.00` across all 589 `finance.gl_balance` keys when the recomputation groups `bronze.finance_transactions` by `posting_date, legal_entity, gl_account, cost_center, currency` and sums `transaction_amount` - full outer join, no rows excluded, no dataset edits. The fix is applied in the notebook and re-executed clean; see 10.04's and 10.07's Implement sections below for the corrected findings this produces.
 
 **user actions**
 

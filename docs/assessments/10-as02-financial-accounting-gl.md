@@ -13,6 +13,7 @@
   - [assessment task to deliverable map](#assessment-task-to-deliverable-map)
   - [workflow cycle](#workflow-cycle)
   - [assessment context documentation](#assessment-context-documentation)
+  - [presentation boundary - blind-analyst results](#presentation-boundary--blind-analyst-results)
   - [GL integrity design - task 1](#gl-integrity-design--task-1)
   - [mapping validation design - task 2](#mapping-validation-design--task-2)
   - [variance investigation design - task 3](#variance-investigation-design--task-3)
@@ -38,9 +39,9 @@
 | 10.02 | 02  | closed  | prerequisites and seed data readiness     |
 | 10.03 | 03  | closed  | assessment scope and context write-up     |
 | 10.04 | 04  | closed  | task 1 - GL integrity and reconciliation  |
-| 10.05 | 05  | open    | task 2 - accounting mapping validation    |
-| 10.06 | 06  | open    | exception dataset                         |
-| 10.07 | 07  | pending | task 3 - finance variance investigation   |
+| 10.05 | 05  | closed  | task 2 - accounting mapping validation    |
+| 10.06 | 06  | closed  | exception dataset                         |
+| 10.07 | 07  | closed  | task 3 - finance variance investigation   |
 | 10.08 | 08  | pending | task 4 - reconciliation framework design  |
 | 10.09 | 09  | pending | business-facing summary                   |
 | 10.10 | 10  | pending | notebook consolidation and clean rerun    |
@@ -257,6 +258,15 @@ Same gap and same fix as [09](09-as01-data-profiling-reconciliation.md#assessmen
 - **per-deliverable context** - each deliverable opens with a single line, directly under its `status:` marker, naming the assignment task it answers and linking the overview page
 - **linkage** - the overview is authored content outside feature 08's generated taxonomy, so it is linked from `results/index.md` and from each deliverable rather than from the generated manifest
 - **no restatement of findings** - the overview carries assignment context only; measured results stay in their own deliverables so there is one place a number can change
+
+### presentation boundary - blind-analyst results
+
+Per user direction during 10.05/10.07 review: this assessment's results-facing content - the notebook and every `results/assessment-2/*.md` deliverable except `assessment-2-audit.md` - is written and read as work product a candidate would actually submit, not as a readout of this tracker's own project state. Four rules apply, retrofitted onto every already-closed task's deliverable, not just new ones:
+
+- **no tracker apparatus** - never reference this tracker's own ids (`10.CK.xx`, `10.PR.xx`, `10.WS.xx`, `10.EL.xx`, task ids like `10.07`) or workflow-step language in the notebook or a results markdown file. Reference only the assignment's own structure - task names, and the `NN.MM` task-ref numbering the [checks to perform](#scope) table already assigns each check. A technical artifact the assignment itself asks for (e.g. `batch_id` as the answer to task 4's persistence question) is not tracker apparatus and stays.
+- **audit is one-directional** - `assessment-2-audit.md` sits above the main analysis and is the only page allowed to know the ground truth (`issue-log.csv`, the seed generator, injected-issue tags) or reference this tracker directly; every other deliverable never links to or cites it. The main analysis is written as if the audit page does not exist.
+- **blind, non-omnipotent analyst** - every deliverable except the audit reads as an analyst with the assignment brief in hand (so referencing a later task by its assignment name is fine) but no knowledge of which findings were deliberately injected, how, or what a later task's investigation will reveal. A finding is stated as what this level of analysis shows, not as confirmation of a known answer.
+- **no revision language** - a correction found during review is applied and the deliverable is rewritten to read as if that were always the only version; it never narrates "previously reported X, now Y" or similar. This tracker's own Implement section is the place that history is recorded (see 10.05/10.07 below), never the deliverable itself.
 
 ### GL integrity design - task 1
 
@@ -784,7 +794,29 @@ _closed 10.06_ - unioned the row sets from **10.CK.09**-**10.CK.14** (task 2's o
 
 edit locations: `10.EL.01, 10.EL.05`
 
-Implement **10.CK.15**-**10.CK.22** exactly as specified in [variance investigation design](#variance-investigation-design--task-3), including **10.CK.20**'s cross-check against task 1's per-day variance before counting a late-posting candidate. Decompose the total variance across the eight categories, identify affected dimensions, and state remediation. Write the root-cause analysis deliverable.
+_closed 10.07_ - **10.CK.15**-**10.CK.22** implemented in the notebook's variance-investigation section, executed headlessly against the same seeded database as 10.04/10.05, no cell errors.
+
+| check                     | result                                       |
+| ---------------------------- | ------------------------------------------------ |
+| 10.CK.15/16 duplicate entry    | one query covers both [01]                       |
+| 10.CK.17 wrong dr/cr indicator | 0 candidates - see note below                     |
+| 10.CK.18 FX conversion          | 3 rows, 4,467.53                                  |
+| 10.CK.19 unmapped variance      | 385 rows, 4,387,367.89 - largest contribution      |
+| 10.CK.20 late posting            | 12 raw candidates, 0 confirmed [02]              |
+| 10.CK.21 wrong legal entity      | 6 rows, 60,697.50                                 |
+| 10.CK.22 wrong cost center        | 8 distinct transactions [03]                     |
+
+01. **10.CK.15/16** the design's own note: hash-collision detection can't distinguish the two named scenarios - 21 rows, 255,845.35.
+02. **10.CK.20** the raw candidate count matches ground truth exactly; see note below on why confirmation still rejected all 12.
+03. **10.CK.22** 11 raw rows before removing mapping-conflict join fan-out, 85,485.13.
+
+**10.CK.17/10.CK.20 both underperformed against the ground truth** (0 found vs. 10 tagged; 0 confirmed vs. 12 tagged) - direct-SQL comparison against `issue-log.csv` in the audit deliverable traced both to the same cause: every Ledger key in this seeded dataset already carries variance from other co-occurring issues (missing mappings foremost), which swamps the single-transaction cancellation/shortfall signature both checks look for. Not a code defect - the design's own indirect detection method (cancel-to-zero, shortfall-match) is genuinely limited against a dataset this densely stacked with simultaneous issues. Reported honestly in the root-cause deliverable as 0 found/confirmed rather than substituting the known ground-truth count.
+
+**caught during review, fixed before publishing** - the first pass of **10.CK.22** reported 11 raw joined rows without checking for the same mapping-conflict join fan-out already documented for **10.CK.09** in 10.05 (a transaction matching more than one active mapping row is evaluated against each match independently); corrected to report both the raw row count and the distinct-transaction count (8), matching **10.CK.09**'s own precedent.
+
+**presentation boundary retrofit** - per [presentation boundary](#presentation-boundary--blind-analyst-results) (a rule introduced during this step's review), 10.04's and 10.05's already-closed deliverables and the notebook's task 1/2 sections were also rewritten to remove tracker ids and workflow language, decouple the audit page from the main analysis, and drop ground-truth-aware phrasing - re-executed clean, all measured values unchanged from their original closure. This step's own deliverables were authored under the new rule from the start.
+
+Wrote [`results/assessment-2/assessment-2-root-cause-analysis.md`](../../results/assessment-2/assessment-2-root-cause-analysis.md) (findings, per-category detail, remediation, permanent controls - no single "residual" figure, since the eight categories are not guaranteed mutually exclusive partitions of one total), rewrote [`assessment-2-exception-dataset.md`](../../results/assessment-2/assessment-2-exception-dataset.md) to union task 2's and task 3's categories (1214 rows total), and added the task 3 rows to [`assessment-2-audit.md`](../../results/assessment-2/assessment-2-audit.md).
 
 ### 7. Task 4 - reconciliation framework design
 

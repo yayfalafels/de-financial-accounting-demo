@@ -38,10 +38,10 @@
 | 10.01 | 01  | closed  | design                                    |
 | 10.02 | 02  | closed  | prerequisites and seed data readiness     |
 | 10.03 | 03  | closed  | assessment scope and context write-up     |
-| 10.04 | 04  | closed  | task 1 - GL integrity and reconciliation  |
-| 10.05 | 05  | closed  | task 2 - accounting mapping validation    |
-| 10.06 | 06  | closed  | exception dataset                         |
-| 10.07 | 07  | closed  | task 3 - finance variance investigation   |
+| 10.04 | 04  | open    | task 1 - GL integrity and reconciliation  |
+| 10.05 | 05  | pending | task 2 - accounting mapping validation    |
+| 10.06 | 06  | pending | exception dataset                         |
+| 10.07 | 07  | pending | task 3 - finance variance investigation   |
 | 10.08 | 08  | pending | task 4 - reconciliation framework design  |
 | 10.09 | 09  | pending | business-facing summary                   |
 | 10.10 | 10  | pending | notebook consolidation and clean rerun    |
@@ -274,28 +274,25 @@ Per user direction during 10.05/10.07 review: this assessment's results-facing c
 
 the assignment names seven candidate causes; before designing the recomputation, each is tested against one question: since the platform generates `finance.gl_balance` by aggregating `bronze.finance_transactions` directly, does a given cause have any way to end up making the two *disagree*, or does it pass through into both sides identically?
 
-| candidate cause                    | amount basis?     | expected value?  | verdict              |
-| ---------------------------------- | ----------------- | ---------------- | -------------------- |
-| duplicate / posted twice           | no [01]           | no               | pass-through [05]    |
-| wrong debit/credit indicator       | no [02]           | no               | pass-through [06]    |
-| posted one day late                | no                | no [03]          | pass-through [07]    |
-| missing accounting mapping         | no                | no [04]          | pass-through, always |
-| incorrect FX conversion            | wrong column [08] | no               | invisible [08]       |
-| incorrect legal-entity             | no                | **yes** [09]     | conditional [09]     |
-| incorrect cost-center / GL-account | no                | **yes** [09][10] | conditional [09]     |
+| id | candidate cause                    | amt basis?   | exp value?  | observability |
+| -- | ---------------------------------- | ------------ | ----------- | ------------- |
+| 01 | duplicate / posted twice           | no           | no          | pass-through  |
+| 02 | wrong debit/credit indicator       | no           | no          | pass-through  |
+| 03 | posted one day late                | no           | no          | pass-through  |
+| 04 | missing accounting mapping         | no           | no          | pass-through  |
+| 05 | incorrect FX conversion            | wrong column | no          | invisible     |
+| 06 | incorrect legal-entity             | no           | **yes**     | conditional   |
+| 07 | incorrect cost-center / GL-account | no           | **yes**     | conditional   |
 
-01. extra row, same amount, same classification.
-02. moves the amount to the other side of the same posted record; the indicator selects which side a value adds to, it is not itself a grouping key.
-03. `accounting_date` is technically a grouping dimension, but there is no independent "expected posting date" to substitute - the posting date is itself the fact in question.
+01. extra row, same amount, same classification. every row, duplicates included, is aggregated into the Ledger as posted; a duplicate's value enters both sides identically.
+02. moves the amount to the other side of the same posted record; the indicator selects which side a value adds to, it is not itself a grouping key. the Ledger's `debit_movement`/`credit_movement` already reflect whichever indicator the transaction carries.
+03. `accounting_date` is technically a grouping dimension, but there is no independent "expected posting date" to substitute - the posting date is itself the fact in question. The Ledger is keyed/classified by the transaction's own actual value; recomputing on that same value can only agree - nothing to substitute on either side.
 04. `gl_account`/`cost_center` are grouping dimensions, but by definition no valid expected value exists for these transactions.
-05. every row, duplicates included, is aggregated into the Ledger as posted; a duplicate's value enters both sides identically.
-06. the Ledger's `debit_movement`/`credit_movement` already reflect whichever indicator the transaction carries.
-07. the Ledger is keyed/classified by the transaction's own actual value; recomputing on that same value can only agree - nothing to substitute on either side.
-08. the defect lives in `local_amount`, a column the Ledger's own movement figures do not read at all - not pass-through so much as untouched; a comparison built on the Ledger's real amount basis (`transaction_amount`) cannot see an error confined to a different column.
-09. detectable only if the recomputation groups by the *expected* value; grouping by the transaction's actual value (the same value the Ledger used) is tautological.
-10. except for a handful of product/type combinations where the reference itself carries more than one active, conflicting row - no single expected value exists for those.
+05. the defect lives in `local_amount`, a column the Ledger's own movement figures do not read at all - not pass-through so much as untouched; a comparison built on the Ledger's real amount basis (`transaction_amount`) cannot see an error confined to a different column.
+06. detectable only if the recomputation groups by the *expected* value; grouping by the transaction's actual value (the same value the Ledger used) is tautological.
+07. except for a handful of product/type combinations where the reference itself carries more than one active, conflicting row - no single expected value exists for those.
 
-Only three of the seven candidates - legal-entity, cost-center, and (unambiguous) GL-account misclassification - can, even in principle, produce a gap this reconciliation is capable of finding, and only if the recomputation substitutes each transaction's *expected* classification rather than reusing the actual, as-posted values the Ledger itself was built from. The other four are pass-through or column-invisible regardless of how carefully the recomputation is implemented. This is why [mapping validation design](#mapping-validation-design--task-2) and [variance investigation design](#variance-investigation-design--task-3) detect duplicate entries, the debit/credit indicator, late posting, missing mappings, and FX conversion independently, by inspecting the transaction and mapping data directly - not as a fallback for cases this reconciliation happens to miss, but because no Ledger-vs-transaction reconciliation, however implemented, can surface them.
+Only three of the seven candidates - legal-entity, cost-center, and (unambiguous) GL-account misclassification - can, even in principle, produce a gap this reconciliation is capable of finding, and only if the recomputation substitutes each transaction's *expected* classification rather than reusing the actual, as-posted values the Ledger itself was built from. The other four are pass-through or column-invisible regardless of how carefully the recomputation is implemented. 
 
 **business key, date convention, and classification basis** - `finance.gl_balance`'s five-dimension grouping key (`accounting_date, legal_entity, gl_account, cost_center, currency`) is also the grouping key every recomputation below aggregates `bronze.finance_transactions` onto, joining `bronze.finance_transactions.posting_date` to `gl_balance.accounting_date` - the Ledger is dated by *posting*. per the table above, this is a pass-through dimension - the join convention matters for correctly locating a transaction's Ledger key. The amount recomputed is `transaction_amount` in native currency. This is the column the Ledger's own `debit_movement`/`credit_movement` are themselves aggregated from. `legal_entity`, `gl_account`, and `cost_center` are recomputed on each transaction's *expected* value - majority-vote per account for legal entity, `ref.accounting_mapping`'s expected value for GL account and cost center wherever a transaction matches exactly one active mapping row - falling back to the transaction's actual value only where no expected value is determinable (unmapped transactions) or where the reference itself is ambiguous (a product/transaction-type combination with more than one currently-active, conflicting mapping row - see [mapping validation design](#mapping-validation-design--task-2)'s overlapping/multi-GL checks for that population).
 
@@ -497,54 +494,7 @@ Distinct from **10.CK.12**: this flags currently-active rows (open-ended or not 
 
 ### variance investigation design - task 3
 
-**structured investigation, not manual search** - each of the eight categories below is a standalone query tagging its rows with that category's `issue_type` (see [exception dataset](#exception-dataset)); the notebook unions them into one exception set. Per [GL integrity design](#gl-integrity-design--task-1)'s detectability analysis, only two of the eight - **10.CK.21** (legal entity) and **10.CK.22** (cost center) - can bridge against the variance that design finds; the other six (**10.CK.15**/**10.CK.16** duplicates, **10.CK.17** indicator, **10.CK.18** FX, **10.CK.19** missing mapping, **10.CK.20** late posting) are pass-through or column-invisible by construction and are detected here as standalone findings in their own right, not as contributors to a bridge. Where a bridge is attempted (**10.CK.21**/**10.CK.22** against [GL integrity design](#gl-integrity-design--task-1)'s recomputation), each category's face value counts *twice* - a misclassified transaction's value is missing from its correct bucket and present in its wrong one - and any residual after that is called out explicitly rather than silently dropped or forced to close.
-
-**10.CK.15 - duplicate accounting entry** - hash the business fields (every column except `transaction_id`) and find hash collisions across distinct `transaction_id`s posted on the same `posting_date`:
-
-```sql
-SELECT transaction_id, account_id, posting_date, local_amount,
-       MD5(CONCAT_WS('|', account_id, posting_date, transaction_amount, currency,
-                      debit_credit_indicator, product_code, gl_account, cost_center)) AS entry_hash
-FROM bronze.finance_transactions
--- rows sharing entry_hash + posting_date but a different transaction_id are the duplicate group
-```
-
-Every row in an `entry_hash` group of size > 1 is flagged except the first (ordered by `transaction_id`); the *extra* rows' `local_amount` is reported as this category's finding - per the detectability analysis, not a contribution to [GL integrity design](#gl-integrity-design--task-1)'s variance, since a duplicate's value is aggregated into the Ledger identically to how it appears in the recomputation.
-
-**10.CK.16 - transaction posted twice under a different id** - the same hash-collision query as **10.CK.15** (the hash deliberately excludes `transaction_id`, so a same-fields/different-id repost is already caught there); this is a second `issue_type` label applied to the same detected rows, kept separate only because the assignment names the two scenarios independently.
-
-**10.CK.17 - incorrect debit/credit indicator** - flagged in [GL integrity design](#gl-integrity-design--task-1)'s detectability analysis as pass-through: the Ledger's `debit_movement`/`credit_movement` are aggregated from the same (already-mutated) indicator this check would read, so a flipped transaction is baked into both sides identically - no dataset generated this way can produce the cancellation signature below, regardless of how much other variance exists at a key. Implemented anyway, against [GL integrity design](#gl-integrity-design--task-1)'s recomputation output, as the documented negative result the a priori analysis predicts - not a search expected to succeed:
-
-```sql
-SELECT accounting_date, gl_account, cost_center, currency, debit_variance, credit_variance
-FROM <10.CK.02 / 10.CK.03 output>
-WHERE ABS(debit_variance + credit_variance) < 0.01   -- the two variances cancel
-  AND ABS(debit_variance) > 0.01                       -- but neither is individually zero
-```
-
-Without a dedicated GL normal-balance reference table, this is the only check this tracker specifies for this category; confirming a wrong indicator with confidence needs a rule external to Ledger-vs-transaction reconciliation entirely (e.g. an expected normal balance per GL account), out of scope here.
-
-**10.CK.18 - incorrect FX conversion** - the same tolerance check Assessment 1 uses for its own FX field ([09.CK.10](09-as01-data-profiling-reconciliation.md#profiling-design--task-1)):
-
-```sql
-SELECT transaction_id, transaction_amount, exchange_rate, local_amount,
-       ROUND(transaction_amount * exchange_rate, 2) AS expected_local_amount,
-       local_amount - ROUND(transaction_amount * exchange_rate, 2) AS fx_variance
-FROM bronze.finance_transactions
-WHERE ABS(local_amount - ROUND(transaction_amount * exchange_rate, 2)) > 0.01
-```
-
-**10.CK.19 - missing accounting mapping** - the `local_amount` sum of every transaction flagged by **10.CK.10** (no effective mapping) or **10.CK.11** (missing mapping). Per [GL integrity design](#gl-integrity-design--task-1)'s detectability analysis this is a disclosure figure, not a variance contribution: with no expected value to substitute, these transactions keep their actual classification in that design's recomputation on both sides, so their value cannot register as a bridgeable gap - a transaction with no valid mapping simply cannot be confirmed correct or incorrect, which is the finding itself, not folded into **10.CK.09**'s `GL_MISMATCH` count.
-
-**10.CK.20 - transaction posted one accounting day late** - candidates are transactions whose `posting_date` is exactly one calendar day after `transaction_date`:
-
-```sql
-SELECT posting_date, transaction_date, transaction_id, local_amount
-FROM bronze.finance_transactions
-WHERE posting_date = transaction_date + INTERVAL '1 day'
-```
-
-Every candidate is then cross-checked against [GL integrity design](#gl-integrity-design--task-1)'s per-day variance before being counted - flagged only if moving it to `posting_date - 1 day` materially improves that prior day's `debit_variance`/`credit_variance` (i.e. the transaction's own `local_amount` closely matches the prior day's shortfall). Per the detectability analysis this confirmation step is not expected to confirm anything: the Ledger is aggregated using each transaction's own (possibly late) posting date, so the Ledger and the recomputation already agree on where it lands and there is no shortfall left to match against - the raw candidate count is this check's real output, the cross-check exists to avoid over-flagging a transaction the bank's own processing calendar legitimately posts a day later (e.g. a weekend transaction posted next business day) rather than to find a Ledger-level signature. The write-up states the exclusion rule applied and that it is expected to exclude every candidate.
+**only the conditionally-detectable candidates are designed here** - per [GL integrity design](#gl-integrity-design--task-1)'s detectability analysis, five of the assignment's seven named candidate causes - duplicate/re-posted entries, the debit/credit indicator, late posting, missing accounting mapping, and incorrect FX conversion - are pass-through or column-invisible to a Ledger-vs-transaction reconciliation by construction: no design turns any of them into a signature [GL integrity design](#gl-integrity-design--task-1)'s recomputation could find, so none is designed further here. The two candidates that screening marks conditionally detectable - incorrect legal-entity allocation and incorrect cost-center/GL-account assignment - are the two designed below, each bridged against that recomputation's variance at twice face value (a misclassified transaction's value is missing from its correct bucket and present in its wrong one).
 
 **10.CK.21 - incorrect legal-entity allocation** - one of the two categories [GL integrity design](#gl-integrity-design--task-1)'s detectability analysis marks conditionally detectable: this majority-vote value is exactly the "expected" substitution that design's recomputation applies for `legal_entity`, so this check's flagged transactions are where that design's own legal-entity variance traces to, not a separate, unrelated finding. `ref.accounting_mapping` carries no `expected_legal_entity` column, so this is a majority-vote check per `account_id`: an account's legal entity is expected to be stable, so a transaction whose `legal_entity` disagrees with that account's most-frequent posted value elsewhere in the seeded period is a probable misallocation:
 

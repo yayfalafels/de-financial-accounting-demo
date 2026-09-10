@@ -86,6 +86,10 @@
               <ul class="nav flex-column">
               </ul>
             </li>
+            <li class="nav-item" data-bs-level="2"><a href="#bridging-the-variance" class="nav-link">Bridging the variance</a>
+              <ul class="nav flex-column">
+              </ul>
+            </li>
             <li class="nav-item" data-bs-level="2"><a href="#duplicate-re-posted-accounting-entries" class="nav-link">Duplicate / re-posted accounting entries</a>
               <ul class="nav flex-column">
               </ul>
@@ -124,13 +128,13 @@
 <h1 id="assessment-2-root-cause-analysis">Assessment 2 - Root-Cause Analysis</h1>
 <p>status: draft</p>
 <p><strong>Task 3 - Investigate a Finance Variance</strong></p>
-<p>See <a href="../assessment-2-overview/">overview</a> for the scenario, table shapes, and the seeded-vs-production scale statement. See <a href="../assessment-2-reconciliation-results/">reconciliation results</a> for the Ledger reconciliation this investigation's findings sit alongside.</p>
+<p>See <a href="../assessment-2-overview/">overview</a> for the scenario, table shapes, and the seeded-vs-production scale statement. See <a href="../assessment-2-reconciliation-results/">reconciliation results</a> for the variance this investigation decomposes.</p>
 <h2 id="sources">Sources</h2>
 <ul>
 <li>notebook: <a href="https://github.com/yayfalafels/de-financial-accounting-demo/blob/main/notebooks/assessment2_gl_reconciliation.ipynb">assessment2_gl_reconciliation.ipynb</a> -&gt; "Task 3 - Investigate a Finance Variance" section</li>
 </ul>
 <h2 id="method-and-headline-finding">Method and headline finding</h2>
-<p>Each of the categories the scenario names is checked independently rather than searched for transaction by transaction. The reconciliation results deliverable's corrected recomputation shows the General Ledger reconciles exactly against the transaction data - zero variance at every key, on every dimension. None of the categories below is therefore measured against a Ledger-level gap to explain; each stands as its own finding, verified directly against the source data.</p>
+<p>Each of the categories the scenario names is checked independently rather than searched for transaction by transaction. Task 1's expected-classification recomputation found 305,281.76 in Ledger-vs-transaction movement variance. Two of the eight categories below - incorrect legal-entity allocation and incorrect cost-center assignment - are exactly the categories Task 1's recomputation substitutes an expected value for, so they are the natural candidates to explain it: a misposted transaction is missing from its correct bucket and present in its wrong one, so its value counts twice toward the variance.</p>
 <h2 id="findings">Findings</h2>
 <table>
 <thead>
@@ -144,26 +148,26 @@
 <tr>
 <td>duplicate / re-posted accounting entry</td>
 <td>21</td>
-<td>255,845.35</td>
+<td>255,845.35 [01]</td>
 </tr>
 <tr>
 <td>incorrect debit/credit indicator</td>
-<td>0 [01]</td>
+<td>0 [02]</td>
 <td>-</td>
 </tr>
 <tr>
 <td>incorrect FX conversion</td>
 <td>3</td>
-<td>4,467.53</td>
+<td>4,467.53 [01]</td>
 </tr>
 <tr>
 <td>missing accounting mapping</td>
 <td>385</td>
-<td>4,387,367.89 [02]</td>
+<td>4,387,367.89 [01][03]</td>
 </tr>
 <tr>
 <td>posted one accounting day late</td>
-<td>12 / 0 [03]</td>
+<td>12 / 0 [04]</td>
 <td>-</td>
 </tr>
 <tr>
@@ -179,33 +183,62 @@
 </tbody>
 </table>
 <ol>
-<li><strong>indicator</strong> checked by looking for a Ledger key where the debit and credit variance from the movement recomputation cancel to near zero while neither is individually zero - the signature a single flipped transaction would leave if the Ledger did not also reflect the flip. None found: the Ledger's movement figures are aggregated from the same transaction data this check reads, so a flipped indicator is baked into both consistently and is structurally invisible to a Ledger-vs-transaction reconciliation. Confirming a wrong indicator needs a rule external to this reconciliation (e.g. an expected normal balance per GL account), not attempted here.</li>
-<li><strong>missing accounting mapping</strong> - an audit-confidence gap, not a Ledger variance: the Ledger's movement figures already include these transactions at whatever GL account/cost center they were actually posted to, confirmed or not against the reference mapping table (see reconciliation results - the Ledger reconciles exactly including these transactions).</li>
-<li><strong>late posting</strong> - 12 transactions post exactly one calendar day after their transaction date; 0 confirmed against the prior day's own movement shortfall, for the same structural reason as the indicator check - the Ledger is built from each transaction's own (possibly late) posting date, so the Ledger and the recomputation already agree on where a late-posted transaction lands.</li>
+<li><strong>duplicate entries, FX conversion, missing accounting mapping</strong> - real, individually-verified findings, but none of them is a classification category Task 1's recomputation substitutes for, so none is expected to explain the movement variance (see the per-category notes below for why).</li>
+<li><strong>indicator</strong> checked by looking for a Ledger key where the debit and credit variance from Task 1's recomputation cancel to near zero while neither is individually zero - the signature a single flipped transaction would leave if the Ledger did not also reflect the flip. None found: the Ledger's movement figures are aggregated from the same transaction data this check reads, so a flipped indicator is baked into both consistently.</li>
+<li><strong>missing accounting mapping</strong> - an audit-confidence gap, not a Ledger variance: these transactions keep their actual classification in Task 1's recomputation (no expected value to substitute), so they cannot contribute to the variance found.</li>
+<li><strong>late posting</strong> - 12 transactions post exactly one calendar day after their transaction date; 0 confirmed against the prior day's own movement shortfall - the Ledger is built from each transaction's own (possibly late) posting date, so the Ledger and the recomputation already agree on where a late-posted transaction lands.</li>
 </ol>
+<h2 id="bridging-the-variance">Bridging the variance</h2>
+<table>
+<thead>
+<tr>
+<th>step</th>
+<th>amount</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Task 1 movement variance (expected-classification basis)</td>
+<td>305,281.76</td>
+</tr>
+<tr>
+<td>less: 2x incorrect legal-entity allocation (60,697.50 x 2)</td>
+<td>121,395.00</td>
+</tr>
+<tr>
+<td>less: 2x incorrect cost-center assignment (85,485.13 x 2)</td>
+<td>170,970.26</td>
+</tr>
+<tr>
+<td>= residual</td>
+<td>12,916.50</td>
+</tr>
+</tbody>
+</table>
+<p>96% of the variance is accounted for by the two classification categories, at twice their face value each (missing from the correct bucket, present in the wrong one) - confirmed as non-overlapping populations (no transaction is flagged by both checks). The remaining 12,916.50 (4%) is not fully decomposed: one of the two GL-account misclassifications that Task 2 could not attribute to a mapping conflict (<code>FTX-0000660</code>, 17,900.46) is <em>also</em> one of the incorrect-cost-center transactions above - a transaction wrong on two dimensions at once does not contribute a simple sum of two independent "x2" corrections, and this investigation did not carry the interaction term further.</p>
 <h2 id="duplicate-re-posted-accounting-entries">Duplicate / re-posted accounting entries</h2>
-<p>Business fields (every column except the transaction id) hashed per transaction, grouped by posting date; every row sharing a hash and posting date beyond the first is flagged, indicating either the same entry recorded twice or the same transaction re-posted under a different id - the two scenarios the assignment names separately are not distinguishable from this data alone, since both leave an identical signature. 21 rows flagged this way, contributing 255,845.35 - already included in the Ledger's own reconciled total, since the Ledger is built from the same (duplicated) transaction data.</p>
+<p>Business fields (every column except the transaction id) hashed per transaction, grouped by posting date; every row sharing a hash and posting date beyond the first is flagged, indicating either the same entry recorded twice or the same transaction re-posted under a different id - the two scenarios the assignment names separately are not distinguishable from this data alone, since both leave an identical signature. 21 rows flagged this way, contributing 255,845.35 - already included in the Ledger's own recorded movement, since the Ledger is built from the same (duplicated) transaction data at its actual classification.</p>
 <h2 id="missing-accounting-mapping">Missing accounting mapping</h2>
-<p>385 transactions have no accounting mapping covering their product code and debit/credit type, so their General Ledger posting cannot be confirmed correct or incorrect. Their combined value, 4,387,367.89, is a disclosure figure - the largest population found - not a Ledger discrepancy: the reconciliation results deliverable confirms the Ledger's own movement figures already include this value.</p>
+<p>385 transactions have no accounting mapping covering their product code and debit/credit type, so their General Ledger posting cannot be confirmed correct or incorrect. Their combined value, 4,387,367.89, is a disclosure figure - the largest population found - not a Ledger discrepancy.</p>
 <h2 id="incorrect-fx-conversion">Incorrect FX conversion</h2>
 <p>The one category whose error does not reach the Ledger at all: the Ledger's movement figures are built from <code>transaction_amount</code>, which an FX-conversion error never touches (it only misstates <code>local_amount</code>). A misstated <code>local_amount</code> sits in the transaction data undetected by any Ledger-level reconciliation - the 3 flagged rows, 4,467.53, were found only by checking <code>local_amount</code> against its own inputs (<code>transaction_amount * exchange_rate</code>) directly.</p>
 <h2 id="incorrect-legal-entity-allocation">Incorrect legal-entity allocation</h2>
-<p>The accounting mapping table carries no expected legal entity, so this check compares each transaction's legal entity against the most frequently posted legal entity for the same account elsewhere in the period - a transaction disagreeing with its account's own usual entity is a probable misallocation. 6 transactions flagged, contributing 60,697.50, spread across 4 different account/entity pairs with no single pair dominating.</p>
+<p>The accounting mapping table carries no expected legal entity, so this check compares each transaction's legal entity against the most frequently posted legal entity for the same account elsewhere in the period - a transaction disagreeing with its account's own usual entity is a probable misallocation. 6 transactions flagged, contributing 60,697.50, spread across 4 different account/entity pairs with no single pair dominating - the same substitution Task 1's recomputation applies for this dimension, so this category's transactions are exactly where that recomputation's legal-entity variance traces to.</p>
 <h2 id="incorrect-cost-center-assignment">Incorrect cost-center assignment</h2>
-<p>The accounting mapping table does carry an expected cost center, so this check reuses the same effective-dated join as the accounting mapping validation. 8 distinct transactions flagged (a transaction matching more than one active mapping row is checked against each independently, so the raw row count is higher before removing that duplication), contributing 85,485.13.</p>
+<p>The accounting mapping table does carry an expected cost center, so this check reuses the same effective-dated join as the accounting mapping validation. 8 distinct transactions flagged (a transaction matching more than one active mapping row is checked against each independently, so the raw row count is higher before removing that duplication), contributing 85,485.13 - the same substitution Task 1's recomputation applies for this dimension.</p>
 <h2 id="remediation">Remediation</h2>
 <ul>
+<li>correct the 6 legal-entity and 8 cost-center misclassifications directly against their originating account records, and re-run Task 1's recomputation to confirm the movement variance closes to the expected residual</li>
 <li>reload or confirm the accounting mapping table's coverage for every product/transaction-type combination actually posted, so every transaction can be validated against an expected GL account and cost center</li>
 <li>review the 21 flagged duplicate/re-posted entries against their source system to confirm which are genuine re-entries versus legitimate repeat transactions, before reversing any</li>
 <li>confirm the FX rate source used for the 3 flagged transactions against the rate actually in force on their transaction date</li>
-<li>review the 6 legal-entity and 8 cost-center mismatches against their originating account records to confirm the correct allocation</li>
 </ul>
 <h2 id="permanent-preventive-controls">Permanent preventive controls</h2>
 <ul>
+<li>add a control that flags a transaction whose legal entity or cost center disagrees with its account's established pattern, for review before posting rather than after - this is the pair of controls that would have prevented 96% of the variance found here</li>
 <li>add a mapping-coverage check that runs whenever a new product or transaction type is introduced, alerting before any transaction can post without a matching accounting-mapping row</li>
 <li>add a same-batch duplicate check on the business-field hash used above, run before a batch is accepted into the Ledger feed rather than discovered afterward</li>
-<li>add an FX-tolerance check against the rate in force on the transaction date at the point of posting - this is the one category the standard Ledger-vs-transaction reconciliation cannot catch on its own, since the error never reaches the Ledger's own movement figures, so this control needs to sit upstream of Ledger posting, not rely on downstream reconciliation to find it</li>
-<li>add a control that flags a transaction whose legal entity or cost center disagrees with its account's established pattern, for review before posting rather than after</li>
+<li>add an FX-tolerance check against the rate in force on the transaction date at the point of posting - this is the one category the standard Ledger-vs-transaction reconciliation cannot catch on its own, since the error never reaches the Ledger's own movement figures, so this control needs to sit upstream of Ledger posting</li>
 </ul></div>
             </div>
         </div>

@@ -127,13 +127,13 @@
 <td>01.02-08</td>
 <td>recomputation/dim recon</td>
 <td>n/a [01]</td>
-<td>0 keys, all PASS</td>
+<td>34 keys, 305,281.76</td>
 <td>n/a</td>
 </tr>
 </tbody>
 </table>
 <ol>
-<li><strong>01.02-08</strong> has no single injected-issue tag of its own. The first pass of this check recomputed movements from <code>local_amount</code> and found every dimension failing except <code>currency=SGD</code> - traced to a basis error, not a data-quality finding: <code>finance.gl_balance</code>'s own movement figures are aggregated from <code>transaction_amount</code>, not <code>local_amount</code> (confirmed directly against the seed generator's own GL-aggregation code). Recomputing on the correct basis reconciles every key exactly - see <code>docs/assessments/10-as02-financial-accounting-gl.md</code>, issue <code>10.IS.02</code>, for the full diagnostic trail.</li>
+<li><strong>01.02-08</strong> has no single injected-issue tag of its own; two implementation issues were found and fixed while developing this check (<code>docs/assessments/10-as02-financial-accounting-gl.md</code>, issues <code>10.IS.02</code> and <code>10.IS.03</code>, have the full diagnostic trail for both). First, the recomputation summed <code>local_amount</code> where <code>finance.gl_balance</code>'s own movement figures are aggregated from <code>transaction_amount</code> (confirmed against the seed generator's source) - fixing the column alone produced a 0.00 result. Second, that 0.00 was itself still tautological: the recomputation grouped by each transaction's <em>actual</em> <code>gl_account</code>/<code>cost_center</code>/<code>legal_entity</code>, the same values the Ledger was built from, so a genuine misclassification could never surface. Grouping instead by the <em>expected</em> classification (<code>ref.accounting_mapping</code> where unambiguous, majority-vote for legal entity) surfaces the real variance: 34 keys, 305,281.76 - see the reconciliation-results and root-cause-analysis deliverables for the finding this produces and how much of it Task 3's own categories explain.</li>
 </ol>
 <h2 id="task-2-accounting-mapping-validation">Task 2 - Accounting Mapping Validation</h2>
 <table>
@@ -252,6 +252,7 @@
 <li><strong>03.03</strong> the indirect detection method (a Ledger key where debit and credit variance cancel to near zero) found no candidate, despite 10 tagged rows existing. Confirmed structural, not a detection-method weakness: <code>finance.gl_balance</code> is aggregated from the same (already-mutated) transaction rows this check reads, so a flipped indicator is baked into the Ledger and the recomputation identically - there is no cancellation signature to find via this method, on any dataset generated this way. Finding a wrong indicator needs a rule external to Ledger-vs-transaction reconciliation (e.g. an expected normal balance per GL account).</li>
 <li><strong>03.06</strong> the raw day-shift candidate count (12) matches the tagged count exactly - the detection step itself is accurate - but the confirmation step (requiring a candidate's amount to closely match its prior day's own shortfall) rejected all 12, for the same structural reason as <strong>03.03</strong>: the Ledger is built from each transaction's own (possibly late) posting date, so the Ledger and the recomputation already agree on where a late-posted transaction lands - there is no shortfall left to match against. The root-cause deliverable reports this as 0 confirmed rather than overriding the method's own result with the ground truth.</li>
 </ol>
+<p><strong>bridge check</strong> - Task 1's corrected recomputation (34 keys, 305,281.76) is checked directly against Task 3's own categories rather than left as a standalone figure: <code>03.07</code> + <code>03.08</code> at twice face value (60,697.50 + 85,485.13, x2 - a misposted transaction's value is missing from its correct bucket and present in its wrong one) = 292,365.26, 96% of 305,281.76. Confirmed the two categories' transactions don't overlap (a transaction wrong on both dimensions would break the simple x2 arithmetic) - zero overlap found. The remaining 12,916.50 traces to one specific transaction (<code>FTX-0000660</code>) that is wrong on cost center <em>and</em> is one of <code>02.01</code>'s two GL-mismatch rows unexplained by a mapping conflict - a multi-dimension interaction this investigation did not decompose further.</p>
 <p>All measured values are read live via Spark SQL/PySpark against postgres in the notebook section cited above, not hand-typed against the ground truth.</p></div>
             </div>
         </div>

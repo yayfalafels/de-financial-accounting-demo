@@ -270,17 +270,19 @@ Per user direction during 10.05/10.07 review: this assessment's results-facing c
 
 ### GL integrity design - task 1
 
-**detectability analysis - which causes can this reconciliation surface, and why (decided before writing the checks, not discovered after)** - the assignment names seven candidate causes; before designing the recomputation, each is tested against one question: since the platform generates `finance.gl_balance` by aggregating `bronze.finance_transactions` directly, does a given cause have any way to end up making the two *disagree*, or does it pass through into both sides identically?
+**detectability analysis - which causes can this reconciliation surface, and why**
 
-| candidate cause             | amount basis? | expected value? | verdict         |
-| -------------------------------- | ---------------- | ------------------ | ------------------- |
-| duplicate / posted twice           | no [01]            | no                   | pass-through [05]      |
-| wrong debit/credit indicator        | no [02]            | no                   | pass-through [06]      |
-| posted one day late                  | no                | no [03]             | pass-through [07]      |
-| missing accounting mapping             | no                | no [04]             | pass-through, always  |
-| incorrect FX conversion                 | wrong column [08]  | no                   | invisible [08]         |
-| incorrect legal-entity                   | no                | **yes** [09]        | conditional [09]       |
-| incorrect cost-center / GL-account        | no                | **yes** [09][10]    | conditional [09]       |
+the assignment names seven candidate causes; before designing the recomputation, each is tested against one question: since the platform generates `finance.gl_balance` by aggregating `bronze.finance_transactions` directly, does a given cause have any way to end up making the two *disagree*, or does it pass through into both sides identically?
+
+| candidate cause                    | amount basis?     | expected value?  | verdict              |
+| ---------------------------------- | ----------------- | ---------------- | -------------------- |
+| duplicate / posted twice           | no [01]           | no               | pass-through [05]    |
+| wrong debit/credit indicator       | no [02]           | no               | pass-through [06]    |
+| posted one day late                | no                | no [03]          | pass-through [07]    |
+| missing accounting mapping         | no                | no [04]          | pass-through, always |
+| incorrect FX conversion            | wrong column [08] | no               | invisible [08]       |
+| incorrect legal-entity             | no                | **yes** [09]     | conditional [09]     |
+| incorrect cost-center / GL-account | no                | **yes** [09][10] | conditional [09]     |
 
 01. extra row, same amount, same classification.
 02. moves the amount to the other side of the same posted record; the indicator selects which side a value adds to, it is not itself a grouping key.
@@ -295,7 +297,7 @@ Per user direction during 10.05/10.07 review: this assessment's results-facing c
 
 Only three of the seven candidates - legal-entity, cost-center, and (unambiguous) GL-account misclassification - can, even in principle, produce a gap this reconciliation is capable of finding, and only if the recomputation substitutes each transaction's *expected* classification rather than reusing the actual, as-posted values the Ledger itself was built from. The other four are pass-through or column-invisible regardless of how carefully the recomputation is implemented. This is why [mapping validation design](#mapping-validation-design--task-2) and [variance investigation design](#variance-investigation-design--task-3) detect duplicate entries, the debit/credit indicator, late posting, missing mappings, and FX conversion independently, by inspecting the transaction and mapping data directly - not as a fallback for cases this reconciliation happens to miss, but because no Ledger-vs-transaction reconciliation, however implemented, can surface them.
 
-**business key, date convention, and classification basis** - `finance.gl_balance`'s five-dimension grouping key (`accounting_date, legal_entity, gl_account, cost_center, currency`) is also the grouping key every recomputation below aggregates `bronze.finance_transactions` onto, joining `bronze.finance_transactions.posting_date` to `gl_balance.accounting_date` - the Ledger is dated by *posting*, not by `transaction_date` (per the table above, this is a pass-through dimension - the join convention matters for correctly locating a transaction's Ledger key, not for detecting late posting, which this design does not attempt to catch here). The amount recomputed is `transaction_amount` (native currency), not `local_amount` - the column the Ledger's own `debit_movement`/`credit_movement` are themselves aggregated from; recomputing on `local_amount` would introduce a spurious FX-driven gap on every foreign-currency transaction, unrelated to any of the seven candidate causes. `legal_entity`, `gl_account`, and `cost_center` are recomputed on each transaction's *expected* value - majority-vote per account for legal entity, `ref.accounting_mapping`'s expected value for GL account and cost center wherever a transaction matches exactly one active mapping row - falling back to the transaction's actual value only where no expected value is determinable (unmapped transactions) or where the reference itself is ambiguous (a product/transaction-type combination with more than one currently-active, conflicting mapping row - see [mapping validation design](#mapping-validation-design--task-2)'s overlapping/multi-GL checks for that population).
+**business key, date convention, and classification basis** - `finance.gl_balance`'s five-dimension grouping key (`accounting_date, legal_entity, gl_account, cost_center, currency`) is also the grouping key every recomputation below aggregates `bronze.finance_transactions` onto, joining `bronze.finance_transactions.posting_date` to `gl_balance.accounting_date` - the Ledger is dated by *posting*. per the table above, this is a pass-through dimension - the join convention matters for correctly locating a transaction's Ledger key. The amount recomputed is `transaction_amount` in native currency. This is the column the Ledger's own `debit_movement`/`credit_movement` are themselves aggregated from. `legal_entity`, `gl_account`, and `cost_center` are recomputed on each transaction's *expected* value - majority-vote per account for legal entity, `ref.accounting_mapping`'s expected value for GL account and cost center wherever a transaction matches exactly one active mapping row - falling back to the transaction's actual value only where no expected value is determinable (unmapped transactions) or where the reference itself is ambiguous (a product/transaction-type combination with more than one currently-active, conflicting mapping row - see [mapping validation design](#mapping-validation-design--task-2)'s overlapping/multi-GL checks for that population).
 
 **10.CK.01 - arithmetic integrity**
 

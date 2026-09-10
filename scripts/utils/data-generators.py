@@ -322,6 +322,8 @@ AS02_MAPPING_COLUMNS = [
 AS02_GL_COLUMNS = [
     "accounting_date", "legal_entity", "gl_account", "cost_center", "currency",
     "opening_balance", "debit_movement", "credit_movement", "closing_balance",
+    "local_sgd_opening_balance", "local_sgd_debit_movement", "local_sgd_credit_movement",
+    "local_sgd_closing_balance",
 ]
 
 AS02_PRODUCTS = [f"P{n}" for n in range(1, 11)]
@@ -523,27 +525,40 @@ def gen_assessment2(out_dir: Path) -> None:
     groups: dict[tuple, dict] = {}
     for r in txn_rows:
         key = (r["posting_date"], r["legal_entity"], r["gl_account"], r["cost_center"], r["currency"])
-        g = groups.setdefault(key, {"debit": Decimal("0"), "credit": Decimal("0")})
+        g = groups.setdefault(
+            key,
+            {"debit": Decimal("0"), "credit": Decimal("0"), "local_debit": Decimal("0"), "local_credit": Decimal("0")},
+        )
         amt = Decimal(r["transaction_amount"])
+        local_amt = Decimal(r["local_amount"])
         if r["debit_credit_indicator"] == "DEBIT":
             g["debit"] += amt
+            g["local_debit"] += local_amt
         else:
             g["credit"] += amt
+            g["local_credit"] += local_amt
 
     gl_rows: list[dict] = []
     opening_carry: dict[tuple, Decimal] = {}
+    local_opening_carry: dict[tuple, Decimal] = {}
     for key in sorted(groups.keys()):
         accounting_date, legal_entity, gl_account, cost_center, currency = key
         carry_key = (legal_entity, gl_account, cost_center, currency)
         opening = opening_carry.get(carry_key, Decimal(str(round(rng.uniform(1000, 50000), 2))))
         debit, credit = groups[key]["debit"], groups[key]["credit"]
+        local_debit, local_credit = groups[key]["local_debit"], groups[key]["local_credit"]
         closing = opening + debit - credit
         opening_carry[carry_key] = closing
+        local_opening = local_opening_carry.get(carry_key, (opening * fx_rate(currency)).quantize(Decimal("0.01")))
+        local_closing = local_opening + local_debit - local_credit
+        local_opening_carry[carry_key] = local_closing
         gl_rows.append(
             {
                 "accounting_date": accounting_date, "legal_entity": legal_entity, "gl_account": gl_account,
                 "cost_center": cost_center, "currency": currency, "opening_balance": d2(opening),
                 "debit_movement": d2(debit), "credit_movement": d2(credit), "closing_balance": d2(closing),
+                "local_sgd_opening_balance": d2(local_opening), "local_sgd_debit_movement": d2(local_debit),
+                "local_sgd_credit_movement": d2(local_credit), "local_sgd_closing_balance": d2(local_closing),
             }
         )
 
@@ -553,6 +568,8 @@ def gen_assessment2(out_dir: Path) -> None:
         delta = Decimal(str(round(rng.uniform(100, 5000), 2))) * rng.choice([1, -1])
         new = d2(Decimal(old) + delta)
         gl_rows[idx]["closing_balance"] = new
+        local_delta = (delta * fx_rate(gl_rows[idx]["currency"])).quantize(Decimal("0.01"))
+        gl_rows[idx]["local_sgd_closing_balance"] = d2(Decimal(gl_rows[idx]["local_sgd_closing_balance"]) + local_delta)
         key = f"{gl_rows[idx]['accounting_date']}|{gl_rows[idx]['legal_entity']}|{gl_rows[idx]['gl_account']}|{gl_rows[idx]['cost_center']}|{gl_rows[idx]['currency']}"
         log_issue("finance.gl_balance", key, "arithmetic_integrity_violation", old, new)
 

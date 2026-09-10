@@ -14,5 +14,9 @@ CREATE TABLE IF NOT EXISTS "finance"."gl_balance" (
     "debit_movement" NUMERIC(20,2) NOT NULL,
     "credit_movement" NUMERIC(20,2) NOT NULL,
     "closing_balance" NUMERIC(20,2) NOT NULL,
+    "local_sgd_opening_balance" NUMERIC(20,2) NOT NULL,
+    "local_sgd_debit_movement" NUMERIC(20,2) NOT NULL,
+    "local_sgd_credit_movement" NUMERIC(20,2) NOT NULL,
+    "local_sgd_closing_balance" NUMERIC(20,2) NOT NULL,
     PRIMARY KEY ("accounting_date", "legal_entity", "gl_account", "cost_center", "currency")
 );

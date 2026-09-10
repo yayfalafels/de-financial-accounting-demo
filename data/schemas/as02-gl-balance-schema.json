@@ -18,7 +18,11 @@
         { "name": "opening_balance", "type": "decimal", "precision": 20, "scale": 2, "nullable": false, "description": "Opening balance" },
         { "name": "debit_movement", "type": "decimal", "precision": 20, "scale": 2, "nullable": false, "description": "Sum of debit movements" },
         { "name": "credit_movement", "type": "decimal", "precision": 20, "scale": 2, "nullable": false, "description": "Sum of credit movements" },
-        { "name": "closing_balance", "type": "decimal", "precision": 20, "scale": 2, "nullable": false, "description": "Closing balance", "notes": "Expected: opening_balance + debit_movement - credit_movement = closing_balance." }
+        { "name": "closing_balance", "type": "decimal", "precision": 20, "scale": 2, "nullable": false, "description": "Closing balance", "notes": "Expected: opening_balance + debit_movement - credit_movement = closing_balance." },
+        { "name": "local_sgd_opening_balance", "type": "decimal", "precision": 20, "scale": 2, "nullable": false, "description": "Opening balance converted to local SGD" },
+        { "name": "local_sgd_debit_movement", "type": "decimal", "precision": 20, "scale": 2, "nullable": false, "description": "Sum of debit movements converted to local SGD" },
+        { "name": "local_sgd_credit_movement", "type": "decimal", "precision": 20, "scale": 2, "nullable": false, "description": "Sum of credit movements converted to local SGD" },
+        { "name": "local_sgd_closing_balance", "type": "decimal", "precision": 20, "scale": 2, "nullable": false, "description": "Closing balance converted to local SGD", "notes": "Expected: local_sgd_opening_balance + local_sgd_debit_movement - local_sgd_credit_movement = local_sgd_closing_balance." }
       ]
     }
   ]

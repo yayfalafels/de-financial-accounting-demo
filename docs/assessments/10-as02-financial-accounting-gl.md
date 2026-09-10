@@ -33,21 +33,22 @@
 
 ## Tasks
 
-| id    | seq | status  | milestone                                 |
+| id    | seq | status  | task                                      |
 | ----- | --- | ------- | ----------------------------------------- |
-| 10.01 | 01  | closed  | design                                    |
+| 10.01 | 01  | open    | design                                    |
 | 10.02 | 02  | closed  | prerequisites and seed data readiness     |
 | 10.03 | 03  | closed  | assessment scope and context write-up     |
-| 10.04 | 04  | closed  | task 1 - GL integrity and reconciliation  |
-| 10.05 | 05  | pending | task 2 - accounting mapping validation    |
-| 10.06 | 06  | pending | exception dataset                         |
-| 10.07 | 07  | pending | task 3 - finance variance investigation   |
-| 10.08 | 08  | pending | task 4 - reconciliation framework design  |
-| 10.09 | 09  | pending | business-facing summary                   |
-| 10.10 | 10  | pending | notebook consolidation and clean rerun    |
-| 10.11 | 11  | pending | deliverable review and status promotion   |
-| 10.12 | 12  | pending | publish assessment site                   |
-| 10.IS | 13  | pending | validate                                  |
+| 10.13 | 04  | closed  | gl schema add local amount                |
+| 10.04 | 05  | pending | task 1 - GL integrity and reconciliation  |
+| 10.05 | 06  | pending | task 2 - accounting mapping validation    |
+| 10.06 | 07  | pending | exception dataset                         |
+| 10.07 | 08  | pending | task 3 - finance variance investigation   |
+| 10.08 | 09  | pending | task 4 - reconciliation framework design  |
+| 10.09 | 10  | pending | business-facing summary                   |
+| 10.10 | 11  | pending | notebook consolidation and clean rerun    |
+| 10.11 | 12  | pending | deliverable review and status promotion   |
+| 10.12 | 13  | pending | publish assessment site                   |
+| 10.IS | 14  | pending | validate                                  |
 
 ## Scope
 
@@ -280,7 +281,7 @@ the assignment names seven candidate causes; before designing the recomputation,
 | 02 | wrong debit/credit indicator       | no           | no          | pass-through  |
 | 03 | posted one day late                | no           | no          | pass-through  |
 | 04 | missing accounting mapping         | no           | no          | pass-through  |
-| 05 | incorrect FX conversion            | wrong column | no          | invisible     |
+| 05 | incorrect FX conversion            | same SGD amt | no          | pass-through  |
 | 06 | incorrect legal-entity             | no           | **yes**     | conditional   |
 | 07 | incorrect cost-center / GL-account | no           | **yes**     | conditional   |
 
@@ -288,13 +289,15 @@ the assignment names seven candidate causes; before designing the recomputation,
 02. moves the amount to the other side of the same posted record; the indicator selects which side a value adds to, it is not itself a grouping key. the Ledger's `debit_movement`/`credit_movement` already reflect whichever indicator the transaction carries.
 03. `accounting_date` is technically a grouping dimension, but there is no independent "expected posting date" to substitute - the posting date is itself the fact in question. The Ledger is keyed/classified by the transaction's own actual value; recomputing on that same value can only agree - nothing to substitute on either side.
 04. `gl_account`/`cost_center` are grouping dimensions, but by definition no valid expected value exists for these transactions.
-05. the defect lives in `local_amount`, a column the Ledger's own movement figures do not read at all - not pass-through so much as untouched; a comparison built on the Ledger's real amount basis (`transaction_amount`) cannot see an error confined to a different column.
+05. after the local-SGD schema update, the Ledger's SGD movement fields are populated from the same `local_amount` the source aggregate reads, so a wrong FX conversion passes through both sides identically. The direct FX check remains necessary because the Ledger reconciliation alone cannot tell whether a shared SGD amount was converted correctly.
 06. detectable only if the recomputation groups by the *expected* value; grouping by the transaction's actual value (the same value the Ledger used) is tautological.
 07. except for a handful of product/type combinations where the reference itself carries more than one active, conflicting row - no single expected value exists for those.
 
-Only three of the seven candidates - legal-entity, cost-center, and (unambiguous) GL-account misclassification - can, even in principle, produce a gap this reconciliation is capable of finding, and only if the recomputation substitutes each transaction's *expected* classification rather than reusing the actual, as-posted values the Ledger itself was built from. The other four are pass-through or column-invisible regardless of how carefully the recomputation is implemented. 
+Only three of the seven candidates - legal-entity, cost-center, and (unambiguous) GL-account misclassification - can, even in principle, produce a gap this reconciliation is capable of finding, and only if the recomputation substitutes each transaction's *expected* classification rather than reusing the actual, as-posted values the Ledger itself was built from. The other four pass through both sides identically regardless of how carefully the recomputation is implemented. 
 
-**business key, date convention, and classification basis** - `finance.gl_balance`'s five-dimension grouping key (`accounting_date, legal_entity, gl_account, cost_center, currency`) is also the grouping key every recomputation below aggregates `bronze.finance_transactions` onto, joining `bronze.finance_transactions.posting_date` to `gl_balance.accounting_date` - the Ledger is dated by *posting*. per the table above, this is a pass-through dimension - the join convention matters for correctly locating a transaction's Ledger key. The amount recomputed is `transaction_amount` in native currency. This is the column the Ledger's own `debit_movement`/`credit_movement` are themselves aggregated from. `legal_entity`, `gl_account`, and `cost_center` are recomputed on each transaction's *expected* value - majority-vote per account for legal entity, `ref.accounting_mapping`'s expected value for GL account and cost center wherever a transaction matches exactly one active mapping row - falling back to the transaction's actual value only where no expected value is determinable (unmapped transactions) or where the reference itself is ambiguous (a product/transaction-type combination with more than one currently-active, conflicting mapping row - see [mapping validation design](#mapping-validation-design--task-2)'s overlapping/multi-GL checks for that population).
+**local SGD amount basis - schema update required** - the assignment's aggregate variance is a local-currency balance/movement question: `SUM(gl.SGD) - SUM(source.SGD)`, not a mixed-native-currency score. `bronze.finance_transactions.local_amount` supplies the source SGD-equivalent amount, but `finance.gl_balance` currently has only native `opening_balance`, `debit_movement`, `credit_movement`, and `closing_balance` plus `currency`. The GL schema must add local-SGD fields before the Task 1 and Task 3 aggregate can be presented as a real monetary variance: `local_sgd_opening_balance`, `local_sgd_debit_movement`, `local_sgd_credit_movement`, and `local_sgd_closing_balance`. Until those fields exist and are populated from the same FX basis as `local_amount`, native movement comparisons remain valid only within a single currency bucket and must not be summed across currencies as SGD.
+
+**business key, date convention, and classification basis** - `finance.gl_balance`'s five-dimension grouping key (`accounting_date, legal_entity, gl_account, cost_center, currency`) is also the grouping key every recomputation below aggregates `bronze.finance_transactions` onto, joining `bronze.finance_transactions.posting_date` to `gl_balance.accounting_date` - the Ledger is dated by *posting*. per the table above, this is a pass-through dimension - the join convention matters for correctly locating a transaction's Ledger key. The amount recomputed for the monetary aggregate is `local_amount` in SGD, matched to `finance.gl_balance.local_sgd_debit_movement`/`local_sgd_credit_movement` after the schema change in **10.IS.05**. Native `transaction_amount` remains usable only for per-currency diagnostics that keep `currency` in the result and avoid cross-currency summation. `legal_entity`, `gl_account`, and `cost_center` are recomputed on each transaction's *expected* value - majority-vote per account for legal entity, `ref.accounting_mapping`'s expected value for GL account and cost center wherever a transaction matches exactly one active mapping row - falling back to the transaction's actual value only where no expected value is determinable (unmapped transactions) or where the reference itself is ambiguous (a product/transaction-type combination with more than one currently-active, conflicting mapping row - see [mapping validation design](#mapping-validation-design--task-2)'s overlapping/multi-GL checks for that population). GL account and cost center are substituted independently from that same single mapping row, not as a joint pass/fail: a transaction can diverge from its posted value on GL account alone, cost center alone, or both at once, and each of those three shapes shows up as its own distinguishable signature in the dimensional reconciliation below.
 
 **10.CK.01 - arithmetic integrity**
 
@@ -376,8 +379,8 @@ recomputed AS (
     COALESCE(sm.expected_gl_account, t.gl_account) AS gl_account,
     COALESCE(sm.expected_cost_center, t.cost_center) AS cost_center,
     t.currency,
-    SUM(CASE WHEN t.debit_credit_indicator = 'DEBIT'  THEN t.transaction_amount ELSE 0 END) AS recomputed_debit,
-    SUM(CASE WHEN t.debit_credit_indicator = 'CREDIT' THEN t.transaction_amount ELSE 0 END) AS recomputed_credit
+    SUM(CASE WHEN t.debit_credit_indicator = 'DEBIT'  THEN t.local_amount ELSE 0 END) AS recomputed_debit,
+    SUM(CASE WHEN t.debit_credit_indicator = 'CREDIT' THEN t.local_amount ELSE 0 END) AS recomputed_credit
   FROM bronze.finance_transactions t
   LEFT JOIN single_match sm ON t.transaction_id = sm.transaction_id
   LEFT JOIN account_entity_mode em ON t.account_id = em.account_id
@@ -386,15 +389,17 @@ recomputed AS (
 )
 SELECT
   g.accounting_date, g.legal_entity, g.gl_account, g.cost_center, g.currency,
-  g.debit_movement,  r.recomputed_debit,  g.debit_movement  - r.recomputed_debit  AS debit_variance,
-  g.credit_movement, r.recomputed_credit, g.credit_movement - r.recomputed_credit AS credit_variance
+  g.local_sgd_debit_movement,  r.recomputed_debit,
+  g.local_sgd_debit_movement  - r.recomputed_debit  AS debit_variance,
+  g.local_sgd_credit_movement, r.recomputed_credit,
+  g.local_sgd_credit_movement - r.recomputed_credit AS credit_variance
 FROM finance.gl_balance g
 FULL OUTER JOIN recomputed r
   ON  g.accounting_date = r.accounting_date AND g.legal_entity = r.legal_entity
   AND g.gl_account      = r.gl_account      AND g.cost_center  = r.cost_center
   AND g.currency        = r.currency
-WHERE ABS(COALESCE(g.debit_movement,0)  - COALESCE(r.recomputed_debit,0))  > 0.01
-   OR ABS(COALESCE(g.credit_movement,0) - COALESCE(r.recomputed_credit,0)) > 0.01
+WHERE ABS(COALESCE(g.local_sgd_debit_movement,0)  - COALESCE(r.recomputed_debit,0))  > 0.01
+  OR ABS(COALESCE(g.local_sgd_credit_movement,0) - COALESCE(r.recomputed_credit,0)) > 0.01
 ```
 
 Tolerance: `MOVEMENT_TOLERANCE_ABS = 0.01` (one minor-currency-unit) applied independently to each side - loose enough to absorb ordinary rounding, tight enough that it never masks a genuine one-record miss. `FULL OUTER JOIN` (not `LEFT`/`INNER`) so a GL key with no matching transactions, or a transaction key with no matching GL row, both surface as a variance instead of silently dropping out of the comparison.
@@ -408,12 +413,14 @@ Tolerance: `MOVEMENT_TOLERANCE_ABS = 0.01` (one minor-currency-unit) applied ind
 ```sql
 -- <dimension> is one of: legal_entity, gl_account, cost_center, currency, accounting_date
 SELECT <dimension>,
-       SUM(g.debit_movement)  AS gl_debit,  SUM(r.recomputed_debit)  AS recomputed_debit,
-       SUM(g.credit_movement) AS gl_credit, SUM(r.recomputed_credit) AS recomputed_credit,
-       SUM(g.debit_movement)  - SUM(r.recomputed_debit)  AS debit_variance,
-       SUM(g.credit_movement) - SUM(r.recomputed_credit) AS credit_variance,
-       ABS(SUM(g.debit_movement) - SUM(r.recomputed_debit))
-         / NULLIF(ABS(SUM(g.debit_movement)), 0) AS debit_variance_pct
+       SUM(g.local_sgd_debit_movement)  AS gl_debit,
+       SUM(r.recomputed_debit)          AS recomputed_debit,
+       SUM(g.local_sgd_credit_movement) AS gl_credit,
+       SUM(r.recomputed_credit)         AS recomputed_credit,
+       SUM(g.local_sgd_debit_movement)  - SUM(r.recomputed_debit)  AS debit_variance,
+       SUM(g.local_sgd_credit_movement) - SUM(r.recomputed_credit) AS credit_variance,
+       ABS(SUM(g.local_sgd_debit_movement) - SUM(r.recomputed_debit))
+         / NULLIF(ABS(SUM(g.local_sgd_debit_movement)), 0) AS debit_variance_pct
 FROM finance.gl_balance g
 FULL OUTER JOIN recomputed r ON <same five-column join as 10.CK.02/10.CK.03>
 GROUP BY <dimension>
@@ -423,7 +430,9 @@ GROUP BY <dimension>
 
 **presentation** - one summary table per dimension (source/GL amount, variance, variance %, status) in the notebook, carried into the reconciliation-results write-up.
 
-**expected findings** - per the detectability analysis, this reconciliation is expected to find a nonzero gap only on `legal_entity`, `gl_account`, and `cost_center`, driven by whatever misclassification exists in [04](../features/04-seed-mock-data.md#injected-issue-catalog--assessment-2)'s injected `incorrect_legal_entity`/`incorrect_cost_center` populations (plus any unambiguous GL-account misclassification Task 2 finds) - not by duplicate entries, the debit/credit indicator, late posting, missing mappings, or FX conversion, all five of which are expected to leave this reconciliation clean by design. Issue 12 (`opening + debit - credit != closing`, injected directly into `gl_balance`) is caught by **10.CK.01** instead, independent of this recomputation.
+**expected findings** - per the detectability analysis, this reconciliation is expected to find a nonzero gap only on `legal_entity`, `gl_account`, and `cost_center` - not by duplicate entries, the debit/credit indicator, late posting, missing mappings, or FX conversion, all five of which are expected to leave this reconciliation clean by design. Issue 12 (`opening + debit - credit != closing`, injected directly into `gl_balance`) is caught by **10.CK.01** instead, independent of this recomputation.
+
+**closing the bridge to Task 3's classification findings** - every transaction this recomputation substitutes a different `(legal_entity, gl_account, cost_center)` for is, by construction, the complete and only source of the gap it finds: a transaction whose actual and expected classification already agree contributes identically to `finance.gl_balance` and to the recomputation, so it cannot be a source of variance either way, on any dimension. The movers therefore split into disjoint populations, each matched one-for-one against a Task 2 or Task 3 check: legal-entity-only (**10.CK.21**), GL-account-only (**10.CK.09**'s `GL_MISMATCH` rows restricted to a transaction's single, currently-active, unambiguous mapping match), cost-center-only (**10.CK.22**, restricted the same way), and the rare transaction wrong on both GL account and cost center at once (the intersection of the two). A transaction whose product/transaction-type combination carries more than one currently-active, conflicting mapping row is excluded from every one of these populations regardless of how real its misclassification is - the recomputation has no single unambiguous expected value to substitute for it, so it cannot move the variance in either direction (see [mapping validation design](#mapping-validation-design--task-2)'s overlapping/multi-GL checks for that population, and **10.CK.09**/**10.CK.22**'s own single-match restriction above). The bridge is closed by direct verification, not by estimate: reverting exactly the flagged movers' classification to actual and re-running this recomputation must return zero variance on every key. Summing each population's face value and doubling it (a misposted transaction's value missing from its correct bucket and present in its wrong one) is a useful approximation for sizing each category on its own, but not an exact identity once more than one population is combined - two populations' transactions can coincidentally share every other dimension of the same five-key posting bucket and net against each other there rather than add, so the doubled sum can overshoot the true total. The direct re-run, not the doubled sum, is the reconciliation this design relies on to confirm the bridge is complete.
 
 ### mapping validation design - task 2
 
@@ -532,7 +541,7 @@ Distinct from **10.CK.12**: this flags currently-active rows (open-ended or not 
 
 ### variance investigation design - task 3
 
-**seven candidates, seven designed checks** - [GL integrity design](#gl-integrity-design--task-1)'s detectability analysis only answers whether a candidate can make *that* Ledger-vs-transaction movement reconciliation disagree; it says nothing about whether the candidate is detectable at all. Six of the assignment's seven named candidate causes have their own direct, independent detection method that never depends on the Ledger reconciliation succeeding, and each is designed below in its own right: **10.CK.15**/**10.CK.16** (duplicate/re-posted entries, a hash collision over the transaction data itself), **10.CK.17** (the debit/credit indicator, a mapping-consistency check independent of the Ledger - see below), **10.CK.18** (incorrect FX conversion, `local_amount` checked against its own inputs), **10.CK.19** (missing accounting mapping, a direct join failure against `ref.accounting_mapping`), and **10.CK.20** (posted one day late, `posting_date` compared to `transaction_date` directly). Late posting's raw detection is independent and designed below, but a second step some designs use to confirm each candidate against the Ledger's per-day shortfall is not - that confirmation is the ruled-out Ledger mechanism itself and is guaranteed to reject every candidate regardless of the data. The remaining two candidates - incorrect legal-entity allocation and incorrect cost-center/GL-account assignment - are the ones the screening marks conditionally detectable, and are also the only two bridged against [GL integrity design](#gl-integrity-design--task-1)'s recomputation, each at twice face value (a misclassified transaction's value is missing from its correct bucket and present in its wrong one); **10.CK.17**'s own findings feed into that same recomputation's classification lookup (see its implementation decision) without being part of the bridge themselves, since the indicator stays pass-through to the Ledger's movement figures regardless.
+**seven candidates, seven designed checks** - [GL integrity design](#gl-integrity-design--task-1)'s detectability analysis only answers whether a candidate can make *that* Ledger-vs-transaction movement reconciliation disagree; it says nothing about whether the candidate is detectable at all. Six of the assignment's seven named candidate causes have their own direct, independent detection method that never depends on the Ledger reconciliation succeeding, and each is designed below in its own right: **10.CK.15**/**10.CK.16** (duplicate/re-posted entries, a hash collision over the transaction data itself), **10.CK.17** (the debit/credit indicator, a mapping-consistency check independent of the Ledger - see below), **10.CK.18** (incorrect FX conversion, `local_amount` checked against its own inputs), **10.CK.19** (missing accounting mapping, a direct join failure against `ref.accounting_mapping`), and **10.CK.20** (posted one day late, `posting_date` compared to `transaction_date` directly). Late posting's raw detection is independent and designed below, but a second step some designs use to confirm each candidate against the Ledger's per-day shortfall is not - that confirmation is the ruled-out Ledger mechanism itself and is guaranteed to reject every candidate regardless of the data. The remaining candidate - incorrect cost-center/GL-account assignment, together with incorrect legal-entity allocation - is the one the screening marks conditionally detectable, and is also the one bridged against [GL integrity design](#gl-integrity-design--task-1)'s recomputation: GL account and cost center are substituted independently from the same mapping join, so a transaction can diverge on either field alone or both at once, and **10.CK.22** below reports the cost-center-only population precisely rather than folding GL-account divergence into it - [GL integrity design](#gl-integrity-design--task-1)'s own **closing the bridge** section defines how each population is combined and verified. **10.CK.17**'s own findings feed into that same recomputation's classification lookup (see its implementation decision) without being part of the bridge themselves, since the indicator stays pass-through to the Ledger's movement figures regardless.
 
 **10.CK.15 - duplicate accounting entry** - hash the business fields (every column except `transaction_id`) and find hash collisions across distinct `transaction_id`s posted on the same `posting_date`:
 
@@ -581,7 +590,7 @@ WHERE COALESCE(cm.matches_current, 0) = 0 AND om.matches_opposite = 1
 
 A transaction matching more than one active mapping row under either indicator is treated as matching if *any* row matches (`MAX(...)` over the group), consistent with **10.CK.09**'s own fan-out handling. Structurally can't confirm a transaction with no active mapping row at all under the opposite indicator - genuinely nothing to swap-match against, not a method weakness.
 
-**10.CK.18 - incorrect FX conversion** - the same tolerance check Assessment 1 uses for its own FX field ([09.CK.10](09-as01-data-profiling-reconciliation.md#profiling-design--task-1)):
+**10.CK.18 - incorrect FX conversion** - the same tolerance check Assessment 1 uses for its own FX field ([09.CK.10](09-as01-data-profiling-reconciliation.md#profiling-design--task-1)). The GL local-SGD fields read the same `local_amount`, so FX errors are pass-through to the Ledger-vs-source aggregate and must be detected from transaction inputs directly:
 
 ```sql
 SELECT transaction_id, transaction_amount, exchange_rate, local_amount,
@@ -618,18 +627,26 @@ JOIN account_entity_mode e ON t.account_id = e.account_id AND e.rnk = 1
 WHERE t.legal_entity <> e.legal_entity
 ```
 
-**10.CK.22 - incorrect cost-center assignment** - the second conditionally-detectable category, and (with **10.CK.09**'s GL-account misclassification, where unambiguous) the other input to [GL integrity design](#gl-integrity-design--task-1)'s recomputation's `cost_center` substitution. Unlike legal entity, `ref.accounting_mapping.expected_cost_center` exists, so this reuses **10.CK.09**'s effective-dated join directly, excluding **10.CK.17**'s own transactions: a transaction whose indicator is wrong looks wrong on cost center only when checked against the wrong-indicator mapping row, not against the one its actual indicator implies - the indicator, not the cost center, is the finding for those:
+**10.CK.22 - incorrect cost-center assignment** - the second conditionally-detectable category, and (with **10.CK.09**'s GL-account misclassification, where unambiguous) the other input to [GL integrity design](#gl-integrity-design--task-1)'s recomputation's `cost_center` substitution. Unlike legal entity, `ref.accounting_mapping.expected_cost_center` exists, so this reuses **10.CK.09**'s effective-dated join, restricted the same way that recomputation's own `single_match` is: exactly one active mapping row per transaction, so a product/transaction-type combination with more than one currently-active, conflicting row (**10.CK.12**/**10.CK.14**'s population) is excluded rather than checked against an arbitrary pick among its candidates - excluding it here as well as **10.CK.17**'s own transactions, whose cost center looks wrong only when checked against the wrong-indicator mapping row, not against the one its actual indicator implies:
 
 ```sql
-SELECT t.transaction_id, t.cost_center AS actual_cost_center, m.expected_cost_center
+WITH single_match AS (
+  SELECT t.transaction_id, m.expected_cost_center,
+         COUNT(*) OVER (PARTITION BY t.transaction_id) AS match_count
+  FROM bronze.finance_transactions t
+  JOIN ref.accounting_mapping m
+    ON t.product_code = m.product_code AND t.debit_credit_indicator = m.transaction_type
+    AND t.transaction_date >= m.effective_start_date
+    AND (t.transaction_date <= m.effective_end_date OR m.effective_end_date IS NULL)
+)
+SELECT t.transaction_id, t.cost_center AS actual_cost_center, sm.expected_cost_center
 FROM bronze.finance_transactions t
-JOIN ref.accounting_mapping m
-  ON t.product_code = m.product_code AND t.debit_credit_indicator = m.transaction_type
-  AND t.transaction_date >= m.effective_start_date
-  AND (t.transaction_date <= m.effective_end_date OR m.effective_end_date IS NULL)
-WHERE t.cost_center <> m.expected_cost_center
+JOIN single_match sm ON t.transaction_id = sm.transaction_id AND sm.match_count = 1
+WHERE t.cost_center <> sm.expected_cost_center
   AND t.transaction_id NOT IN (SELECT transaction_id FROM flip_candidates)  -- 10.CK.17, see above
 ```
+
+A transaction excluded here for carrying more than one active mapping row is not dropped from the assessment - **10.CK.12**/**10.CK.14** already report the reference-data conflict, and the mapping validation's own exception output still lists it - it is only excluded from this population's total, because [GL integrity design](#gl-integrity-design--task-1)'s recomputation has no single unambiguous expected value to substitute for it and this check's total is defined to match exactly what that recomputation can bridge to.
 
 **scale note** - the standard wording stating measured values come from the seeded volume budget, with the assignment's SGD 3,222,215.72 figure cited as the scenario framing, not the seeded target.
 
@@ -648,11 +665,13 @@ This is a design deliverable, not new code - the framework it specifies already 
 | `gl_transaction_count`| `SELECT COUNT(*) FROM finance.gl_balance`                             |
 | `source_amount`       | `SELECT SUM(local_amount) FROM bronze.finance_transactions`           |
 | `bronze_amount`       | same query as `source_amount`                                         |
-| `gl_amount`           | `SELECT SUM(closing_balance) FROM finance.gl_balance`                 |
+| `gl_amount`           | `SELECT SUM(local_sgd_closing_balance) FROM finance.gl_balance` [02]  |
 | `absolute_variance`   | `gl_amount - source_amount`                                           |
 | `percentage_variance` | `ABS(gl_amount - source_amount) / NULLIF(ABS(source_amount), 0)`      |
 | `exception_count`     | `COUNT(*)` across the unioned [exception dataset](#exception-dataset) |
 | `reconciliation_status` | `PASS`/`WARNING`/`FAIL` per the thresholds below                    |
+
+02. **10.IS.05** owns the schema/data update that adds and populates the GL-side local-SGD amount fields this metric requires.
 
 Each row lands in `reconciliation.rc_reconciliation_results` with `dimension` carrying the metric name and `source_value`/`target_value`/`variance`/`variance_pct`/`reconciliation_status` populated from the table above:
 
@@ -668,7 +687,7 @@ SELECT :batch_id, 'gl_amount', s.source_amount, g.gl_amount,
          ELSE 'FAIL'
        END
 FROM (SELECT SUM(local_amount) AS source_amount FROM bronze.finance_transactions) s
-CROSS JOIN (SELECT SUM(closing_balance) AS gl_amount FROM finance.gl_balance) g
+CROSS JOIN (SELECT SUM(local_sgd_closing_balance) AS gl_amount FROM finance.gl_balance) g
 ```
 
 **tolerance rules** - absolute, percentage, currency-specific, and account-specific tolerance, expressed as a design proposal for a `rc_tolerance_rules`-shaped lookup, not a table this tracker adds (doing so is a [05](../features/05-ai-closed-loop-validation.md) change if adopted):
@@ -780,6 +799,8 @@ _test cases_
 | 10.TC.15 | 10.11 | content      | every deliverable reads `status: final`       |
 | 10.TC.16 | 10.12 | build        | strict MkDocs build succeeds                  |
 | 10.TC.17 | 10.12 | deployment   | published site shows assessment 2 pages       |
+| 10.TC.18 | 10.13 | schema       | GL table exposes local-SGD amount columns     |
+| 10.TC.19 | 10.13 | content      | aggregate variance uses SGD on both sides     |
 
 **tools**
 
@@ -813,13 +834,20 @@ awk '/^\|/ && length($0) >= 115 { print FILENAME ":" FNR ": row too long"; bad =
 | 10.EL.11 | `results/assessment-2/assessment-2-overview.md`                  | assessment scope context       |
 | 10.EL.12 | `results/index.md`                                                | link to the overview page      |
 | 10.EL.13 | `mkdocs.yml`                                                      | overview in site nav           |
+| 10.EL.14 | `data/schemas/as02-gl-balance-schema.json`                       | add GL local-SGD columns       |
+| 10.EL.15 | `postgresql/as02-gl-balance-create-table.sql`                    | regenerated GL DDL             |
+| 10.EL.16 | `scripts/utils/data-generators.py`                               | populate GL local-SGD amounts  |
+| 10.EL.17 | `data/mock/finance_gl_balance.csv`                               | regenerated seeded GL data     |
+| 10.EL.18 | `scripts/utils/schema-inspect.py`                                | validate new schema columns    |
 
 01. **10.EL.08** is generated by `scripts/07-deliverables-scaffold.sh`; never hand-edited.
 02. **10.EL.09** is optional - used only where a query is worth extracting from the notebook for reuse, following the existing `src/pyspark/` naming pattern.
 03. **10.EL.11** is authored content outside feature 08's generated taxonomy, so the scaffold neither creates nor validates it; it is created by hand in 10.03.
 04. **10.EL.13** is only required if the strict build cannot reach the overview through `10.EL.12`'s link alone.
+05. **10.EL.14-10.EL.17** are the minimum schema/data blast radius for **10.IS.05**; notebook and deliverable updates stay under **10.EL.01**, **10.EL.02**, and **10.EL.05**.
+06. **10.EL.18** is only changed if the existing schema-inspection utility cannot already validate the added JSON-schema columns against Postgres.
 
-No `.env`, `.env.sample`, schema JSON, DDL, or seed-script change is expected. A required change to any of those is a defect in the owning feature and is raised there rather than patched from this tracker.
+No `.env`, `.env.sample`, or `reconciliation.rc_*` schema change is expected. This task intentionally changes the Assessment 2 GL schema JSON, generated DDL, deterministic seed generator, and regenerated seeded data.
 
 ## Implement
 
@@ -989,14 +1017,14 @@ Commit the reviewed work, run `scripts/08-assessment-site.sh build` for the stri
 - inventory all first out exceptions and issues encountered in this table
 - for each issue, create an issue section and use this section to document diagnostics and resolution steps
 
-_10.02 run (prerequisites and seed data readiness): one exception surfaced, logged below - every other prerequisite step reported `[PASS]` on its first attempt._
-
 | id       | seq | status | issue                                                    |
 | -------- | --- | ------ | ----------------------------------------------------------- |
 | 10.IS.01 | 01  | closed | notebook connectivity check timed out under host contention |
 | 10.IS.02 | 02  | closed | GL movement recomputation used the wrong amount column       |
 | 10.IS.03 | 03  | closed | GL movement recomputation grouped by actual, not expected, classification |
 | 10.IS.04 | 04  | closed | expected-classification lookup keyed on a possibly-wrong indicator |
+| 10.IS.05 | 05  | closed | GL schema lacks local-SGD amount fields for the aggregate variance |
+| 10.IS.06 | 06  | closed | unattributed variance explanation                            |
 
 _10.IS.01 (closed) notebook connectivity check timed out under host contention_
 
@@ -1207,9 +1235,155 @@ a transaction whose actual `(gl_account, cost_center)` fails to match any active
 
 `30` keys / `268,250.94` total variance, computed by the notebook's own executed cell output (not hand-computed) against the freshly seeded database - `flip_candidates` correcting the mapping lookup for the 9 transactions identified in step 01, everything else unchanged from 10.IS.03. `10.CK.17` (the same swap-match rule, standalone) finds the same 9 rows, `78,480.32`, independently of the Ledger. Cross-checked zero overlap between `10.CK.17`, `10.CK.21` (legal-entity), and `10.CK.22` (cost-center)'s transaction populations before combining them in 10.07's bridge. This does not fully close 10.07's residual - 12,916.50 remains open, explicitly not force-fit to the smaller, since-retracted explanation.
 
+_10.IS.05 (closed) GL schema lacks local-SGD amount fields for the aggregate variance_
+
+**problem description**
+
+The current Task 1 and Task 3 aggregate variance uses native `transaction_amount` and native GL movement fields, then collapses the per-key variances into one figure across `SGD`, `USD`, and `EUR`. That is internally reproducible because both sides share the same native basis, but it is not a valid monetary aggregate. The assignment's stated finance problem implies a local-currency basis: `SUM(gl.SGD) - SUM(source.SGD)`. The source side has `bronze.finance_transactions.local_amount`; the GL side has no equivalent local-SGD amount fields yet.
+
+**exception**
+
+```log
+<no runtime error - design/schema gap found during review of the aggregate variance basis>
+```
+
+**triggering actions**
+
+User challenged whether summing native currency amounts across multiple currencies is valid, then clarified that the problem statement implies a GL-local-currency basis equivalent to `SUM(gl.SGD) - SUM(source.SGD)`.
+
+**hypothesis**
+
+- use hypothesis framing until a validated fix is applied
+
+The unresolved residual and the published aggregate are partly artifacts of the current GL schema and reporting basis. Adding GL-side local-SGD opening, debit, credit, and closing fields, populated from the same FX basis as transaction `local_amount`, should let Task 1 compute a single valid SGD aggregate and let Task 3 bridge against that aggregate instead of a mixed-native-currency score.
+
+**diagnostic steps**
+
+- first out exception is NOT a diagnostic step
+- diagnostic steps reveal information or apply a fix
+- assume re-run and validation, these are not diagnostic steps
+- keep the step description brief, use the diagnostic details section to elaborate actions and learnings for each step
+
+| id          | seq | status  | step                                         |
+| ----------- | --- | ------- | -------------------------------------------- |
+| 10.IS.05.01 | 01  | closed  | compared transaction and GL schemas [01]     |
+| 10.IS.05.02 | 02  | closed  | inspected GL seed aggregation basis [02]     |
+| 10.IS.05.03 | 03  | closed  | traced native-currency roll-up use [03]      |
+| 10.IS.05.04 | 04  | closed  | implemented schema and reporting-basis update |
+
+**diagnostic details**
+
+01. (closed) `data/schemas/as02-finance-transactions-schema.json` contains `transaction_amount`, `currency`, `exchange_rate`, and `local_amount`; `data/schemas/as02-gl-balance-schema.json` contains native balances/movements plus `currency`, but no local-SGD movement or balance columns. The source side has an SGD-equivalent amount, while the GL side does not.
+02. (closed) `scripts/utils/data-generators.py` builds `finance.gl_balance.debit_movement` and `credit_movement` from `transaction_amount`, grouped by `(posting_date, legal_entity, gl_account, cost_center, currency)`. It also chains native `opening_balance`/`closing_balance` by that same currency-bearing key. No GL-local amount is generated or loaded.
+03. (closed) the notebook keeps `currency` in the five-key comparison but then computes one `movement_variance_total` by summing absolute native debit/credit variances across all keys. That roll-up is a mixed-currency diagnostic magnitude, not a valid SGD amount, and the deliverables currently present it too strongly as the finance variance being decomposed.
+04. (closed) updated **10.EL.14-10.EL.17** to add and populate `local_sgd_opening_balance`, `local_sgd_debit_movement`, `local_sgd_credit_movement`, and `local_sgd_closing_balance`; then updated **10.EL.01**, **10.EL.02**, **10.EL.05**, and the dependent audit/business-summary pages so Task 1 and Task 3 use `local_amount` versus GL-local-SGD fields for any single aggregate variance. Native comparisons remain scoped to per-currency diagnostics only.
+
 **user actions**
 
 - GitHub authentication and the deploy confirmation for the published site (10.12)
+
+_10.IS.06 (closed) Task 3's bridge left 41,802.96 of the SGD-basis variance unattributed_
+
+**problem description**
+
+After **10.IS.05** moved Task 1's aggregate onto the local-SGD basis, the reconciliation-results/root-cause-analysis/audit deliverables report 30 keys / SGD 297,137.40 in Ledger-vs-transaction movement variance. Task 3's own bridge - `03.07` (incorrect legal-entity allocation, 60,697.50) + `03.08` (incorrect cost-center assignment, 55,515.89), each at twice face value, plus a precise 22,907.66 attributed to one ambiguous-mapping transaction (`FTX-0001297`) - accounts for 255,334.44 of it (86%), leaving 41,802.96 reported as "genuinely unexplained." The SGD-basis switch moved this residual (35,824.16 under the old native-currency basis) rather than closing it, so it needed its own diagnosis before it could be published as a final figure.
+
+**exception**
+
+```log
+<no runtime error - the residual is a reconciliation shortfall reported by root-cause-analysis.md/audit.md, not a raised exception>
+```
+
+**triggering actions**
+
+Re-derived and reproduced Task 1's SGD-basis recomputation directly via SQL against the live seeded database (not the notebook), matching **10.CK.02**/**10.CK.03**'s design exactly, to confirm the published 30 keys / 297,137.40 figure and the 41,802.96 residual before diagnosing it further.
+
+**hypothesis**
+
+- use hypothesis framing until a validated fix is applied
+
+Task 3's bridge tests only two of Task 1's three substitution dimensions - legal-entity (`account_entity_mode`) and cost-center (`ref.accounting_mapping.expected_cost_center`) - but Task 1's own recomputation substitutes `expected_gl_account` too, the same way and from the same mapping join. `10.CK.22` (`03.08`) only ever checked `cost_center <> expected_cost_center`, so a transaction whose *GL account* alone is wrong (not its cost center) would move Task 1's number without being counted by any Task 3 category. A weaker alternative hypothesis: the existing `03.07`/`03.08` figures themselves are imprecise - e.g. still crediting a transaction that Task 1's recomputation can't actually substitute (the same ambiguous-mapping exclusion already carved out for `FTX-0001297`) - rather than the residual being driven by an entirely new, undetected population.
+
+**diagnostic steps**
+
+- first out exception is NOT a diagnostic step
+- diagnostic steps reveal information or apply a fix
+- assume re-run and validation, these are not diagnostic steps
+- keep the step description brief, use the diagnostic details section to elaborate actions and learnings for each step
+
+| id          | seq | status | step                                                          |
+| ----------- | --- | ------ | -------------------------------------------------------------- |
+| 10.IS.06.01 | 01  | closed | reproduced the SGD-basis recomputation and residual via SQL [01] |
+| 10.IS.06.02 | 02  | closed | queried for GL-account-only misclassification directly [02]    |
+| 10.IS.06.03 | 03  | closed | measured its marginal effect by counterfactual removal [03]    |
+| 10.IS.06.04 | 04  | closed | re-derived the complete mover population from `single_match` itself [04] |
+| 10.IS.06.05 | 05  | closed | tested the full 16-transaction set directly - residual reached zero [05] |
+
+**diagnostic details**
+
+01. (closed) ran **10.CK.02**/**10.CK.03**'s query directly against the live seeded database: 30 keys / 297,137.40, matching the published figure exactly. Confirmed the 41,802.96 residual (297,137.40 - 232,426.78 - 22,907.66) as the starting point for diagnosis.
+02. (closed) queried for transactions whose actual `gl_account` matches only an *expired* mapping row for their own `(product_code, indicator)` while a currently-active row also exists - the population `scripts/utils/data-generators.py`'s `gen_assessment2()` injects directly (without a matching `log_issue()` call) specifically "to feed issue 02's discovery," and the design section's own `10.CK.13` note already classifies as `GL_MISMATCH` rather than `EXPIRED_MAPPING` whenever a current row also covers the date. Found 6 transactions (`FTX-0000142/0173/0894/1039/1171/1243`), 53,687.44 total, all with `cost_center` already correct (confirmed zero overlap with `03.08`) and none flagged by `03.07` or `03.03` either (confirmed zero overlap with both). None of these has a `log_issue()` ground-truth tag - the residual traces in part to an injected condition `data/mock/issue-log.csv` never records.
+03. (closed) measured this population's isolated effect the same way **10.IS.02** did (revert just these 6 transactions' substitution to actual, re-run the full recomputation, compare totals): total variance changed by 76,256.94 - *larger* than the entire 41,802.96 residual. This ruled out a clean "add a third x2-face-value category" fix: the naive doubling arithmetic **10.07**'s bridge uses assumes each category's movers land in buckets no other category touches, and that assumption breaks down here - a legal-entity mover and a GL-account mover can coincidentally share every other dimension of the same five-key bucket (date, cost center, currency), netting rather than adding at that key.
+04. (closed) rather than testing categories one at a time, re-derived the *complete* set of transactions Task 1's own `single_match` CTE actually substitutes a different `(gl_account, cost_center)` for - not a detection-style query, the literal population the recomputation's join produces. Found 10 transactions: the 6 GL-account-only movers above, 3 cost-center-only movers (`FTX-0000068/1341/1452`, 40,036.00), and one transaction wrong on both fields at once (`FTX-0001358`, posted to sentinel `GL9999`/`CC99`, 9,706.73). This exposed that `03.08`'s published 55,515.89 (5 "distinct" transactions) over-counts: `FTX-0000080` (5,773.16) is a genuine `incorrect_cost_center`-tagged transaction, but its product/type combination carries two currently-active, conflicting mapping rows - the same ambiguous-mapping exclusion already applied to `FTX-0001297` - so `single_match` never substitutes it and it moves zero dollars of Task 1's variance, exactly like `FTX-0001297`. `03.08`'s true Task-1-relevant population is 3 transactions / 40,036.00, not 5 / 55,515.89.
+05. (closed) combined the corrected 10-transaction mapping-mover set (103,430.17) with `03.07`'s 6-transaction legal-entity set (60,697.50, re-verified byte-for-byte against the recomputation's own `account_entity_mode` join) into one 16-transaction set, and tested completeness directly rather than by arithmetic: re-ran the recomputation with exactly these 16 transactions' classification reverted to actual (every other transaction unchanged, since actual already equals expected for all of them). **Result: 0 keys exceed tolerance, 0.00 total variance.** The full 297,137.40 is mechanically and completely accounted for by exactly this set - no other transaction or category contributes anything, confirmed by direct test rather than inferred from a doubling identity that itself never lands on the published total (2 x (60,697.50 + 103,430.17) = 328,255.34, which overshoots 297,137.40 by 31,117.94, the same bucket-level netting step 03 surfaced). **Residual is zero; cause is confirmed, not hypothesized**: 100% of the SGD-basis variance is caused by 16 transactions whose expected classification differs from their actual, as-posted one (6 legal-entity, 6 GL-account, 3 cost-center, 1 both) - this is exhaustive by construction, since `finance.gl_balance` is a pure aggregation of the same `bronze.finance_transactions` rows the recomputation reads, so any transaction where actual and expected classification agree contributes identically to both sides and cannot be a source of variance.
+
+**remaining work**
+
+- the notebook's Task 3 cells (`wrong_cost_center`, the bridge cell) and the `03.08`/bridge write-ups in `results/assessment-2/assessment-2-root-cause-analysis.md` and `assessment-2-audit.md` need the same GL-account-only category, the `FTX-0000080` exclusion, and the corrected 3-transaction cost-center population added, then a fresh batch re-executed - the SQL-only diagnosis in this issue is verified directly against the live database but not yet re-run through the notebook/`rc_*` write-back path **10.WS.03** requires for a published figure.
+
+## Task Details
+
+_10.13 (closed) gl schema add local amount_
+
+**scope**
+
+Add a GL-side local-SGD amount basis so Assessment 2 can express the assignment's aggregate variance as `SUM(gl.SGD) - SUM(source.SGD)` instead of summing native `transaction_amount` across currencies.
+
+In scope:
+
+- add local-SGD opening, debit, credit, and closing amount columns to `finance.gl_balance`'s schema JSON and generated DDL
+- populate those columns in the mock-data generator from each transaction's `local_amount`, keeping native amount columns unchanged
+- regenerate and reseed Assessment 2 mock data so Postgres, CSV output, and notebook reads all expose the new columns
+- update the Task 1 notebook recomputation so single aggregate variance uses source `local_amount` and GL local-SGD movements
+- keep native `transaction_amount` comparisons only as per-currency diagnostics where `currency` remains part of the grouping
+- update reconciliation, root-cause, audit, framework, and business-facing write-ups so every SGD aggregate has a single basis
+- validate schema, seed, notebook, deliverable scaffold, and markdown table formatting after the change
+
+Out of scope:
+
+- do not change `reconciliation.rc_*` table structure; the existing numeric `source_value`/`target_value` fields can store SGD totals
+- do not edit individual seeded CSV rows by hand; all mock data changes must come from the deterministic generator and reseed script
+- do not reinterpret the production-scale assignment figure as a target for this seed run; the seeded SGD variance remains run-derived
+
+Closure: `finance.gl_balance` exposes populated local-SGD fields, Task 1 and Task 3 use them for any single aggregate variance, native cross-currency sums are removed or explicitly scoped as per-currency diagnostics, and validation passes cleanly.
+
+**tasks**
+
+| id       | seq | status  | task                                      |
+| -------- | --- | ------- | ----------------------------------------- |
+| 10.13.01 | 01  | closed  | scope and design                          |
+| 10.13.02 | 02  | closed  | test cases                                |
+| 10.13.03 | 03  | closed  | GL schema JSON                            |
+| 10.13.04 | 04  | closed  | generated GL DDL                          |
+| 10.13.05 | 05  | closed  | mock-data generator                       |
+| 10.13.06 | 06  | closed  | reseed and schema validation              |
+| 10.13.07 | 07  | closed  | notebook SGD-basis recomputation          |
+| 10.13.08 | 08  | closed  | deliverable updates                       |
+| 10.13.09 | 09  | closed  | clean rerun and content checks            |
+| 10.13.IS | 10  | closed  | validate                                  |
+
+**implementation evidence**
+
+| id       | evidence                                      |
+| -------- | --------------------------------------------- |
+| 10.13.03 | GL schema JSON has four local-SGD fields      |
+| 10.13.04 | generated DDL has matching numeric columns    |
+| 10.13.05 | generator emits 13-column `finance_gl_balance` |
+| 10.13.06 | reseed loaded 589 GL rows with local-SGD data |
+| 10.13.07 | notebook reported SGD variance 297,137.40     |
+| 10.13.08 | result pages use batch 24 and SGD basis       |
+| 10.13.09 | notebook, schema, content, and build checks passed |
+
 
 ## Guideline
 

@@ -9,7 +9,7 @@ See [overview](assessment-2-overview.md) for the scenario, table shapes, and the
 ## Sources
 
 - notebook: [assessment2_gl_reconciliation.ipynb](https://github.com/yayfalafels/de-financial-accounting-demo/blob/main/notebooks/assessment2_gl_reconciliation.ipynb) -> "Task 1 - GL Integrity and Reconciliation" section
-- batch: `reconciliation.rc_batch_control.batch_id = 20`
+- batch: `reconciliation.rc_batch_control.batch_id = 21`
 
 ## Arithmetic integrity
 
@@ -21,11 +21,11 @@ See [overview](assessment-2-overview.md) for the scenario, table shapes, and the
 
 ## Independent movement recomputation
 
-Expected debit/credit movements independently recomputed from `bronze.finance_transactions`, on the transaction's *expected* classification rather than its actual (as-posted) one - grouping by the same values the Ledger was built from would make this check tautological, since the Ledger is itself built by aggregating those same actual, possibly-misclassified values. GL account and cost center use `ref.accounting_mapping`'s expected values wherever a transaction matches exactly one active mapping row; legal entity uses the majority-vote value for the transaction's account (the mapping table carries no legal-entity field). Six product/transaction-type combinations carry more than one currently-active, conflicting mapping row - there is no single unambiguous expected value for these, so they keep their actual classification rather than an arbitrary pick among equally-valid candidates. Recomputed on `transaction_amount` (native currency) - the column the Ledger's own movement figures are themselves aggregated from, not `local_amount`.
+Expected debit/credit movements independently recomputed from `bronze.finance_transactions`, on the transaction's *expected* classification rather than its actual (as-posted) one - grouping by the same values the Ledger was built from would make this check tautological, since the Ledger is itself built by aggregating those same actual, possibly-misclassified values. GL account and cost center use `ref.accounting_mapping`'s expected values wherever a transaction matches exactly one active mapping row; legal entity uses the majority-vote value for the transaction's account (the mapping table carries no legal-entity field). The mapping lookup itself is keyed on the transaction's own posted debit/credit indicator, so a transaction carrying the wrong indicator is looked up under the opposite indicator instead, wherever its actual classification matches a valid mapping row there and not under its own. Six product/transaction-type combinations carry more than one currently-active, conflicting mapping row - there is no single unambiguous expected value for these, so they keep their actual classification rather than an arbitrary pick among equally-valid candidates. Recomputed on `transaction_amount` (native currency) - the column the Ledger's own movement figures are themselves aggregated from, not `local_amount`.
 
 | check                      | keys compared | keys w/ variance | total variance |
 | ------------------------------ | -------------- | ------------------ | ----------------- |
-| debit/credit movement recompute | 589            | 34                  | 305,281.76           |
+| debit/credit movement recompute | 589            | 30                  | 268,250.94           |
 
 ## Dimensional reconciliation
 
@@ -34,7 +34,7 @@ The same recomputation rolled up to one dimension at a time. Status: `PASS` if `
 | dimension       | distinct values | worst variance %      | status |
 | ----------------- | ---------------- | ------------------------ | ------ |
 | legal entity        | 4                 | 0.8114% (LE1)              | WARNING |
-| GL account           | 15                | 4.3023% (GL1005)           | FAIL   |
+| GL account           | 15                | 4.3972% (GL1005)           | FAIL   |
 | cost center          | 10                | 2.5366% (CC09)             | FAIL   |
 | currency             | 3                 | 0.0%                       | PASS   |
 | accounting date       | 5                 | 0.0%                       | PASS   |

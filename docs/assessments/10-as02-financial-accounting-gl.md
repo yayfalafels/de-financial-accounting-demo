@@ -38,7 +38,7 @@
 | 10.01 | 01  | closed  | design                                    |
 | 10.02 | 02  | closed  | prerequisites and seed data readiness     |
 | 10.03 | 03  | closed  | assessment scope and context write-up     |
-| 10.04 | 04  | open    | task 1 - GL integrity and reconciliation  |
+| 10.04 | 04  | closed  | task 1 - GL integrity and reconciliation  |
 | 10.05 | 05  | pending | task 2 - accounting mapping validation    |
 | 10.06 | 06  | pending | exception dataset                         |
 | 10.07 | 07  | pending | task 3 - finance variance investigation   |
@@ -312,15 +312,51 @@ Tolerance: exact equality - any nonzero `variance` is a violation. No rounding t
 **10.CK.02 / 10.CK.03 - independent movement recomputation**
 
 ```sql
-WITH single_match AS (
+WITH flip_candidates AS (
+  -- a transaction whose actual (gl_account, cost_center) doesn't match any active mapping row for
+  -- its own indicator, but exactly matches one for the opposite indicator - its own posted values
+  -- are internally consistent with a real, valid combination, just filed under the wrong sign
+  SELECT t.transaction_id
+  FROM bronze.finance_transactions t
+  LEFT JOIN (
+    SELECT t.transaction_id, MAX(CASE WHEN t.gl_account = m.expected_gl_account
+                                        AND t.cost_center = m.expected_cost_center THEN 1 ELSE 0 END) AS matches_current
+    FROM bronze.finance_transactions t
+    JOIN ref.accounting_mapping m
+      ON t.product_code = m.product_code AND t.debit_credit_indicator = m.transaction_type
+      AND t.transaction_date >= m.effective_start_date AND (t.transaction_date <= m.effective_end_date OR m.effective_end_date IS NULL)
+    GROUP BY t.transaction_id
+  ) cm ON t.transaction_id = cm.transaction_id
+  JOIN (
+    SELECT t.transaction_id, MAX(CASE WHEN t.gl_account = m.expected_gl_account
+                                        AND t.cost_center = m.expected_cost_center THEN 1 ELSE 0 END) AS matches_opposite
+    FROM bronze.finance_transactions t
+    JOIN ref.accounting_mapping m
+      ON t.product_code = m.product_code
+      AND m.transaction_type = CASE WHEN t.debit_credit_indicator = 'DEBIT' THEN 'CREDIT' ELSE 'DEBIT' END
+      AND t.transaction_date >= m.effective_start_date AND (t.transaction_date <= m.effective_end_date OR m.effective_end_date IS NULL)
+    GROUP BY t.transaction_id
+  ) om ON t.transaction_id = om.transaction_id
+  WHERE COALESCE(cm.matches_current, 0) = 0 AND om.matches_opposite = 1
+),
+corrected AS (
+  -- the mapping lookup is keyed on the transaction's indicator - a flip candidate's own posted
+  -- indicator is the wrong key to look up under, so the opposite indicator is used instead
+  SELECT t.*, CASE WHEN fc.transaction_id IS NOT NULL
+                    THEN (CASE WHEN t.debit_credit_indicator = 'DEBIT' THEN 'CREDIT' ELSE 'DEBIT' END)
+                    ELSE t.debit_credit_indicator END AS lookup_type
+  FROM bronze.finance_transactions t
+  LEFT JOIN flip_candidates fc ON t.transaction_id = fc.transaction_id
+),
+single_match AS (
   -- exactly one active mapping row per transaction; drops product/type combinations with more
   -- than one currently-active, conflicting row - no single expected value exists for those
   SELECT transaction_id, expected_gl_account, expected_cost_center FROM (
     SELECT t.transaction_id, m.expected_gl_account, m.expected_cost_center,
            COUNT(*) OVER (PARTITION BY t.transaction_id) AS match_count
-    FROM bronze.finance_transactions t
+    FROM corrected t
     JOIN ref.accounting_mapping m
-      ON t.product_code = m.product_code AND t.debit_credit_indicator = m.transaction_type
+      ON t.product_code = m.product_code AND t.lookup_type = m.transaction_type
       AND t.transaction_date >= m.effective_start_date
       AND (t.transaction_date <= m.effective_end_date OR m.effective_end_date IS NULL)
   ) matched WHERE match_count = 1
@@ -364,6 +400,8 @@ WHERE ABS(COALESCE(g.debit_movement,0)  - COALESCE(r.recomputed_debit,0))  > 0.0
 Tolerance: `MOVEMENT_TOLERANCE_ABS = 0.01` (one minor-currency-unit) applied independently to each side - loose enough to absorb ordinary rounding, tight enough that it never masks a genuine one-record miss. `FULL OUTER JOIN` (not `LEFT`/`INNER`) so a GL key with no matching transactions, or a transaction key with no matching GL row, both surface as a variance instead of silently dropping out of the comparison.
 
 **implementation decision - grouping by expected classification, not actual** - grouping this recomputation by each transaction's *actual* `gl_account`/`cost_center`/`legal_entity` (the values `finance.gl_balance` was itself built from) would make the check tautological on those three dimensions regardless of how much misclassification exists in the data - see the detectability analysis above. Grouping by the expected value instead is what makes **10.CK.04**-**10.CK.08**'s dimensional roll-up capable of finding anything at all on those dimensions.
+
+**implementation decision - correcting the mapping lookup for the indicator** - the mapping join is itself keyed on the transaction's own posted debit/credit indicator; a transaction carrying the wrong indicator would otherwise be looked up under the wrong key, measured against the expected value for the *opposite* of its true type. `flip_candidates` catches these the same way **10.CK.17** does (see [variance investigation design](#variance-investigation-design--task-3)) and looks them up under the corrected indicator instead - without this, `single_match` can supply an expected value that is neither the transaction's actual value nor its genuinely correct one, for a transaction this reconciliation has no other way to place correctly.
 
 **10.CK.04-10.CK.08 - dimensional reconciliation** - the same recomputation, rolled up to one dimension at a time instead of the full five-key grain:
 
@@ -494,7 +532,7 @@ Distinct from **10.CK.12**: this flags currently-active rows (open-ended or not 
 
 ### variance investigation design - task 3
 
-**seven lines of enquiry, not two** - [GL integrity design](#gl-integrity-design--task-1)'s detectability analysis only answers whether a candidate can make *that* Ledger-vs-transaction movement reconciliation disagree; it says nothing about whether the candidate is detectable at all. Five of the assignment's seven named candidate causes have their own direct, independent detection method that never depends on the Ledger reconciliation succeeding, and each is designed below in its own right: **10.CK.15**/**10.CK.16** (duplicate/re-posted entries, a hash collision over the transaction data itself), **10.CK.18** (incorrect FX conversion, `local_amount` checked against its own inputs), **10.CK.19** (missing accounting mapping, a direct join failure against `ref.accounting_mapping`), and **10.CK.20** (posted one day late, `posting_date` compared to `transaction_date` directly). Only where the assignment's available method for a candidate *is* the Ledger reconciliation itself does the screening rule a design out entirely: the debit/credit indicator has no proposed detection method other than a Ledger-cancellation signature, which the screening shows every dataset generated this way makes structurally undetectable, so no check is designed for it. Late posting's raw detection is independent and designed below, but a second step some designs use to confirm each candidate against the Ledger's per-day shortfall is not - that confirmation is the same ruled-out mechanism and is guaranteed to reject every candidate regardless of the data. The remaining two candidates - incorrect legal-entity allocation and incorrect cost-center/GL-account assignment - are the ones the screening marks conditionally detectable, and are also the only two bridged against [GL integrity design](#gl-integrity-design--task-1)'s recomputation, each at twice face value (a misclassified transaction's value is missing from its correct bucket and present in its wrong one).
+**seven candidates, seven designed checks** - [GL integrity design](#gl-integrity-design--task-1)'s detectability analysis only answers whether a candidate can make *that* Ledger-vs-transaction movement reconciliation disagree; it says nothing about whether the candidate is detectable at all. Six of the assignment's seven named candidate causes have their own direct, independent detection method that never depends on the Ledger reconciliation succeeding, and each is designed below in its own right: **10.CK.15**/**10.CK.16** (duplicate/re-posted entries, a hash collision over the transaction data itself), **10.CK.17** (the debit/credit indicator, a mapping-consistency check independent of the Ledger - see below), **10.CK.18** (incorrect FX conversion, `local_amount` checked against its own inputs), **10.CK.19** (missing accounting mapping, a direct join failure against `ref.accounting_mapping`), and **10.CK.20** (posted one day late, `posting_date` compared to `transaction_date` directly). Late posting's raw detection is independent and designed below, but a second step some designs use to confirm each candidate against the Ledger's per-day shortfall is not - that confirmation is the ruled-out Ledger mechanism itself and is guaranteed to reject every candidate regardless of the data. The remaining two candidates - incorrect legal-entity allocation and incorrect cost-center/GL-account assignment - are the ones the screening marks conditionally detectable, and are also the only two bridged against [GL integrity design](#gl-integrity-design--task-1)'s recomputation, each at twice face value (a misclassified transaction's value is missing from its correct bucket and present in its wrong one); **10.CK.17**'s own findings feed into that same recomputation's classification lookup (see its implementation decision) without being part of the bridge themselves, since the indicator stays pass-through to the Ledger's movement figures regardless.
 
 **10.CK.15 - duplicate accounting entry** - hash the business fields (every column except `transaction_id`) and find hash collisions across distinct `transaction_id`s posted on the same `posting_date`:
 
@@ -509,6 +547,39 @@ FROM bronze.finance_transactions
 Every row in an `entry_hash` group of size > 1 is flagged except the first (ordered by `transaction_id`); the *extra* rows' `local_amount` is reported as this category's finding - per the detectability analysis, not a contribution to [GL integrity design](#gl-integrity-design--task-1)'s variance, since a duplicate's value is aggregated into the Ledger identically to how it appears in the recomputation.
 
 **10.CK.16 - transaction posted twice under a different id** - the same hash-collision query as **10.CK.15** (the hash deliberately excludes `transaction_id`, so a same-fields/different-id repost is already caught there); this is a second `issue_type` label applied to the same detected rows, kept separate only because the assignment names the two scenarios independently.
+
+**10.CK.17 - incorrect debit/credit indicator** - `ref.accounting_mapping` keys the expected GL account and cost center off *both* the product code and the debit/credit indicator, so a transaction carrying the wrong indicator doesn't just fail to match its own mapping row - its actual posted classification often becomes an exact match for a *different*, valid mapping row under the opposite indicator. That is a distinguishable signature (every field right, filed under the wrong sign), independent of the Ledger entirely:
+
+```sql
+WITH current_match AS (
+  SELECT t.transaction_id,
+         MAX(CASE WHEN t.gl_account = m.expected_gl_account
+                   AND t.cost_center = m.expected_cost_center THEN 1 ELSE 0 END) AS matches_current
+  FROM bronze.finance_transactions t
+  JOIN ref.accounting_mapping m
+    ON t.product_code = m.product_code AND t.debit_credit_indicator = m.transaction_type
+    AND t.transaction_date >= m.effective_start_date AND (t.transaction_date <= m.effective_end_date OR m.effective_end_date IS NULL)
+  GROUP BY t.transaction_id
+),
+opposite_match AS (
+  SELECT t.transaction_id,
+         MAX(CASE WHEN t.gl_account = m.expected_gl_account
+                   AND t.cost_center = m.expected_cost_center THEN 1 ELSE 0 END) AS matches_opposite
+  FROM bronze.finance_transactions t
+  JOIN ref.accounting_mapping m
+    ON t.product_code = m.product_code
+    AND m.transaction_type = CASE WHEN t.debit_credit_indicator = 'DEBIT' THEN 'CREDIT' ELSE 'DEBIT' END
+    AND t.transaction_date >= m.effective_start_date AND (t.transaction_date <= m.effective_end_date OR m.effective_end_date IS NULL)
+  GROUP BY t.transaction_id
+)
+SELECT t.transaction_id, t.product_code, t.debit_credit_indicator, t.gl_account, t.cost_center, t.local_amount
+FROM bronze.finance_transactions t
+LEFT JOIN current_match cm ON t.transaction_id = cm.transaction_id
+JOIN opposite_match om ON t.transaction_id = om.transaction_id
+WHERE COALESCE(cm.matches_current, 0) = 0 AND om.matches_opposite = 1
+```
+
+A transaction matching more than one active mapping row under either indicator is treated as matching if *any* row matches (`MAX(...)` over the group), consistent with **10.CK.09**'s own fan-out handling. Structurally can't confirm a transaction with no active mapping row at all under the opposite indicator - genuinely nothing to swap-match against, not a method weakness.
 
 **10.CK.18 - incorrect FX conversion** - the same tolerance check Assessment 1 uses for its own FX field ([09.CK.10](09-as01-data-profiling-reconciliation.md#profiling-design--task-1)):
 
@@ -547,7 +618,7 @@ JOIN account_entity_mode e ON t.account_id = e.account_id AND e.rnk = 1
 WHERE t.legal_entity <> e.legal_entity
 ```
 
-**10.CK.22 - incorrect cost-center assignment** - the second conditionally-detectable category, and (with **10.CK.09**'s GL-account misclassification, where unambiguous) the other input to [GL integrity design](#gl-integrity-design--task-1)'s recomputation's `cost_center` substitution. Unlike legal entity, `ref.accounting_mapping.expected_cost_center` exists, so this reuses **10.CK.09**'s effective-dated join directly:
+**10.CK.22 - incorrect cost-center assignment** - the second conditionally-detectable category, and (with **10.CK.09**'s GL-account misclassification, where unambiguous) the other input to [GL integrity design](#gl-integrity-design--task-1)'s recomputation's `cost_center` substitution. Unlike legal entity, `ref.accounting_mapping.expected_cost_center` exists, so this reuses **10.CK.09**'s effective-dated join directly, excluding **10.CK.17**'s own transactions: a transaction whose indicator is wrong looks wrong on cost center only when checked against the wrong-indicator mapping row, not against the one its actual indicator implies - the indicator, not the cost center, is the finding for those:
 
 ```sql
 SELECT t.transaction_id, t.cost_center AS actual_cost_center, m.expected_cost_center
@@ -557,6 +628,7 @@ JOIN ref.accounting_mapping m
   AND t.transaction_date >= m.effective_start_date
   AND (t.transaction_date <= m.effective_end_date OR m.effective_end_date IS NULL)
 WHERE t.cost_center <> m.expected_cost_center
+  AND t.transaction_id NOT IN (SELECT transaction_id FROM flip_candidates)  -- 10.CK.17, see above
 ```
 
 **scale note** - the standard wording stating measured values come from the seeded volume budget, with the assignment's SGD 3,222,215.72 figure cited as the scenario framing, not the seeded target.
@@ -807,7 +879,9 @@ _closed 10.04_ - **10.CK.01**-**10.CK.08** implemented in `notebooks/assessment2
 
 **superseded by [10.IS.02](#validate)** - the movement recomputation above (`10.CK.02`-`10.CK.08`, the "every dimension `FAIL`s except `currency=SGD`" finding) and the write-back `amount` dimension both used `local_amount` where the Ledger's own `debit_movement`/`credit_movement` are aggregated from `transaction_amount` - a basis error, confirmed directly against the seed generator's own GL-aggregation code and fixed in the notebook. Recomputing on `transaction_amount` alone (grouped by each transaction's actual classification): 0 of 589 keys exceeded tolerance - this result was itself superseded one step later.
 
-**superseded again by [10.IS.03](#validate)** - user question: "wouldn't incorrect mapping cause a discrepancy between the [source] and the [GL]?" It should, and the 0.00 result above couldn't show it, because the recomputation grouped by each transaction's *actual* `gl_account`/`cost_center`/`legal_entity` - the same values the Ledger was built from - making the dimensional check tautological regardless of how much misclassification exists. Grouping instead by the *expected* classification (`ref.accounting_mapping` wherever unambiguous, majority-vote `legal_entity`, six genuinely-conflicting mapping combos excluded and left at actual): **34 of 589 keys exceed tolerance, 305,281.76 total variance** - legal entity and cost center both now `FAIL`/`WARNING`, currency and accounting date stay a clean `PASS` (unaffected by this substitution), and the write-back `amount` dimension still matches exactly (a grand total, unaffected by which bucket a transaction's value is classified into). Re-executed clean, a fresh `batch_id=20` written, `results/assessment-2/assessment-2-reconciliation-results.md` and the task 1 row in `assessment-2-audit.md` rewritten to these findings. See [10.IS.02](#validate) and [10.IS.03](#validate) for the full diagnostic trail from residual to root cause.
+**superseded again by [10.IS.03](#validate)** - user question: "wouldn't incorrect mapping cause a discrepancy between the [source] and the [GL]?" It should, and the 0.00 result above couldn't show it, because the recomputation grouped by each transaction's *actual* `gl_account`/`cost_center`/`legal_entity` - the same values the Ledger was built from - making the dimensional check tautological regardless of how much misclassification exists. Grouping instead by the *expected* classification (`ref.accounting_mapping` wherever unambiguous, majority-vote `legal_entity`, six genuinely-conflicting mapping combos excluded and left at actual): **34 of 589 keys exceed tolerance, 305,281.76 total variance** - legal entity and cost center both now `FAIL`/`WARNING`, currency and accounting date stay a clean `PASS` (unaffected by this substitution), and the write-back `amount` dimension still matches exactly (a grand total, unaffected by which bucket a transaction's value is classified into). Re-executed clean, a fresh `batch_id=20` written, `results/assessment-2/assessment-2-reconciliation-results.md` and the task 1 row in `assessment-2-audit.md` rewritten to these findings.
+
+**superseded a third time by [10.IS.04](#validate)** - user challenge: "you only have two checks, that doesn't sound like a very comprehensive diagnostics." Re-deriving a detection method for the previously-ruled-out "incorrect debit/credit indicator" candidate (rather than accepting the prior ruling) surfaced that `10.IS.03`'s mapping lookup, keyed on each transaction's own posted indicator, would look up the wrong mapping row for a transaction whose indicator is itself wrong. Correcting the lookup to the indicator a transaction's own actual classification is consistent with, for those 9 transactions only: **30 of 589 keys exceed tolerance, 268,250.94 total variance**, GL account's worst case moves from `4.3023%` to `4.3972%` (GL1005 stays worst either way), legal entity/cost center/currency/accounting date unchanged at the dimension level. Re-executed clean, a fresh `batch_id=21` written, `results/assessment-2/assessment-2-reconciliation-results.md` and the task 1 row in `assessment-2-audit.md` rewritten again. See [10.IS.02](#validate), [10.IS.03](#validate), and [10.IS.04](#validate) for the full diagnostic trail from residual to root cause, in three stages.
 
 ### 4. Task 2 - accounting mapping validation
 
@@ -861,6 +935,8 @@ _closed 10.07_ - **10.CK.15**-**10.CK.22** implemented in the notebook's varianc
 **10.CK.17/10.CK.20 both underperformed against the ground truth** (0 found vs. 10 tagged; 0 confirmed vs. 12 tagged) - initially attributed to co-occurring variance swamping the signal at each key; **superseded by [10.IS.02](#validate)'s finding** that this is structural, not a swamped signal: `finance.gl_balance` is aggregated from the same (already-mutated) transaction rows these checks read, so both a flipped indicator and a late posting date are baked into the Ledger and the recomputation identically, on any dataset generated this way - there is no signal for either method to find, regardless of how much other variance is present. Reported honestly in the root-cause deliverable as 0 found/confirmed rather than substituting the known ground-truth count.
 
 **bridge closed to 96%, per [10.IS.03](#validate)** - once Task 1's recomputation used the expected classification (34 keys, 305,281.76 - see 10.04 above), **10.CK.21**/**10.CK.22** (wrong legal entity, 60,697.50; wrong cost center, 85,485.13) became directly testable against it, each at twice face value (a misposted transaction's value is missing from its correct bucket and present in its wrong one): `2 x (60,697.50 + 85,485.13) = 292,365.26`, 96% of the variance. Confirmed the two categories' transactions don't overlap before adding them (zero overlap - the x2 arithmetic would break if a transaction were wrong on both dimensions). The remaining 12,916.50 traces to one specific transaction (`FTX-0000660`) that is wrong on cost center *and* is one of **10.CK.09**'s two mapping-conflict-unexplained `GL_MISMATCH` rows - a multi-dimension interaction not decomposed further.
+
+**revised by [10.IS.04](#validate), per user challenge** - "you only have two checks, that doesn't sound like a very comprehensive diagnostics." **10.CK.17** got a real, independent method (a mapping-consistency swap-check, not the ruled-out Ledger-cancellation search): 9 rows, 78,480.32 - 3 of which (`FTX-0000158`, `FTX-0000660`, `FTX-0001297`) were previously counted in **10.CK.22**'s cost-center population, now excluded there (5 distinct, 55,515.89) since the indicator, not the cost center, is their real finding. Task 1's own recomputation corrected the same way (see 10.04 above) lands at 30 keys, 268,250.94. Re-bridged: `2 x (60,697.50 + 55,515.89) = 232,426.78`, 87%. The residual grew to 35,824.16 rather than shrinking - removing `FTX-0001297` from the bridge removes 2x its value without removing anything from the total (its corrected classification is still one of the 6 mapping-conflict combos, a no-op before and after), which necessarily widens the gap; 22,907.66 of it (2x `FTX-0001297`) is now precisely attributed. The remaining 12,916.50 is the *same* amount this step originally attributed to `FTX-0000660`'s "two dimensions at once" - that transaction is now fully explained by the indicator alone, so that specific attribution is retracted; the 12,916.50 itself was never actually resolved and stays open. Notebook, reconciliation-results, root-cause-analysis, exception-dataset (1214 -> 1223 rows, adding `WRONG_DR_CR_INDICATOR`), and audit all rewritten to these findings and re-executed clean.
 
 **caught during review, fixed before publishing** - the first pass of **10.CK.22** reported 11 raw joined rows without checking for the same mapping-conflict join fan-out already documented for **10.CK.09** in 10.05 (a transaction matching more than one active mapping row is evaluated against each match independently); corrected to report both the raw row count and the distinct-transaction count (8), matching **10.CK.09**'s own precedent.
 
@@ -920,6 +996,7 @@ _10.02 run (prerequisites and seed data readiness): one exception surfaced, logg
 | 10.IS.01 | 01  | closed | notebook connectivity check timed out under host contention |
 | 10.IS.02 | 02  | closed | GL movement recomputation used the wrong amount column       |
 | 10.IS.03 | 03  | closed | GL movement recomputation grouped by actual, not expected, classification |
+| 10.IS.04 | 04  | closed | expected-classification lookup keyed on a possibly-wrong indicator |
 
 _10.IS.01 (closed) notebook connectivity check timed out under host contention_
 
@@ -1080,6 +1157,55 @@ grouping the recomputation by each transaction's *expected* classification (`ref
 **validation evidence**
 
 `34` keys / `305,281.76` total variance, computed via direct SQL against the freshly seeded database, grouping by expected `gl_account`/`cost_center` (unambiguous mapping matches only) and majority-vote `legal_entity`, summing `transaction_amount`, full outer join against `finance.gl_balance`. This is a materially different, non-tautological result from 10.IS.02's 0.00 - the fix is applied in the notebook (10.04's recomputation and 10.07's dependent checks) and re-executed clean; see 10.04's and 10.07's Implement sections for the corrected findings.
+
+_10.IS.04 (closed) expected-classification lookup keyed on a possibly-wrong indicator_
+
+**problem description**
+
+User question, asked after 10.IS.03's design was documented: "you only have two checks, that doesn't sound like a very comprehensive diagnostics - you have a GL discrepancy, the problem statement suggests several lines of enquiry, you can only think of two diagnostic checks?" - a challenge to treat the assignment's seven named candidate causes as fixed, closed inventory rather than actually reasoning about what else could be checked. Re-examining the "incorrect debit/credit indicator" candidate specifically (previously ruled undetectable by any method, not just the Ledger-based one) surfaced that `ref.accounting_mapping` keys the expected GL account and cost center off *both* product code and indicator - a fact the existing checks never exploited. That, in turn, meant **10.IS.03**'s own `single_match` join (keyed on each transaction's actual, posted indicator) would look up the wrong mapping row for a transaction whose indicator is itself wrong, supplying an expected value that is neither the transaction's actual value nor its genuinely correct one.
+
+**exception**
+
+```log
+<no error - a design gap surfaced by a user question, not a runtime failure>
+```
+
+**triggering actions**
+
+user challenged the completeness of the checks-designed-so-far list; re-deriving a detection method for the previously-ruled-out "incorrect indicator" candidate (rather than accepting the prior ruling) surfaced this as a second-order effect on **10.IS.03**'s own fix.
+
+**hypothesis**
+
+- use hypothesis framing until a validated fix is applied
+
+a transaction whose actual `(gl_account, cost_center)` fails to match any active mapping row under its own posted indicator, but matches one exactly under the opposite indicator, is carrying the wrong indicator - correcting the mapping lookup to that opposite indicator, for those transactions only, should remove a real (if small) distortion from **10.IS.03**'s recomputation, changing its total variance.
+
+**diagnostic steps**
+
+- first out exception is NOT a diagnostic step
+- diagnostic steps reveal information or apply a fix
+- assume re-run and validation, these are not diagnostic steps
+- keep the step description brief, use the diagnostic details section to elaborate actions and learnings for each step
+
+| id          | seq | status | step                                                          |
+| ----------- | --- | ------ | -------------------------------------------------------------- |
+| 10.IS.04.01 | 01  | closed | tested the swap-match rule against the seeded CSVs directly [01] |
+| 10.IS.04.02 | 02  | closed | checked overlap against the existing GL_MISMATCH/cost-center findings [02] |
+| 10.IS.04.03 | 03  | closed | measured the effect on 10.IS.03's own total before committing to the fix [03] |
+| 10.IS.04.04 | 04  | closed | implemented in the notebook and re-executed clean [04]         |
+| 10.IS.04.05 | 05  | closed | re-decomposed 10.07's bridge against the corrected total [05]  |
+
+**diagnostic details**
+
+01. (closed) against `data/mock/bronze_finance_transactions.csv`/`ref_accounting_mapping.csv` directly (no Spark): flag a transaction if its actual `(gl_account, cost_center)` doesn't match any active mapping row for its own indicator, but exactly matches one for the opposite indicator. 9 of `issue-log.csv`'s 10 `incorrect_dr_cr_indicator`-tagged rows found, zero false positives across all 1,523 transactions. The one miss (`FTX-0001358`) has no active mapping row at all for the opposite indicator - genuinely nothing to swap-match, not a method weakness.
+02. (closed) 3 of the 9 (`FTX-0000158`, `FTX-0000660`, `FTX-0001297`) were already present in **10.CK.09**'s `GL_MISMATCH` population and **10.CK.22**'s cost-center population, joined (like both of those checks) on each transaction's actual indicator - confirming the wrong-mapping-row-lookup hypothesis structurally, not just by coincidence of transaction id. `FTX-0000158`/`FTX-0000660` are exactly the 2-row residual the mapping-validation deliverable reported as unexplained.
+03. (closed) live SQL against the seeded Postgres, correcting only the mapping lookup for these 9 (not the debit/credit amount split, which stays on the actual indicator - the same basis the Ledger itself was built on, per the detectability analysis): total variance dropped from `305,281.76`/34 keys to `268,250.94`/30 keys - a genuine, material, exactly-attributable change (the drop equals precisely 2x the combined value of the 2 transactions, `FTX-0000158`+`FTX-0000660`, whose corrected lookup actually changes; `FTX-0001297`'s corrected lookup still falls back to its actual value, since its true product/indicator combination is one of the 6 mapping-conflict combos - a no-op, before and after).
+04. (closed) implemented `flip_candidates` in the notebook (Task 1's recomputation, Task 3's rebuilt copy, and the exception dataset), a real `10.CK.17` check replacing the previously-ruled-out Ledger-cancellation method, and excluded `10.CK.17`'s transactions from `10.CK.22`'s cost-center population - re-executed headlessly end to end, zero cell errors, 30 keys/`268,250.94` confirmed via the notebook's own `[INFO]` output, not asserted.
+05. (closed) re-ran 10.07's bridge against the corrected total: legal-entity (unchanged, 60,697.50) and cost-center (now 5 distinct after excluding **10.CK.17**'s 3, 55,515.89) at twice face value = 232,426.78, 87% of 268,250.94. The residual grew from 12,916.50 to 35,824.16, not shrank - removing `FTX-0001297` from the cost-center bucket removes 2x its value from the bridge sum without removing anything from the total (it was never contributing there), which necessarily widens the gap. Of that, 22,907.66 (2x `FTX-0001297`) is now precisely attributed; the remaining 12,916.50 is the *same* unexplained amount 10.07 already carried, previously (and incorrectly) attributed to `FTX-0000660` being "wrong on two dimensions at once" - that transaction is now fully and cleanly explained by the indicator alone, so that specific explanation is retracted, not carried forward. The 12,916.50 itself stays genuinely open.
+
+**validation evidence**
+
+`30` keys / `268,250.94` total variance, computed by the notebook's own executed cell output (not hand-computed) against the freshly seeded database - `flip_candidates` correcting the mapping lookup for the 9 transactions identified in step 01, everything else unchanged from 10.IS.03. `10.CK.17` (the same swap-match rule, standalone) finds the same 9 rows, `78,480.32`, independently of the Ledger. Cross-checked zero overlap between `10.CK.17`, `10.CK.21` (legal-entity), and `10.CK.22` (cost-center)'s transaction populations before combining them in 10.07's bridge. This does not fully close 10.07's residual - 12,916.50 remains open, explicitly not force-fit to the smaller, since-retracted explanation.
 
 **user actions**
 

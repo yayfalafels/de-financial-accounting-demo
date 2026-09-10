@@ -108,7 +108,7 @@
 <h2 id="sources">Sources</h2>
 <ul>
 <li>notebook: <a href="https://github.com/yayfalafels/de-financial-accounting-demo/blob/main/notebooks/assessment2_gl_reconciliation.ipynb">assessment2_gl_reconciliation.ipynb</a> -&gt; "Task 1 - GL Integrity and Reconciliation" section</li>
-<li>batch: <code>reconciliation.rc_batch_control.batch_id = 20</code></li>
+<li>batch: <code>reconciliation.rc_batch_control.batch_id = 21</code></li>
 </ul>
 <h2 id="arithmetic-integrity">Arithmetic integrity</h2>
 <p><code>opening_balance + debit_movement - credit_movement = closing_balance</code> checked on every <code>finance.gl_balance</code> row, exact equality (no rounding tolerance - all four columns are <code>decimal(20,2)</code> and the expression is pure addition/subtraction).</p>
@@ -129,7 +129,7 @@
 </tbody>
 </table>
 <h2 id="independent-movement-recomputation">Independent movement recomputation</h2>
-<p>Expected debit/credit movements independently recomputed from <code>bronze.finance_transactions</code>, on the transaction's <em>expected</em> classification rather than its actual (as-posted) one - grouping by the same values the Ledger was built from would make this check tautological, since the Ledger is itself built by aggregating those same actual, possibly-misclassified values. GL account and cost center use <code>ref.accounting_mapping</code>'s expected values wherever a transaction matches exactly one active mapping row; legal entity uses the majority-vote value for the transaction's account (the mapping table carries no legal-entity field). Six product/transaction-type combinations carry more than one currently-active, conflicting mapping row - there is no single unambiguous expected value for these, so they keep their actual classification rather than an arbitrary pick among equally-valid candidates. Recomputed on <code>transaction_amount</code> (native currency) - the column the Ledger's own movement figures are themselves aggregated from, not <code>local_amount</code>.</p>
+<p>Expected debit/credit movements independently recomputed from <code>bronze.finance_transactions</code>, on the transaction's <em>expected</em> classification rather than its actual (as-posted) one - grouping by the same values the Ledger was built from would make this check tautological, since the Ledger is itself built by aggregating those same actual, possibly-misclassified values. GL account and cost center use <code>ref.accounting_mapping</code>'s expected values wherever a transaction matches exactly one active mapping row; legal entity uses the majority-vote value for the transaction's account (the mapping table carries no legal-entity field). The mapping lookup itself is keyed on the transaction's own posted debit/credit indicator, so a transaction carrying the wrong indicator is looked up under the opposite indicator instead, wherever its actual classification matches a valid mapping row there and not under its own. Six product/transaction-type combinations carry more than one currently-active, conflicting mapping row - there is no single unambiguous expected value for these, so they keep their actual classification rather than an arbitrary pick among equally-valid candidates. Recomputed on <code>transaction_amount</code> (native currency) - the column the Ledger's own movement figures are themselves aggregated from, not <code>local_amount</code>.</p>
 <table>
 <thead>
 <tr>
@@ -143,8 +143,8 @@
 <tr>
 <td>debit/credit movement recompute</td>
 <td>589</td>
-<td>34</td>
-<td>305,281.76</td>
+<td>30</td>
+<td>268,250.94</td>
 </tr>
 </tbody>
 </table>
@@ -169,7 +169,7 @@
 <tr>
 <td>GL account</td>
 <td>15</td>
-<td>4.3023% (GL1005)</td>
+<td>4.3972% (GL1005)</td>
 <td>FAIL</td>
 </tr>
 <tr>

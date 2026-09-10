@@ -494,7 +494,43 @@ Distinct from **10.CK.12**: this flags currently-active rows (open-ended or not 
 
 ### variance investigation design - task 3
 
-**only the conditionally-detectable candidates are designed here** - per [GL integrity design](#gl-integrity-design--task-1)'s detectability analysis, five of the assignment's seven named candidate causes - duplicate/re-posted entries, the debit/credit indicator, late posting, missing accounting mapping, and incorrect FX conversion - are pass-through or column-invisible to a Ledger-vs-transaction reconciliation by construction: no design turns any of them into a signature [GL integrity design](#gl-integrity-design--task-1)'s recomputation could find, so none is designed further here. The two candidates that screening marks conditionally detectable - incorrect legal-entity allocation and incorrect cost-center/GL-account assignment - are the two designed below, each bridged against that recomputation's variance at twice face value (a misclassified transaction's value is missing from its correct bucket and present in its wrong one).
+**seven lines of enquiry, not two** - [GL integrity design](#gl-integrity-design--task-1)'s detectability analysis only answers whether a candidate can make *that* Ledger-vs-transaction movement reconciliation disagree; it says nothing about whether the candidate is detectable at all. Five of the assignment's seven named candidate causes have their own direct, independent detection method that never depends on the Ledger reconciliation succeeding, and each is designed below in its own right: **10.CK.15**/**10.CK.16** (duplicate/re-posted entries, a hash collision over the transaction data itself), **10.CK.18** (incorrect FX conversion, `local_amount` checked against its own inputs), **10.CK.19** (missing accounting mapping, a direct join failure against `ref.accounting_mapping`), and **10.CK.20** (posted one day late, `posting_date` compared to `transaction_date` directly). Only where the assignment's available method for a candidate *is* the Ledger reconciliation itself does the screening rule a design out entirely: the debit/credit indicator has no proposed detection method other than a Ledger-cancellation signature, which the screening shows every dataset generated this way makes structurally undetectable, so no check is designed for it. Late posting's raw detection is independent and designed below, but a second step some designs use to confirm each candidate against the Ledger's per-day shortfall is not - that confirmation is the same ruled-out mechanism and is guaranteed to reject every candidate regardless of the data. The remaining two candidates - incorrect legal-entity allocation and incorrect cost-center/GL-account assignment - are the ones the screening marks conditionally detectable, and are also the only two bridged against [GL integrity design](#gl-integrity-design--task-1)'s recomputation, each at twice face value (a misclassified transaction's value is missing from its correct bucket and present in its wrong one).
+
+**10.CK.15 - duplicate accounting entry** - hash the business fields (every column except `transaction_id`) and find hash collisions across distinct `transaction_id`s posted on the same `posting_date`:
+
+```sql
+SELECT transaction_id, account_id, posting_date, local_amount,
+       MD5(CONCAT_WS('|', account_id, posting_date, transaction_amount, currency,
+                      debit_credit_indicator, product_code, gl_account, cost_center)) AS entry_hash
+FROM bronze.finance_transactions
+-- rows sharing entry_hash + posting_date but a different transaction_id are the duplicate group
+```
+
+Every row in an `entry_hash` group of size > 1 is flagged except the first (ordered by `transaction_id`); the *extra* rows' `local_amount` is reported as this category's finding - per the detectability analysis, not a contribution to [GL integrity design](#gl-integrity-design--task-1)'s variance, since a duplicate's value is aggregated into the Ledger identically to how it appears in the recomputation.
+
+**10.CK.16 - transaction posted twice under a different id** - the same hash-collision query as **10.CK.15** (the hash deliberately excludes `transaction_id`, so a same-fields/different-id repost is already caught there); this is a second `issue_type` label applied to the same detected rows, kept separate only because the assignment names the two scenarios independently.
+
+**10.CK.18 - incorrect FX conversion** - the same tolerance check Assessment 1 uses for its own FX field ([09.CK.10](09-as01-data-profiling-reconciliation.md#profiling-design--task-1)):
+
+```sql
+SELECT transaction_id, transaction_amount, exchange_rate, local_amount,
+       ROUND(transaction_amount * exchange_rate, 2) AS expected_local_amount,
+       local_amount - ROUND(transaction_amount * exchange_rate, 2) AS fx_variance
+FROM bronze.finance_transactions
+WHERE ABS(local_amount - ROUND(transaction_amount * exchange_rate, 2)) > 0.01
+```
+
+**10.CK.19 - missing accounting mapping** - the `local_amount` sum of every transaction flagged by **10.CK.10** (no effective mapping) or **10.CK.11** (missing mapping). Per [GL integrity design](#gl-integrity-design--task-1)'s detectability analysis this is a disclosure figure, not a variance contribution: with no expected value to substitute, these transactions keep their actual classification in that design's recomputation on both sides, so their value cannot register as a bridgeable gap - a transaction with no valid mapping simply cannot be confirmed correct or incorrect, which is the finding itself, not folded into **10.CK.09**'s `GL_MISMATCH` count.
+
+**10.CK.20 - transaction posted one accounting day late** - candidates are transactions whose `posting_date` is exactly one calendar day after `transaction_date`:
+
+```sql
+SELECT posting_date, transaction_date, transaction_id, local_amount
+FROM bronze.finance_transactions
+WHERE posting_date = transaction_date + INTERVAL '1 day'
+```
+
+Reported as-is, with no attempt to confirm a candidate against [GL integrity design](#gl-integrity-design--task-1)'s per-day variance: the Ledger is aggregated using each transaction's own (possibly late) posting date, so the Ledger and the recomputation already agree on where it lands and there is no shortfall left to match against, by the same reasoning the screening applies to this candidate. This means the raw candidate count may include a transaction the bank's own processing calendar legitimately posts a day later (e.g. a weekend transaction posted the next business day) alongside a genuine late-posting error - this design has no test available that tells the two apart.
 
 **10.CK.21 - incorrect legal-entity allocation** - one of the two categories [GL integrity design](#gl-integrity-design--task-1)'s detectability analysis marks conditionally detectable: this majority-vote value is exactly the "expected" substitution that design's recomputation applies for `legal_entity`, so this check's flagged transactions are where that design's own legal-entity variance traces to, not a separate, unrelated finding. `ref.accounting_mapping` carries no `expected_legal_entity` column, so this is a majority-vote check per `account_id`: an account's legal entity is expected to be stable, so a transaction whose `legal_entity` disagrees with that account's most-frequent posted value elsewhere in the seeded period is a probable misallocation:
 

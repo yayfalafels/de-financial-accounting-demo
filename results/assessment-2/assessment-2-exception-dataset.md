@@ -20,9 +20,10 @@ Minimum columns: `transaction_id`, `issue_type`, `source_value`, `comparison_val
 | `MAPPING_NOT_FOUND`       | 385  | see exception rows   |
 | `UNMAPPED_VARIANCE`       | 385  | see exception rows   |
 | `DUPLICATE_ENTRY`         | 21   | see exception rows   |
-| `WRONG_COST_CENTER`       | 11   | see exception rows   |
 | `WRONG_DR_CR_INDICATOR`   | 9    | see exception rows   |
+| `WRONG_GL_ACCOUNT`        | 7    | see exception rows   |
 | `WRONG_LEGAL_ENTITY`      | 6    | see exception rows   |
+| `WRONG_COST_CENTER`       | 4    | see exception rows   |
 | `FX_CONVERSION_ERROR`     | 3    | see exception rows   |
 | **total**                  | **1223** |                    |
 
@@ -33,7 +34,9 @@ Minimum columns: `transaction_id`, `issue_type`, `source_value`, `comparison_val
 | FTX-0000008       | GL_MISMATCH             | GL1007         | GL1014               | -        |
 | FTX-0000019       | MAPPING_NOT_FOUND       | GL9999         | -                     | -        |
 | FTX-0001392       | WRONG_LEGAL_ENTITY      | LE1            | LE3                   | -        |
-| FTX-0000080       | WRONG_COST_CENTER       | CC04           | CC08                  | -        |
+| FTX-0000142       | WRONG_GL_ACCOUNT        | GL1007         | GL1011                | -        |
+| FTX-0001341       | WRONG_COST_CENTER       | CC02           | CC01                  | -        |
+| FTX-0001358       | WRONG_GL_ACCOUNT        | GL9999         | GL1011                | -        |
 | FTX-0000660       | WRONG_DR_CR_INDICATOR   | DEBIT          | -                     | 17900.46 |
 | FTX-0000072       | FX_CONVERSION_ERROR     | 27475.7        | 24977.91              | 2497.79  |
 | FTX-DUP001503     | DUPLICATE_ENTRY         | 12574.31       | -                     | 12574.31 |

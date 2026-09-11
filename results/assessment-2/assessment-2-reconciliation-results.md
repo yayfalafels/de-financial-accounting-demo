@@ -9,7 +9,7 @@ See [overview](assessment-2-overview.md) for the scenario, table shapes, and the
 ## Sources
 
 - notebook: [assessment2_gl_reconciliation.ipynb](https://github.com/yayfalafels/de-financial-accounting-demo/blob/main/notebooks/assessment2_gl_reconciliation.ipynb) -> "Task 1 - GL Integrity and Reconciliation" section
-- batch: `reconciliation.rc_batch_control.batch_id = 24`
+- batch: `reconciliation.rc_batch_control.batch_id = 26`
 
 ## Arithmetic integrity
 

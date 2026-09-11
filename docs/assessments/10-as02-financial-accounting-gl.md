@@ -35,14 +35,14 @@
 
 | id    | seq | status  | task                                      |
 | ----- | --- | ------- | ----------------------------------------- |
-| 10.01 | 01  | open    | design                                    |
+| 10.01 | 01  | closed  | design                                    |
 | 10.02 | 02  | closed  | prerequisites and seed data readiness     |
 | 10.03 | 03  | closed  | assessment scope and context write-up     |
 | 10.13 | 04  | closed  | gl schema add local amount                |
-| 10.04 | 05  | pending | task 1 - GL integrity and reconciliation  |
-| 10.05 | 06  | pending | task 2 - accounting mapping validation    |
-| 10.06 | 07  | pending | exception dataset                         |
-| 10.07 | 08  | pending | task 3 - finance variance investigation   |
+| 10.04 | 05  | closed  | task 1 - GL integrity and reconciliation  |
+| 10.05 | 06  | closed  | task 2 - accounting mapping validation    |
+| 10.06 | 07  | closed  | exception dataset                         |
+| 10.07 | 08  | closed  | task 3 - finance variance investigation   |
 | 10.08 | 09  | pending | task 4 - reconciliation framework design  |
 | 10.09 | 10  | pending | business-facing summary                   |
 | 10.10 | 11  | pending | notebook consolidation and clean rerun    |
@@ -726,9 +726,11 @@ rc_tolerance_rules(assessment_id, dimension, currency NULL=all, gl_account NULL=
 | 10.CK.19 | `UNMAPPED_VARIANCE`          |
 | 10.CK.20 | `LATE_POSTING`               |
 | 10.CK.21 | `WRONG_LEGAL_ENTITY`         |
-| 10.CK.22 | `WRONG_COST_CENTER`          |
+| 10.CK.09 [02] | `WRONG_GL_ACCOUNT`      |
+| 10.CK.22 [02] | `WRONG_COST_CENTER`     |
 
 01. a row may legitimately carry more than one `issue_type` for the same `transaction_id` (e.g. `WRONG_DR_CR_INDICATOR` and `FX_CONVERSION_ERROR` both true) - the exception dataset is one row per `(transaction_id, issue_type)` pair, not one row per transaction, so `exception_count` in [reconciliation framework design](#reconciliation-framework-design--task-4) counts flagged pairs.
+02. `WRONG_GL_ACCOUNT` and `WRONG_COST_CENTER` both restrict to a transaction's single, currently-active, unambiguous mapping match - narrower than **10.CK.09**'s own raw `GL_MISMATCH` output, which reports every matched row a fan-out transaction carries. This is the restriction [GL integrity design](#gl-integrity-design--task-1)'s **closing the bridge** section relies on: a transaction excluded here for ambiguity is still visible in `GL_MISMATCH`/`OVERLAPPING_MAPPING`/`MULTI_GL_MAPPING`, just not counted toward a Ledger-bridgeable total.
 
 ### advanced sql coverage
 
@@ -911,6 +913,8 @@ _closed 10.04_ - **10.CK.01**-**10.CK.08** implemented in `notebooks/assessment2
 
 **superseded a third time by [10.IS.04](#validate)** - user challenge: "you only have two checks, that doesn't sound like a very comprehensive diagnostics." Re-deriving a detection method for the previously-ruled-out "incorrect debit/credit indicator" candidate (rather than accepting the prior ruling) surfaced that `10.IS.03`'s mapping lookup, keyed on each transaction's own posted indicator, would look up the wrong mapping row for a transaction whose indicator is itself wrong. Correcting the lookup to the indicator a transaction's own actual classification is consistent with, for those 9 transactions only: **30 of 589 keys exceed tolerance, 268,250.94 total variance**, GL account's worst case moves from `4.3023%` to `4.3972%` (GL1005 stays worst either way), legal entity/cost center/currency/accounting date unchanged at the dimension level. Re-executed clean, a fresh `batch_id=21` written, `results/assessment-2/assessment-2-reconciliation-results.md` and the task 1 row in `assessment-2-audit.md` rewritten again. See [10.IS.02](#validate), [10.IS.03](#validate), and [10.IS.04](#validate) for the full diagnostic trail from residual to root cause, in three stages.
 
+**re-implemented per [10.IS.06](#validate)'s corrected design** - before touching the notebook, the corrected recomputation and its bridge were verified independently in PySpark against the live seeded database (a standalone script reusing the same `flip_candidates`/`canonical_mapping`/`account_entity_mode` logic the notebook cells already implement): 30 keys, 297,137.40, with the 16-transaction mover set (6 legal-entity, 6 GL-account, 3 cost-center, 1 both) reverting to exactly 0 keys/0.00 - no discrepancy against the SQL-only diagnosis in **10.IS.06**, so no issue was raised from this step. Task 1's own `10.CK.01`-`10.CK.08` cells needed no code change - the SGD-basis, `canonical_mapping`-restricted recomputation **10.IS.04**/**10.IS.05** already left in place *is* **10.IS.06**'s corrected design - only re-executed for a fresh batch. Re-executed clean end to end (Task 1 through the exception dataset in one run, see 10.06/10.07 below), `batch_id=26` (the run that also carries 10.06/10.07's fixes), `results/assessment-2/assessment-2-reconciliation-results.md` batch reference updated to match; no other figure in that deliverable moved.
+
 ### 4. Task 2 - accounting mapping validation
 
 edit locations: `10.EL.01, 10.EL.03`
@@ -934,11 +938,15 @@ _closed 10.05_ - **10.CK.09**-**10.CK.14** implemented in `notebooks/assessment2
 
 Produced the exception output in the assignment's stated shape (`Transaction, Product, Actual GL, Expected GL, Accounting Date, Exception`, 788 rows across the four per-transaction checks - `10.CK.12`/`10.CK.14` are mapping-level and reported separately). Wrote [`results/assessment-2/assessment-2-mapping-validation.md`](../../results/assessment-2/assessment-2-mapping-validation.md) and the task 2 rows in [`assessment-2-audit.md`](../../results/assessment-2/assessment-2-audit.md).
 
+**unaffected by [10.IS.06](#validate)** - Task 2's own checks (`10.CK.09`-`10.CK.14`) never substitute or restrict a mapping match the way Task 1's recomputation and Task 3's bridge do; re-executed as part of the same clean end-to-end run as 10.04/10.06/10.07 and every count above reproduced identically (403/319, 0, 385, 8 pairs/6 combos, 0, 4 combos) - no deliverable or audit change needed for this task.
+
 ### 5. Exception dataset
 
 edit locations: `10.EL.01, 10.EL.04`
 
 _closed 10.06_ - unioned the row sets from **10.CK.09**-**10.CK.14** (task 2's own checks) into the exception dataset's minimum columns (`transaction_id, issue_type, source_value, gl_value, variance`) - 788 rows total (403 `GL_MISMATCH`, 385 `MAPPING_NOT_FOUND`). **10.CK.15**-**10.CK.22** (task 3's categories) are not yet available and are explicitly deferred to [10.07](#6-task-3---finance-variance-investigation)'s cycle rather than restated ahead of that run, per [10.WS.04](#workflow-cycle)'s rule against restating a number the notebook did not produce in the same run. No `batch_id` per row - task 2/exception-dataset findings are cited by notebook section, not written to `reconciliation.rc_*`, per [workflow cycle](#workflow-cycle) note 01. Wrote [`results/assessment-2/assessment-2-exception-dataset.md`](../../results/assessment-2/assessment-2-exception-dataset.md), sampling in the markdown and pointing at the notebook's full cell output.
+
+**re-implemented per [10.IS.06](#validate)'s corrected design, second pass per [10.IS.07](#validate)** - added a `WRONG_GL_ACCOUNT` issue type and restricted `WRONG_GL_ACCOUNT`/`WRONG_COST_CENTER` to a transaction's single, currently-active, unambiguous mapping match, mirroring Task 1's own `canonical_mapping`. The first execution of this change (1227 rows, `WRONG_GL_ACCOUNT`=9, `WRONG_COST_CENTER`=6) diverged from Task 3's own `classification_movers` count (6/3/1) - logged, diagnosed, and closed as **10.IS.07**: the new queries never applied the indicator correction `flip_candidates`/`canonical_mapping` already apply elsewhere in the notebook, so 2 of the 9 flip-candidate transactions were double-counted as GL-account/cost-center mismatches on top of `WRONG_DR_CR_INDICATOR`. Fixed by registering the exception dataset's own flip-candidate query as a named, reusable temp view and building its `WRONG_GL_ACCOUNT`/`WRONG_COST_CENTER` checks against that corrected mapping instead. Re-executed clean: 1223 rows total (`GL_MISMATCH`=403, `MAPPING_NOT_FOUND`=385, `UNMAPPED_VARIANCE`=385, `DUPLICATE_ENTRY`=21, `WRONG_DR_CR_INDICATOR`=9, `WRONG_GL_ACCOUNT`=7, `WRONG_LEGAL_ENTITY`=6, `WRONG_COST_CENTER`=4, `FX_CONVERSION_ERROR`=3) - `WRONG_GL_ACCOUNT`/`WRONG_COST_CENTER` now agree exactly with `classification_movers`' 6/3/1 split. Rewrote [`results/assessment-2/assessment-2-exception-dataset.md`](../../results/assessment-2/assessment-2-exception-dataset.md) to this breakdown and sample set.
 
 ### 6. Task 3 - finance variance investigation
 
@@ -979,6 +987,8 @@ Wrote [`results/assessment-2/assessment-2-root-cause-analysis.md`](../../results
 **partially resolved by [10.IS.02](#validate), then superseded by [10.IS.03](#validate)** - per user direction ("solve it"), the remaining 65.7% was diagnosed rather than left open: querying `finance.gl_balance` directly showed it is a chained daily ledger (`opening_balance` on day N equals `closing_balance` on day N-1 for the same key), so the write-back `amount` dimension's `SUM(closing_balance)` was summing a cumulative stock across 5 accounting dates against a flat flow (`SUM(local_amount)`) - not comparable. Counterfactual removal tests on the bottom-up side (excluding unmapped, then duplicate, transactions from the recomputation) each made variance *worse*, the opposite of the working hypothesis, which was the signal to inspect the top-down side instead of continuing to patch the bottom-up one. Reading `scripts/utils/data-generators.py`'s `gen_assessment2()` directly showed `finance.gl_balance`'s `debit_movement`/`credit_movement` are aggregated from `transaction_amount`, not `local_amount` - every recomputation in this notebook from 10.04 onward used the wrong column. Recomputed on `transaction_amount` (still grouped by each transaction's actual classification at this point): 0 of 589 keys exceeded tolerance.
 
 **that 0.00 was itself incomplete** - a user question asked immediately after ("wouldn't incorrect mapping cause a discrepancy between the [source] and the [GL]?") surfaced [10.IS.03](#validate): grouping by each transaction's *actual* classification (the same values the Ledger was built from) made the dimensional check tautological, regardless of how much misclassification existed. Grouping instead by the *expected* classification: **34 of 589 keys exceed tolerance, 305,281.76 total variance** - a real, material, non-tautological result. Of the eight named categories, only the two Task 1's recomputation substitutes an expected value for (incorrect legal-entity allocation, incorrect cost-center assignment) can move this figure, and together at twice face value they explain 96% of it (see 10.07 below) - duplicate entries, FX errors, and unmapped transactions remain real, individually-detected findings, just not ones a Ledger-vs-transaction reconciliation was ever going to surface, for reasons specific to each (already documented in 10.07). Notebook, reconciliation-results, root-cause-analysis, and audit all rewritten to these findings and re-executed clean.
+
+**re-implemented per [10.IS.06](#validate)'s corrected design** - three cells changed: `10.CK.22` (`wrong_cost_center`) rebuilt against `canonical_mapping` and split into three disjoint outputs - GL-account-only, cost-center-only, and a transaction wrong on both fields at once (`classification_movers`) - and the closing bridge cell replaced the twice-face-value estimate with a direct test, reverting every flagged transaction (legal-entity ∪ `classification_movers`) to its actual classification and re-running the recomputation. Front-loaded in PySpark against the live seeded database before either notebook cell was touched (see 10.04 above); the notebook run reproduced that verification exactly: 6 GL-account-only (53,687.44), 3 cost-center-only (40,036.00), 1 both (`FTX-0001358`, 9,706.73), 16 transactions bridged, **0 keys exceeding tolerance, 0.00 residual**. `10.CK.09`-`10.CK.21`, `10.CK.18`-`10.CK.20` unchanged from their prior closure. The exception dataset's own second-pass fix is logged separately as [10.IS.07](#validate) (see 10.06 above). Rewrote [`results/assessment-2/assessment-2-root-cause-analysis.md`](../../results/assessment-2/assessment-2-root-cause-analysis.md) (findings table gains the two new categories, cost-center corrected from 5/55,515.89 to 3/40,036.00, bridging section states the direct-verification method and the zero residual) and the task 3 rows/bridge check in [`assessment-2-audit.md`](../../results/assessment-2/assessment-2-audit.md); re-executed clean, `batch_id=26`.
 
 ### 7. Task 4 - reconciliation framework design
 
@@ -1025,6 +1035,9 @@ Commit the reviewed work, run `scripts/08-assessment-site.sh build` for the stri
 | 10.IS.04 | 04  | closed | expected-classification lookup keyed on a possibly-wrong indicator |
 | 10.IS.05 | 05  | closed | GL schema lacks local-SGD amount fields for the aggregate variance |
 | 10.IS.06 | 06  | closed | unattributed variance explanation                            |
+| 10.IS.07 | 07  | closed | exception dataset's GL-account/cost-center counts disagreed with task 3's own [01] |
+
+01. **10.IS.07** full title: exception dataset's `WRONG_GL_ACCOUNT`/`WRONG_COST_CENTER` counts disagree with task 3's own `classification_movers` counts.
 
 _10.IS.01 (closed) notebook connectivity check timed out under host contention_
 
@@ -1330,6 +1343,50 @@ Task 3's bridge tests only two of Task 1's three substitution dimensions - legal
 **remaining work**
 
 - the notebook's Task 3 cells (`wrong_cost_center`, the bridge cell) and the `03.08`/bridge write-ups in `results/assessment-2/assessment-2-root-cause-analysis.md` and `assessment-2-audit.md` need the same GL-account-only category, the `FTX-0000080` exclusion, and the corrected 3-transaction cost-center population added, then a fresh batch re-executed - the SQL-only diagnosis in this issue is verified directly against the live database but not yet re-run through the notebook/`rc_*` write-back path **10.WS.03** requires for a published figure.
+
+_10.IS.07 (closed) exception dataset's WRONG_GL_ACCOUNT/WRONG_COST_CENTER counts disagree with task 3's own classification-movers counts_
+
+**problem description**
+
+Re-implementing Task 1/2/3 per **10.IS.06**'s corrected design and re-executing the notebook end to end produced two different counts for what should be the same underlying condition. Task 3's own `classification_movers` cell (built against `canonical_mapping`, which corrects the mapping lookup for the 9 flipped-indicator transactions before checking GL account/cost center) reports 6 GL-account-only, 3 cost-center-only, and 1 both-at-once misclassified transaction. The exception dataset's `WRONG_GL_ACCOUNT`/`WRONG_COST_CENTER` rows, built in a separate cell against a freshly-inlined single-match CTE that does *not* apply that same indicator correction, report 9 and 6 respectively - larger, and not decomposable back into the 6/3/1 split.
+
+**exception**
+
+```log
+<no runtime error - a cross-check between two notebook sections' printed counts for the same
+population, surfaced by comparing "[INFO] incorrect GL-account assignment: rows=6" (cell 44) against
+"WRONG_GL_ACCOUNT|9" in the exception dataset's issue_type breakdown (cell 51), executed in the same
+notebook run>
+```
+
+**triggering actions**
+
+Added the `WRONG_GL_ACCOUNT` issue type and restricted `WRONG_COST_CENTER` to a single unambiguous mapping match while re-implementing the exception dataset section for **10.IS.06**'s design, then executed the full notebook end to end and compared every cell's printed counts against each other rather than trusting the exception dataset's total in isolation.
+
+**hypothesis**
+
+- use hypothesis framing until a validated fix is applied
+
+The exception dataset's own `WRONG_GL_ACCOUNT`/`WRONG_COST_CENTER` queries were written as a self-contained single-match CTE (matching the mapping-validation-style `10.CK.09` join) but never inlined the same indicator correction `flip_candidates`/`canonical_mapping` apply in the Task 1 and Task 3 cells above it - so some or all of the 9 flipped-indicator transactions, looked up under their own (wrong) posted indicator instead of the corrected one, fail to match the single active mapping row their *corrected* indicator would have matched, and are counted here as a GL-account or cost-center mismatch instead of (or in addition to) the indicator mismatch they are already counted under in `WRONG_DR_CR_INDICATOR`. A weaker alternative: the discrepancy is not the indicator correction at all but a difference in how the two cells handle a transaction with more than one currently-active mapping row.
+
+**diagnostic steps**
+
+- first out exception is NOT a diagnostic step
+- diagnostic steps reveal information or apply a fix
+- assume re-run and validation, these are not diagnostic steps
+- keep the step description brief, use the diagnostic details section to elaborate actions and learnings for each step
+
+| id          | seq | status  | step                                                          |
+| ----------- | --- | ------- | -------------------------------------------------------------- |
+| 10.IS.07.01 | 01  | closed | compared the two queries' transaction id sets directly [01]    |
+| 10.IS.07.02 | 02  | closed | applied the same indicator correction to the exception dataset query [02] |
+| 10.IS.07.03 | 03  | closed | re-executed the notebook and confirmed the counts agree [03]   |
+
+**diagnostic details**
+
+01. (closed) ran the exception dataset's own single-match join (own posted indicator, no flip correction) directly against the live seeded database: 12 rows diverge on GL account and/or cost center, not 10 - exactly the 10 transactions `classification_movers` already finds (6 GL-only, 3 cost-center-only, 1 both) plus `FTX-0000158` and `FTX-0000660`, both flagged wrong on *both* fields here. Both are 2 of the 9 flip-candidate transactions: looked up under their own (wrong) posted indicator, neither's actual classification matches the mapping row that indicator implies, so both fields show a spurious mismatch; looked up under the corrected indicator (as `canonical_mapping` already does), both match their mapping row exactly on every field - the reason `classification_movers` correctly excludes them. `gl_diff` count = 9 (7 genuine + `FTX-0000158`/`FTX-0000660`), `cc_diff` count = 6 (4 genuine + the same two) - exactly the exception dataset's published `WRONG_GL_ACCOUNT`=9/`WRONG_COST_CENTER`=6. Root cause confirmed directly, not left as a hypothesis: the exception dataset's query never applies the indicator correction the rest of the notebook uses.
+02. (closed) registered the exception dataset's already-inline flip-candidate query as `flip_candidates_ds` (previously an anonymous CTE local to the `WRONG_DR_CR_INDICATOR` block) and added a `canonical_mapping_ds` view built the same way `canonical_mapping` is in Task 1/Task 3 - the corrected-indicator lookup, restricted to a single unambiguous current mapping match - moved both ahead of `mapping_exceptions_ds` in execution order (they must exist before that query references them) and pointed `WRONG_GL_ACCOUNT`/`WRONG_COST_CENTER` at `canonical_mapping_ds` instead of the uncorrected join.
+03. (closed) re-executed the full notebook headlessly, no cell errors: `WRONG_GL_ACCOUNT=7` (6 GL-only + `FTX-0001358`), `WRONG_COST_CENTER=4` (3 cost-center-only + `FTX-0001358`) - exactly the 6/3/1 split `classification_movers` reports, with `FTX-0001358` counted once under each type rather than twice under either. Exception dataset total 1223 rows (1227 before this fix, the 4-row drop being `FTX-0000158`/`FTX-0000660` removed from both `WRONG_GL_ACCOUNT` and `WRONG_COST_CENTER`). Every other section's counts (297,137.40/30 keys, the 16-transaction bridge closing to 0.00, task 2's unchanged 403/385/8/4) reproduced identically to the pre-fix run, confirming the fix touched only this one cell.
 
 ## Task Details
 

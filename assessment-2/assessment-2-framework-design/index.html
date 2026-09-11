@@ -90,8 +90,9 @@
 <h2 id="sources">Sources</h2>
 <ul>
 <li>notebook: <code>notebooks/assessment2_gl_reconciliation.ipynb</code></li>
-<li>batch: <code>reconciliation.rc_batch_control.batch_id = &lt;n&gt;</code></li>
-</ul></div>
+<li>batch: <code>reconciliation.rc_batch_control.batch_id = 24</code></li>
+</ul>
+<p>This framework uses common-currency SGD amounts for aggregate amount reconciliation: source value is <code>SUM(bronze.finance_transactions.local_amount)</code> and GL value is <code>SUM(finance.gl_balance.local_sgd_debit_movement + finance.gl_balance.local_sgd_credit_movement)</code> for movement checks. Native-currency GL fields stay available for per-currency diagnostics only.</p></div>
             </div>
         </div>
 

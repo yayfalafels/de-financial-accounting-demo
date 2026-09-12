@@ -16,23 +16,35 @@ Each of the categories the scenario names is checked independently rather than s
 
 ## Findings
 
+### Categories that explain the Ledger movement variance
+
+These four are the only categories Task 1's recomputation substitutes an expected value for, so they are the only ones capable of moving - and, together, the only ones needed to fully explain - the SGD 297,137.40 Ledger-vs-source movement variance. [Bridging the variance](#bridging-the-variance) below shows exactly how these four add up to that figure.
+
 | category                              | rows / keys | value                  |
 | -------------------------------------- | ----------- | ------------------------ |
-| duplicate / re-posted accounting entry | 21          | 255,845.35 [01]           |
-| incorrect debit/credit indicator       | 9 [02]      | 78,480.32 [01]            |
-| incorrect FX conversion                | 3           | 4,467.53 [01]             |
-| missing accounting mapping             | 385         | 4,387,367.89 [01][03]     |
-| posted one accounting day late         | 12 / 0 [04] | -                         |
 | incorrect legal-entity allocation      | 6           | 60,697.50                 |
 | incorrect GL-account assignment        | 6           | 53,687.44                 |
-| incorrect cost-center assignment       | 3 [05]      | 40,036.00 [05]            |
-| incorrect GL-account + cost-center [05] | 1          | 9,706.73 [05]             |
+| incorrect cost-center assignment       | 3 [01]      | 40,036.00 [01]            |
+| incorrect GL-account + cost-center [01] | 1          | 9,706.73 [01]             |
 
-01. **duplicate entries, indicator, FX conversion, missing accounting mapping** - real, individually-verified findings, but none of them is a classification category Task 1's recomputation substitutes for, so none is expected to explain the movement variance (see the per-category notes below for why).
-02. **indicator** - `ref.accounting_mapping` keys the expected GL account and cost center off *both* the product code and the debit/credit indicator, so a transaction carrying the wrong indicator often becomes an exact match for a *different*, valid mapping row under the opposite indicator: not some field being wrong, but every field being right, filed under the wrong sign. 9 transactions flagged this way. This is independent of Task 1's Ledger reconciliation - it reads the transaction and mapping data directly - so it isn't affected by that reconciliation's own finding that a flipped indicator is pass-through to the Ledger's movement figures.
-03. **missing accounting mapping** - an audit-confidence gap, not a Ledger variance: these transactions keep their actual classification in Task 1's recomputation (no expected value to substitute), so they cannot contribute to the variance found.
-04. **late posting** - 12 transactions post exactly one calendar day after their transaction date; 0 confirmed against the prior day's own movement shortfall - the Ledger is built from each transaction's own (possibly late) posting date, so the Ledger and the recomputation already agree on where a late-posted transaction lands.
-05. **cost-center population split** - one transaction the mapping validation also flags as `GL_MISMATCH` posts to a sentinel account/cost-center pair wrong on both fields at once, reported on its own row so no dollar is counted under two headings. A further, genuinely cost-center-mismatched transaction is excluded from every row above: its product/transaction-type combination carries two currently-active, conflicting mapping rows (see mapping validation's overlapping-mapping finding), so Task 1's recomputation has no single unambiguous expected value to substitute for it and it cannot move the movement variance either way - it remains a real classification error, just not one this particular reconciliation can bridge to.
+01. **cost-center population split** - one transaction the mapping validation also flags as `GL_MISMATCH` posts to a sentinel account/cost-center pair wrong on both fields at once, reported on its own row so no dollar is counted under two headings. A further, genuinely cost-center-mismatched transaction is excluded from every row above: its product/transaction-type combination carries two currently-active, conflicting mapping rows (see mapping validation's overlapping-mapping finding), so Task 1's recomputation has no single unambiguous expected value to substitute for it and it cannot move the movement variance either way - it remains a real classification error, just not one this particular reconciliation can bridge to.
+
+### Other findings - not reflected in the Ledger movement variance
+
+Each of these is a real, independently-verified finding, but **none of them changes Task 1's Ledger-vs-source movement figure at all** - see the note for each for why. Their dollar values are not on the same basis as the 297,137.40 above and do not net against it in any way; `missing accounting mapping`'s 4,387,367.89 in particular is a disclosure total (the combined value of transactions with nothing to check them against), not a variance, and dwarfs the Ledger variance in scale precisely because it is a different kind of number.
+
+| category                              | rows / keys | value                  |
+| -------------------------------------- | ----------- | ------------------------ |
+| duplicate / re-posted accounting entry | 21          | 255,845.35 [02]           |
+| incorrect debit/credit indicator       | 9 [03]      | 78,480.32 [02]            |
+| incorrect FX conversion                | 3           | 4,467.53 [02]             |
+| missing accounting mapping             | 385         | 4,387,367.89 [02][04]     |
+| posted one accounting day late         | 12 / 0 [05] | -                         |
+
+02. **duplicate entries, indicator, FX conversion, missing accounting mapping** - real, individually-verified findings, but none of them is a classification category Task 1's recomputation substitutes for, so none is expected to explain the movement variance (see the per-category notes below for why).
+03. **indicator** - `ref.accounting_mapping` keys the expected GL account and cost center off *both* the product code and the debit/credit indicator, so a transaction carrying the wrong indicator often becomes an exact match for a *different*, valid mapping row under the opposite indicator: not some field being wrong, but every field being right, filed under the wrong sign. 9 transactions flagged this way. This is independent of Task 1's Ledger reconciliation - it reads the transaction and mapping data directly - so it isn't affected by that reconciliation's own finding that a flipped indicator is pass-through to the Ledger's movement figures.
+04. **missing accounting mapping** - an audit-confidence gap, not a Ledger variance: these transactions keep their actual classification in Task 1's recomputation (no expected value to substitute), so they cannot contribute to the variance found.
+05. **late posting** - 12 transactions post exactly one calendar day after their transaction date; 0 confirmed against the prior day's own movement shortfall - the Ledger is built from each transaction's own (possibly late) posting date, so the Ledger and the recomputation already agree on where a late-posted transaction lands.
 
 ## Bridging the variance
 

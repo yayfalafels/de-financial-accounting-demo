@@ -148,6 +148,8 @@
 <h2 id="method-and-headline-finding">Method and headline finding</h2>
 <p>Each of the categories the scenario names is checked independently rather than searched for transaction by transaction. Task 1's expected-classification recomputation found SGD 297,137.40 in Ledger-vs-transaction movement variance. Three classification dimensions - legal-entity allocation, GL-account assignment, and cost-center assignment - are exactly the fields Task 1's recomputation substitutes an expected value for, so they are the candidates that can explain it: a misposted transaction is missing from its correct bucket and present in its wrong one, so its value counts twice toward the variance.</p>
 <h2 id="findings">Findings</h2>
+<h3 id="categories-that-explain-the-ledger-movement-variance">Categories that explain the Ledger movement variance</h3>
+<p>These four are the only categories Task 1's recomputation substitutes an expected value for, so they are the only ones capable of moving - and, together, the only ones needed to fully explain - the SGD 297,137.40 Ledger-vs-source movement variance. <a href="#bridging-the-variance">Bridging the variance</a> below shows exactly how these four add up to that figure.</p>
 <table>
 <thead>
 <tr>
@@ -157,31 +159,6 @@
 </tr>
 </thead>
 <tbody>
-<tr>
-<td>duplicate / re-posted accounting entry</td>
-<td>21</td>
-<td>255,845.35 [01]</td>
-</tr>
-<tr>
-<td>incorrect debit/credit indicator</td>
-<td>9 [02]</td>
-<td>78,480.32 [01]</td>
-</tr>
-<tr>
-<td>incorrect FX conversion</td>
-<td>3</td>
-<td>4,467.53 [01]</td>
-</tr>
-<tr>
-<td>missing accounting mapping</td>
-<td>385</td>
-<td>4,387,367.89 [01][03]</td>
-</tr>
-<tr>
-<td>posted one accounting day late</td>
-<td>12 / 0 [04]</td>
-<td>-</td>
-</tr>
 <tr>
 <td>incorrect legal-entity allocation</td>
 <td>6</td>
@@ -194,13 +171,54 @@
 </tr>
 <tr>
 <td>incorrect cost-center assignment</td>
-<td>3 [05]</td>
-<td>40,036.00 [05]</td>
+<td>3 [01]</td>
+<td>40,036.00 [01]</td>
 </tr>
 <tr>
-<td>incorrect GL-account + cost-center [05]</td>
+<td>incorrect GL-account + cost-center [01]</td>
 <td>1</td>
-<td>9,706.73 [05]</td>
+<td>9,706.73 [01]</td>
+</tr>
+</tbody>
+</table>
+<ol>
+<li><strong>cost-center population split</strong> - one transaction the mapping validation also flags as <code>GL_MISMATCH</code> posts to a sentinel account/cost-center pair wrong on both fields at once, reported on its own row so no dollar is counted under two headings. A further, genuinely cost-center-mismatched transaction is excluded from every row above: its product/transaction-type combination carries two currently-active, conflicting mapping rows (see mapping validation's overlapping-mapping finding), so Task 1's recomputation has no single unambiguous expected value to substitute for it and it cannot move the movement variance either way - it remains a real classification error, just not one this particular reconciliation can bridge to.</li>
+</ol>
+<h3 id="other-findings-not-reflected-in-the-ledger-movement-variance">Other findings - not reflected in the Ledger movement variance</h3>
+<p>Each of these is a real, independently-verified finding, but <strong>none of them changes Task 1's Ledger-vs-source movement figure at all</strong> - see the note for each for why. Their dollar values are not on the same basis as the 297,137.40 above and do not net against it in any way; <code>missing accounting mapping</code>'s 4,387,367.89 in particular is a disclosure total (the combined value of transactions with nothing to check them against), not a variance, and dwarfs the Ledger variance in scale precisely because it is a different kind of number.</p>
+<table>
+<thead>
+<tr>
+<th>category</th>
+<th>rows / keys</th>
+<th>value</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>duplicate / re-posted accounting entry</td>
+<td>21</td>
+<td>255,845.35 [02]</td>
+</tr>
+<tr>
+<td>incorrect debit/credit indicator</td>
+<td>9 [03]</td>
+<td>78,480.32 [02]</td>
+</tr>
+<tr>
+<td>incorrect FX conversion</td>
+<td>3</td>
+<td>4,467.53 [02]</td>
+</tr>
+<tr>
+<td>missing accounting mapping</td>
+<td>385</td>
+<td>4,387,367.89 [02][04]</td>
+</tr>
+<tr>
+<td>posted one accounting day late</td>
+<td>12 / 0 [05]</td>
+<td>-</td>
 </tr>
 </tbody>
 </table>
@@ -209,7 +227,6 @@
 <li><strong>indicator</strong> - <code>ref.accounting_mapping</code> keys the expected GL account and cost center off <em>both</em> the product code and the debit/credit indicator, so a transaction carrying the wrong indicator often becomes an exact match for a <em>different</em>, valid mapping row under the opposite indicator: not some field being wrong, but every field being right, filed under the wrong sign. 9 transactions flagged this way. This is independent of Task 1's Ledger reconciliation - it reads the transaction and mapping data directly - so it isn't affected by that reconciliation's own finding that a flipped indicator is pass-through to the Ledger's movement figures.</li>
 <li><strong>missing accounting mapping</strong> - an audit-confidence gap, not a Ledger variance: these transactions keep their actual classification in Task 1's recomputation (no expected value to substitute), so they cannot contribute to the variance found.</li>
 <li><strong>late posting</strong> - 12 transactions post exactly one calendar day after their transaction date; 0 confirmed against the prior day's own movement shortfall - the Ledger is built from each transaction's own (possibly late) posting date, so the Ledger and the recomputation already agree on where a late-posted transaction lands.</li>
-<li><strong>cost-center population split</strong> - one transaction the mapping validation also flags as <code>GL_MISMATCH</code> posts to a sentinel account/cost-center pair wrong on both fields at once, reported on its own row so no dollar is counted under two headings. A further, genuinely cost-center-mismatched transaction is excluded from every row above: its product/transaction-type combination carries two currently-active, conflicting mapping rows (see mapping validation's overlapping-mapping finding), so Task 1's recomputation has no single unambiguous expected value to substitute for it and it cannot move the movement variance either way - it remains a real classification error, just not one this particular reconciliation can bridge to.</li>
 </ol>
 <h2 id="bridging-the-variance">Bridging the variance</h2>
 <p>Task 1's expected-classification recomputation substitutes a different value for exactly 16 transactions across three classification dimensions - legal-entity, GL-account, and cost-center (one transaction wrong on both fields at once) - every other transaction's actual and expected classification already agree, contributing identically to both the Ledger and the recomputation. The four categories are added back one at a time, in the order below, each measured as the exact increase in variance that category's own correction contributes on top of the ones already added - not each category's own published value taken in isolation, and not a face-value estimate. Measured this way, the four amounts add up to the total by construction, with nothing left over:</p>

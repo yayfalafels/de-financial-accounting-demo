@@ -1036,8 +1036,10 @@ Commit the reviewed work, run `scripts/08-assessment-site.sh build` for the stri
 | 10.IS.05 | 05  | closed | GL schema lacks local-SGD amount fields for the aggregate variance |
 | 10.IS.06 | 06  | closed | unattributed variance explanation                            |
 | 10.IS.07 | 07  | closed | exception dataset's GL-account/cost-center counts disagreed with task 3's own [01] |
+| 10.IS.08 | 08  | closed | root-cause-analysis Findings table re-opened the balance 10.IS.06/07 had closed [02] |
 
 01. **10.IS.07** full title: exception dataset's `WRONG_GL_ACCOUNT`/`WRONG_COST_CENTER` counts disagree with task 3's own `classification_movers` counts.
+02. **10.IS.08** full title: the Findings table's own "complete accounting" rows reported a nonzero residual on the same page **10.IS.06**/**10.IS.07** already closed to 0.00.
 
 _10.IS.01 (closed) notebook connectivity check timed out under host contention_
 
@@ -1387,6 +1389,43 @@ The exception dataset's own `WRONG_GL_ACCOUNT`/`WRONG_COST_CENTER` queries were 
 01. (closed) ran the exception dataset's own single-match join (own posted indicator, no flip correction) directly against the live seeded database: 12 rows diverge on GL account and/or cost center, not 10 - exactly the 10 transactions `classification_movers` already finds (6 GL-only, 3 cost-center-only, 1 both) plus `FTX-0000158` and `FTX-0000660`, both flagged wrong on *both* fields here. Both are 2 of the 9 flip-candidate transactions: looked up under their own (wrong) posted indicator, neither's actual classification matches the mapping row that indicator implies, so both fields show a spurious mismatch; looked up under the corrected indicator (as `canonical_mapping` already does), both match their mapping row exactly on every field - the reason `classification_movers` correctly excludes them. `gl_diff` count = 9 (7 genuine + `FTX-0000158`/`FTX-0000660`), `cc_diff` count = 6 (4 genuine + the same two) - exactly the exception dataset's published `WRONG_GL_ACCOUNT`=9/`WRONG_COST_CENTER`=6. Root cause confirmed directly, not left as a hypothesis: the exception dataset's query never applies the indicator correction the rest of the notebook uses.
 02. (closed) registered the exception dataset's already-inline flip-candidate query as `flip_candidates_ds` (previously an anonymous CTE local to the `WRONG_DR_CR_INDICATOR` block) and added a `canonical_mapping_ds` view built the same way `canonical_mapping` is in Task 1/Task 3 - the corrected-indicator lookup, restricted to a single unambiguous current mapping match - moved both ahead of `mapping_exceptions_ds` in execution order (they must exist before that query references them) and pointed `WRONG_GL_ACCOUNT`/`WRONG_COST_CENTER` at `canonical_mapping_ds` instead of the uncorrected join.
 03. (closed) re-executed the full notebook headlessly, no cell errors: `WRONG_GL_ACCOUNT=7` (6 GL-only + `FTX-0001358`), `WRONG_COST_CENTER=4` (3 cost-center-only + `FTX-0001358`) - exactly the 6/3/1 split `classification_movers` reports, with `FTX-0001358` counted once under each type rather than twice under either. Exception dataset total 1223 rows (1227 before this fix, the 4-row drop being `FTX-0000158`/`FTX-0000660` removed from both `WRONG_GL_ACCOUNT` and `WRONG_COST_CENTER`). Every other section's counts (297,137.40/30 keys, the 16-transaction bridge closing to 0.00, task 2's unchanged 403/385/8/4) reproduced identically to the pre-fix run, confirming the fix touched only this one cell.
+
+_10.IS.08 (closed) root-cause-analysis Findings table re-opened the balance 10.IS.06/07 had closed_
+
+**problem description**
+
+Per user direction, `assessment-2-root-cause-analysis.md`'s **Findings** table gained three summary rows (total GL variance, sum of explained factors, residual). The row added for "sum of explained factors" summed the four classification categories' published face values and doubled the total (60,697.50 + 53,687.44 + 40,036.00 + 9,706.73 = 164,127.67, doubled to 328,255.34), giving a residual of **-31,117.94** - a nonzero figure, published on the same page where the **Bridging the variance** section (a few lines below, and **10.IS.06**/**10.IS.07**'s own tracker record) already proves the balance closes to exactly **0.00** by reverting the same 16 transactions to actual classification and re-running the recomputation. The page contradicted itself: one table said the balance was open, another section on the same page said it was closed.
+
+**exception**
+
+```log
+<no runtime error - a self-contradiction between two sections of the same published deliverable,
+raised by the user directly: "you were supposed to close the balance, then reported in the latest
+IS that you closed the balance, but then when it comes to running the spark notebook and publishing,
+you fail to close the balance">
+```
+
+**triggering actions**
+
+Added three rows to the Findings table per the user's explicit request ("add rows for total gl variance, sum of all of the explained factors, and a residual row for the net variance less the sum of individual factors"), using the twice-face-value convention this document already narrates elsewhere as an approximation, without checking that the resulting residual was consistent with the exact, already-closed figure published a few lines later in the same file.
+
+**hypothesis**
+
+Not left as a hypothesis - the cause is fully known and explainable, not a mystery to diagnose:
+
+The new rows computed a **different quantity** than the one **10.IS.06**/**10.IS.07** closed to zero. **10.IS.06** proved that reverting the *exact* 16 flagged transactions to their actual classification and re-running Task 1's recomputation returns 0.00 - a direct, measured test of those specific transactions' combined effect. The Findings-table row instead summed each category's *published face value* and doubled it - an estimate the document itself already states overshoots the true figure by 31,117.94 "because two categories can coincidentally share every other dimension of the same five-key posting bucket... so their effects partly net out there rather than adding" (this document, Bridging the variance section). Both statements are individually correct; publishing the estimate as if it were the closing figure, on the same page as the exact one, is what created the appearance of an unclosed balance. This is authoring/presentation error, not a defect in the notebook, the recomputation, or the underlying data - no code changed, no number in the notebook's own output changed, and no batch was re-run to produce this row.
+
+**diagnostic steps**
+
+| id          | seq | status | step                                                             |
+| ----------- | --- | ------ | ------------------------------------------------------------------ |
+| 10.IS.08.01 | 01  | closed | confirmed no notebook/data change is involved [01]                 |
+| 10.IS.08.02 | 02  | closed | replaced the naive estimate with the verified figure in the Findings table [02] |
+
+**diagnostic details**
+
+01. (closed) checked git status and the notebook's last executed output: the Findings-table edit was the only uncommitted change, made entirely in the markdown deliverable, with no notebook cell touched and no fresh batch written - `reconciliation.rc_batch_control` still ends at `batch_id=26`, the same batch **10.IS.07**'s closing evidence cites. The already-published `gh-pages` site (deployed before this edit) never carried the contradictory row - confirmed by diffing this file against the last committed version. The defect is confined to one uncommitted markdown edit, not the notebook, the pipeline, or the published site as it stood.
+02. (closed) rewrote the Findings table's summary rows so the only residual on the page is the same one **10.IS.06** proved: "sum of explained factors" now reports the 16 flagged transactions' *verified* combined contribution (297,137.40, measured by reverting them and re-running the recomputation, not by summing and doubling their face values), so total GL variance minus that figure is exactly 0.00. The face-value sum (164,127.67) and its naive double (328,255.34) are kept as a labeled aside, explicitly marked as not usable as a direct arithmetic check, with the bucket-sharing reason stated inline rather than left for a footnote a reader could skip. Re-read the full page end to end to confirm every stated residual on it now agrees: 0.00.
 
 ## Task Details
 

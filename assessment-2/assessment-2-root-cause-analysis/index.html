@@ -202,6 +202,21 @@
 <td>1</td>
 <td>9,706.73 [05]</td>
 </tr>
+<tr>
+<td><strong>total GL variance</strong> (Task 1 recomputation)</td>
+<td>589 keys</td>
+<td><strong>297,137.40</strong></td>
+</tr>
+<tr>
+<td>less: sum of explained factors, verified [06]</td>
+<td>16</td>
+<td>297,137.40</td>
+</tr>
+<tr>
+<td>= <strong>residual</strong></td>
+<td>-</td>
+<td><strong>0.00</strong></td>
+</tr>
 </tbody>
 </table>
 <ol>
@@ -210,6 +225,7 @@
 <li><strong>missing accounting mapping</strong> - an audit-confidence gap, not a Ledger variance: these transactions keep their actual classification in Task 1's recomputation (no expected value to substitute), so they cannot contribute to the variance found.</li>
 <li><strong>late posting</strong> - 12 transactions post exactly one calendar day after their transaction date; 0 confirmed against the prior day's own movement shortfall - the Ledger is built from each transaction's own (possibly late) posting date, so the Ledger and the recomputation already agree on where a late-posted transaction lands.</li>
 <li><strong>cost-center population split</strong> - one transaction the mapping validation also flags as <code>GL_MISMATCH</code> posts to a sentinel account/cost-center pair wrong on both fields at once, reported on its own row so no dollar is counted under two headings. A further, genuinely cost-center-mismatched transaction is excluded from every row above: its product/transaction-type combination carries two currently-active, conflicting mapping rows (see mapping validation's overlapping-mapping finding), so Task 1's recomputation has no single unambiguous expected value to substitute for it and it cannot move the movement variance either way - it remains a real classification error, just not one this particular reconciliation can bridge to.</li>
+<li><strong>sum of explained factors, verified</strong> - legal-entity, GL-account, cost-center, and the one combined transaction (16 transactions total) are the only rows above Task 1's recomputation substitutes an expected value for, so they are the only candidates that can explain the total GL variance. Their combined contribution is measured directly - reverting exactly these 16 transactions to their actual, as-posted classification and re-running the recomputation - not by adding up their published face values (60,697.50 + 53,687.44 + 40,036.00 + 9,706.73 = 164,127.67) and doubling the total, the way the "missing from its correct bucket, present in its wrong one" rule of thumb would suggest (328,255.34). That face-value-doubled estimate overshoots the true figure by 31,117.94, because two of the four categories' transactions can share every other dimension of the same five-key posting bucket and net against each other there instead of adding cleanly - it is not a usable arithmetic check on its own. The direct, measured contribution of the 16 transactions is exactly 297,137.40 - the full total - confirmed by <a href="#bridging-the-variance">Bridging the variance</a> below, where the same 16 transactions are reverted and the recomputation re-run to 0 keys / 0.00 variance.</li>
 </ol>
 <h2 id="bridging-the-variance">Bridging the variance</h2>
 <p>Task 1's expected-classification recomputation substitutes a different value for exactly 16 transactions across the three classification dimensions above (6 legal-entity, 6 GL-account, 3 cost-center, 1 both) - every other transaction's actual and expected classification already agree, contributing identically to both the Ledger and the recomputation. Re-running the recomputation with exactly these 16 transactions reverted to their actual, as-posted classification and every other transaction unchanged closes the bridge directly rather than by estimate:</p>

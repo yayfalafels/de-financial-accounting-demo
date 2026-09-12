@@ -21,7 +21,7 @@ See [overview](assessment-2-overview.md) for the scenario, table shapes, and the
 
 ## Independent movement recomputation
 
-Expected debit/credit movements independently recomputed from `bronze.finance_transactions`, on the transaction's *expected* classification rather than its actual (as-posted) one - grouping by the same values the Ledger was built from would make this check tautological, since the Ledger is itself built by aggregating those same actual, possibly-misclassified values. GL account and cost center use `ref.accounting_mapping`'s expected values wherever a transaction matches exactly one active mapping row; legal entity uses the majority-vote value for the transaction's account (the mapping table carries no legal-entity field). The mapping lookup itself is keyed on the transaction's own posted debit/credit indicator, so a transaction carrying the wrong indicator is looked up under the opposite indicator instead, wherever its actual classification matches a valid mapping row there and not under its own. Six product/transaction-type combinations carry more than one currently-active, conflicting mapping row - there is no single unambiguous expected value for these, so they keep their actual classification rather than an arbitrary pick among equally-valid candidates. Recomputed on `local_amount` and compared to the Ledger's local-SGD movement fields, so the single aggregate is a valid SGD amount rather than a mixed-native-currency score.
+Expected debit/credit movements independently recomputed from `bronze.finance_transactions`, on each transaction's *expected* classification - the Ledger is itself built by aggregating actual, possibly-misclassified values, so grouping by those same values would make this check tautological. GL account and cost center use `ref.accounting_mapping`'s expected values wherever a transaction matches exactly one active mapping row; legal entity uses the majority-vote value for the transaction's account (the mapping table carries no legal-entity field). The mapping lookup itself is keyed on the transaction's own posted debit/credit indicator, so a transaction carrying the wrong indicator is looked up under the opposite indicator instead, wherever its actual classification matches a valid mapping row there. Six product/transaction-type combinations carry more than one currently-active, conflicting mapping row - there is no single unambiguous expected value for these, so they keep their actual classification. Recomputed on `local_amount` and compared to the Ledger's local-SGD movement fields, so the single aggregate is a valid SGD amount.
 
 | check                      | keys compared | keys w/ variance | total variance |
 | ------------------------------ | -------------- | ------------------ | ----------------- |
@@ -39,7 +39,7 @@ The same recomputation rolled up to one dimension at a time. Status: `PASS` if `
 | currency             | 3                 | 0.0%                       | PASS   |
 | accounting date       | 5                 | 0.0%                       | PASS   |
 
-**findings** - currency and accounting date reconcile exactly; legal entity, GL account, and cost center each show a real, material variance once transactions are classified against their expected value instead of whatever they were actually posted under. Decomposing which named issue drives each is the subject of Task 3 - Investigate a Finance Variance.
+**findings** - currency and accounting date reconcile exactly; legal entity, GL account, and cost center each show a real, material variance once transactions are classified against their expected value. Decomposing which named issue drives each is the subject of Task 3 - Investigate a Finance Variance.
 
 ## write-back to `reconciliation.rc_*`
 
@@ -52,6 +52,6 @@ The same recomputation rolled up to one dimension at a time. Status: `PASS` if `
 
 01. `source` = `bronze.finance_transactions` (`COUNT(*)` / `SUM(local_amount)`).
 02. `target` = `finance.gl_balance` (`COUNT(*)` / `SUM(local_sgd_debit_movement + local_sgd_credit_movement)`).
-03. **row_count** compares two different grains by construction - 1523 individual transactions against 589 unique `(accounting_date, legal_entity, gl_account, cost_center, currency)` Ledger keys - not a reconciliation break.
+03. **row_count** compares two different grains by construction - 1523 individual transactions against 589 unique `(accounting_date, legal_entity, gl_account, cost_center, currency)` Ledger keys.
 
-Overall batch status: `FAIL` (`row_count` structurally, `amount` a clean `PASS` - the classification-driven variance surfaces at the dimensional level above, not in either write-back dimension).
+Overall batch status: `FAIL` (`row_count` structurally, `amount` a clean `PASS`) - the classification-driven variance surfaces at the dimensional level above.

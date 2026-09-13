@@ -36,20 +36,20 @@
 | id    | seq | status  | milestone                               |
 | ----- | --- | ------- | --------------------------------------- |
 | 11.01 | 01  | closed  | design                                  |
-| 11.02 | 02  | open    | prerequisites and seed data readiness   |
-| 11.03 | 03  | pending | assessment scope and context write-up   |
+| 11.02 | 02  | closed  | prerequisites and seed data readiness   |
+| 11.03 | 03  | closed  | assessment scope and context write-up   |
 | 11.04 | 04  | pending | task 1 - transaction banking profiling  |
 | 11.05 | 05  | pending | task 2 - end-to-end reconciliation      |
 | 11.06 | 06  | pending | exception dataset                       |
 | 11.07 | 07  | pending | task 3 - complex issue detection        |
 | 11.08 | 08  | pending | task 4 - data lineage documentation     |
-| 11.09 | 09  | pending | task 5 - Power BI executive dashboard   |
 | 11.10 | 10  | pending | performance-optimization notes          |
 | 11.11 | 11  | pending | five-minute presentation summary        |
 | 11.12 | 12  | pending | notebook consolidation and clean rerun  |
 | 11.13 | 13  | pending | deliverable review and status promotion |
 | 11.14 | 14  | pending | publish assessment site                 |
 | 11.IS | 15  | pending | validate                                |
+| 11.09 | --  | drop    | task 5 - Power BI executive dashboard   |
 
 ## Scope
 
@@ -701,13 +701,27 @@ Implementation order is prerequisites -> assessment context -> profiling -> end-
 
 edit locations: none
 
-Run the [prerequisites](#prerequisites) steps in order, confirming the evidence column for each. Record the seed run's issue counts as the baseline every later ground-truth comparison is made against. Do not start task 1 until every prerequisite reports `[PASS]`.
+_closed 11.02_ - ran every [prerequisites](#prerequisites) step in order against a clean session:
+
+| id       | evidence observed                                                          |
+| -------- | --------------------------------------------------------------------------- |
+| 11.PR.01 | `[PASS]` docker + python3.14 + venv module                                   |
+| 11.PR.02 | `[PASS]` venv, DDL generated/applied, postgres up, spark 2/2 workers         |
+| 11.PR.03 | `[PASS]` `docker ps` shows postgres/spark-master/2 workers/jupyter `Up`      |
+| 11.PR.04 | `[PASS]` 9 tables recreated; AS03 row counts [01]                            |
+| 11.PR.05 | `[PASS]` all row-count and ground-truth checks vs. `issue-log.csv` (305 rows/35 categories) |
+| 11.PR.06 | `[PASS]` `00_template_connectivity_check.ipynb` executed clean, summary marker agrees |
+| 11.PR.07 | `[PASS]` `07-deliverables-scaffold.sh --check` current for all three assessments |
+
+01. **11.PR.04** `source.payment_transactions`=2005, `bronze.payment_transactions`=2025, `bronze.customer_master`=315, `regulatory.payment_reporting`=2021 rows.
+
+Baseline for later ground-truth comparison, from the seed run's own inspection: 10 duplicate `payment_id` groups, 20 customers with more than one active reference row, 5 legitimate repeated `payment_id`s, 6 overlapping/duplicate accounting-mapping rows (AS02 dataset, same seed run), 5 GL arithmetic violations (AS02), 110 regulatory join-fanout duplicate records.
 
 ### 2. Assessment scope and context write-up
 
 edit locations: `11.EL.13, 11.EL.14, 11.EL.15`
 
-Author `results/assessment-3/assessment-3-overview.md` per [assessment context documentation](#assessment-context-documentation): the Assessment 3 scenario, the four dataset shapes, Tasks 1-5, the technical optimization question, the expected deliverable list, and the scale statement contrasting the assignment's 5B-row/40-minute figures with this demo's seeded volume budget. Link it from `results/index.md`, and add it to `mkdocs.yml`'s navigation only if the strict build cannot reach it through that link.
+_closed 11.03_ - authored `results/assessment-3/assessment-3-overview.md`: scenario, all four dataset shapes, Tasks 1-5, the technical optimization question, the expected deliverable list, and the scale statement (the assignment's reconciliation-matrix example figures plus the 5B-row/40-minute performance scenario against this seed run's 2,005/2,025/315/2,021-row budget). Linked from `results/index.md`. `mkdocs.yml` nav (`11.EL.15`) was **not** touched - `./scripts/08-assessment-site.sh build` passed strictly with the overview reachable through the `results/index.md` link alone, matching the same footnote condition [09](09-as01-data-profiling-reconciliation.md#2-assessment-scope-and-context-write-up) already established.
 
 This step is done before any analysis write-up so each later deliverable can be authored with its context line already pointing at an existing page.
 

@@ -281,16 +281,31 @@
 <tbody>
 <tr>
 <td>04.01</td>
-<td>framework metrics</td>
+<td>total-layer metrics</td>
 <td>n/a [01]</td>
 <td>16999151.01 / 16999151.01, <code>PASS</code> [02]</td>
 <td>n/a</td>
+</tr>
+<tr>
+<td>04.01</td>
+<td>dimensional layer</td>
+<td>n/a [03]</td>
+<td>30 keys, 297,137.40</td>
+<td>yes [03]</td>
+</tr>
+<tr>
+<td>04.01</td>
+<td>category layer</td>
+<td>n/a [03]</td>
+<td>1,223 rows, 16-txn bridge to 0.00</td>
+<td>yes [03]</td>
 </tr>
 </tbody>
 </table>
 <ol>
 <li><strong>04.01</strong> is a design/metrics deliverable with no injected-issue tag of its own - it reuses Task 1's already-verified <code>gl_amount</code> expression (<code>SUM(local_sgd_debit_movement + local_sgd_credit_movement)</code>), the same movement-flow basis Task 1's own write-back and Task 3's bridge use. A first-pass check against the design's originally-specified <code>gl_amount</code> expression (<code>SUM(local_sgd_closing_balance)</code>) returned 14,826,335.19 against a source amount of 16,999,151.01 - the same chained-ledger stock-vs-flow mismatch <code>01.02-08</code>'s footnote already diagnosed once for Task 1, reproduced here because the design's <code>gl_amount</code> definition had not been corrected to match. Corrected before any notebook cell was written; the published metric reconciles exactly.</li>
 <li><strong>measured</strong> column reads source amount / GL amount, both SGD, then the resulting status.</li>
+<li><strong>dimensional/category layer</strong> rows have no injected-issue tag of their own - they reuse Task 1's own <code>dimension_summaries</code> and Task 3's own <code>findings</code>/bridge outputs directly rather than recomputing them, so "match" here means these two rows reproduce <code>01.02-08</code> and the Task 3 bridge check below exactly, not that they were checked against a separate ground truth.</li>
 </ol>
 <p>All measured values are read live via Spark SQL/PySpark against postgres in the notebook section cited above, not hand-typed against the ground truth.</p></div>
             </div>

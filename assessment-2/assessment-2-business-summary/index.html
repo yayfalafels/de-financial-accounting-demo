@@ -78,6 +78,14 @@
               <ul class="nav flex-column">
               </ul>
             </li>
+            <li class="nav-item" data-bs-level="2"><a href="#what-we-found" class="nav-link">What we found</a>
+              <ul class="nav flex-column">
+              </ul>
+            </li>
+            <li class="nav-item" data-bs-level="2"><a href="#what-we-recommend" class="nav-link">What we recommend</a>
+              <ul class="nav flex-column">
+              </ul>
+            </li>
               </ul>
             </li>
         </ul>
@@ -87,12 +95,39 @@
 
 <h1 id="assessment-2-business-facing-summary">Assessment 2 - Business-Facing Summary</h1>
 <p>status: draft</p>
+<p><strong>Business-Facing Summary</strong></p>
+<p>See <a href="../assessment-2-overview/">overview</a> for the scenario and scale this summary answers. See <a href="../assessment-2-root-cause-analysis/">root-cause analysis</a> and <a href="../assessment-2-framework-design/">reconciliation framework design</a> for the full technical detail behind the findings and recommendations below.</p>
 <h2 id="sources">Sources</h2>
 <ul>
-<li>notebook: <code>notebooks/assessment2_gl_reconciliation.ipynb</code></li>
-<li>batch: <code>reconciliation.rc_batch_control.batch_id = 26</code></li>
+<li>notebook: <a href="https://github.com/yayfalafels/de-financial-accounting-demo/blob/main/notebooks/assessment2_gl_reconciliation.ipynb">assessment2_gl_reconciliation.ipynb</a></li>
+<li>batch: <code>reconciliation.rc_batch_control.batch_id = 29</code></li>
 </ul>
-<p>The reconciliation compares source and General Ledger amounts on a common SGD basis. The Ledger-vs-source movement check finds SGD 297,137.40 of classification-driven variance across 30 Ledger keys. Incorrect legal-entity, GL-account, and cost-center postings (16 transactions in total) fully explain this amount - reverting exactly those 16 transactions to their as-posted classification and re-running the check returns a clean SGD 0.00, confirming no other transaction or cause contributes. Two further transactions carry a genuine misclassification each but post under a product/transaction-type combination with more than one currently-active, conflicting accounting-mapping row, so no single correct account exists to check them against.</p></div>
+<h2 id="what-we-found">What we found</h2>
+<p>Overall, the platform's total balance agrees with the General Ledger to the cent - no money is missing. The disagreement Finance is seeing is transactions landing in the wrong bucket, not money disappearing. About SGD 297,137 - roughly 30 of the 589 lines on the Ledger - was posted against the wrong legal entity, the wrong GL account, or the wrong cost center. Tracing 16 transactions back to where they should have posted closes that gap exactly to zero.</p>
+<p>Three smaller, unrelated issues turned up alongside this:</p>
+<ul>
+<li><strong>Duplicate entries</strong> - 21 transactions appear to have been recorded twice (SGD 255,845 combined). Each needs to be checked against the originating system before anything is reversed, since a genuine repeat transaction would look the same as a duplicate.</li>
+<li><strong>Wrong debit/credit side</strong> - 9 transactions (SGD 78,480 combined) were posted as a valid entry, just on the opposite side of where they belonged.</li>
+<li><strong>Currency conversion errors</strong> - 3 transactions (SGD 4,468 combined) converted at the wrong exchange rate.</li>
+<li><strong>No accounting rule on file</strong> - 385 transactions (SGD 4.39 million combined) have no rule to check them against at all. This is the largest figure by value, but it is a coverage gap, not a confirmed error - today, nobody can say whether these are posted correctly.</li>
+</ul>
+<h2 id="what-we-recommend">What we recommend</h2>
+<ul>
+<li>fix the 16 transactions behind the SGD 297,137 variance and re-run the check to confirm it closes to zero</li>
+<li>close the accounting-rule coverage gap - load or confirm a rule for every product and transaction type actually being posted, starting with the 385 transactions above</li>
+<li>investigate the 21 duplicate entries against the source system before reversing any of them</li>
+<li>confirm the exchange rate that should have applied, on the transaction date, for the 3 currency-conversion errors</li>
+<li>put standing controls in place, not just a one-time fix:<ul>
+<li>flag a posting whose entity, account, or cost center breaks from that account's normal pattern, before it posts</li>
+<li>block a posting from using a rule that has expired once a current one exists</li>
+<li>flag a posting that only matches a valid rule on the opposite debit/credit side</li>
+<li>alert whenever a new product or transaction type appears with no rule yet on file</li>
+<li>check for duplicate entries within a batch before it is accepted</li>
+<li>check the exchange rate in force at the point of posting, not after</li>
+</ul>
+</li>
+<li>move from a one-time check to a daily one, with clear pass/warning/fail thresholds, so this kind of drift is caught within a day instead of surfacing after it has built up across a reporting period</li>
+</ul></div>
             </div>
         </div>
 

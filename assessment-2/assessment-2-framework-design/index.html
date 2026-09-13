@@ -78,7 +78,19 @@
               <ul class="nav flex-column">
               </ul>
             </li>
-            <li class="nav-item" data-bs-level="2"><a href="#metrics" class="nav-link">Metrics</a>
+            <li class="nav-item" data-bs-level="2"><a href="#design-three-layers-not-one" class="nav-link">Design: three layers, not one</a>
+              <ul class="nav flex-column">
+              </ul>
+            </li>
+            <li class="nav-item" data-bs-level="2"><a href="#total-layer" class="nav-link">Total layer</a>
+              <ul class="nav flex-column">
+              </ul>
+            </li>
+            <li class="nav-item" data-bs-level="2"><a href="#dimensional-layer" class="nav-link">Dimensional layer</a>
+              <ul class="nav flex-column">
+              </ul>
+            </li>
+            <li class="nav-item" data-bs-level="2"><a href="#category-layer" class="nav-link">Category layer</a>
               <ul class="nav flex-column">
               </ul>
             </li>
@@ -108,10 +120,11 @@
 <h2 id="sources">Sources</h2>
 <ul>
 <li>notebook: <a href="https://github.com/yayfalafels/de-financial-accounting-demo/blob/main/notebooks/assessment2_gl_reconciliation.ipynb">assessment2_gl_reconciliation.ipynb</a> -&gt; "Task 4 - Reconciliation Framework" section</li>
-<li>batch: <code>reconciliation.rc_batch_control.batch_id = 29</code></li>
+<li>batch: <code>reconciliation.rc_batch_control.batch_id = 30</code></li>
 </ul>
-<h2 id="metrics">Metrics</h2>
-<p>A daily run measures source, Bronze, and GL counts and amounts on a common SGD basis, then derives variance, exception count, and status from them. Bronze has no separate ingestion tier for this dataset, so <code>bronze_count</code>/<code>bronze_amount</code> read the same source figures <code>source_count</code>/<code>source_amount</code> do; the two names stay in the framework's vocabulary for consistency across assessments.</p>
+<h2 id="design-three-layers-not-one">Design: three layers, not one</h2>
+<p>A single flow-total comparison - source SGD amount against GL SGD amount - reconciles even when every dollar is filed under the wrong legal entity, GL account, or cost center: misclassification moves a dollar between buckets without changing how much money exists in total, so a total-only check shows a clean pass on exactly the kind of error this dataset carries. A reusable, daily-run framework needs two further layers to catch that: a dimensional layer, rolling the same source-vs-GL comparison up to one classification dimension at a time, and a category layer, checking the named exception categories that explain why a dimension disagrees. All three run on the same SGD basis and the same daily cadence; each is demonstrated below on today's data.</p>
+<h2 id="total-layer">Total layer</h2>
 <table>
 <thead>
 <tr>
@@ -154,7 +167,111 @@
 </tr>
 </tbody>
 </table>
-<p><code>source_count</code>/<code>gl_transaction_count</code> compare two different grains - 1,523 individual transactions against 589 unique <code>(accounting_date, legal_entity, gl_account, cost_center, currency)</code> Ledger keys - so a row-count check on this pair states a structural fact of the data model. The framework's count metric is reported for completeness; <code>PASS</code>/<code>FAIL</code> assignment applies to the amount-basis metrics above, where source and GL sit on the same SGD flow basis and reconcile exactly.</p>
+<p>Bronze has no separate ingestion tier for this dataset, so <code>bronze_count</code>/<code>bronze_amount</code> read the same figures <code>source_count</code>/<code>source_amount</code> do; the two names stay in the framework's vocabulary for consistency across assessments. <code>source_count</code>/<code>gl_transaction_count</code> compare two different grains - 1,523 individual transactions against 589 unique <code>(accounting_date, legal_entity, gl_account, cost_center, currency)</code> Ledger keys - a structural fact of the data model reported for completeness; <code>PASS</code>/<code>FAIL</code> assignment applies to the amount-basis metrics, where source and GL sit on the same SGD flow basis and reconcile exactly, because the total layer only tracks how much money exists, not which bucket it landed in.</p>
+<h2 id="dimensional-layer">Dimensional layer</h2>
+<p>The same source-vs-GL comparison, rolled up to one classification dimension at a time:</p>
+<table>
+<thead>
+<tr>
+<th>dimension</th>
+<th>distinct values</th>
+<th>worst variance %</th>
+<th>status</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>legal entity</td>
+<td>4</td>
+<td>0.7482% (LE1)</td>
+<td>WARNING</td>
+</tr>
+<tr>
+<td>GL account</td>
+<td>16</td>
+<td>4.6907% (GL1005)</td>
+<td>FAIL</td>
+</tr>
+<tr>
+<td>cost center</td>
+<td>11</td>
+<td>2.2957% (CC09)</td>
+<td>FAIL</td>
+</tr>
+<tr>
+<td>currency</td>
+<td>3</td>
+<td>0.0%</td>
+<td>PASS</td>
+</tr>
+<tr>
+<td>accounting date</td>
+<td>5</td>
+<td>0.0%</td>
+<td>PASS</td>
+</tr>
+</tbody>
+</table>
+<p>Currency and accounting date reconcile exactly at every value; legal entity, GL account, and cost center each carry a real, material variance once transactions are checked against their expected classification. The dimensional-level movement variance totals SGD 297,137.40 across 30 of the 589 Ledger keys - the figure the total layer's clean <code>PASS</code> cannot surface.</p>
+<h2 id="category-layer">Category layer</h2>
+<p>The named exception categories, checked independently, are what a daily run reports as the actionable list once a dimension fails:</p>
+<table>
+<thead>
+<tr>
+<th>category</th>
+<th>rows</th>
+<th>value</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>duplicate / re-posted accounting entry</td>
+<td>21</td>
+<td>SGD 255,845.35</td>
+</tr>
+<tr>
+<td>incorrect debit/credit indicator</td>
+<td>9</td>
+<td>SGD 78,480.32</td>
+</tr>
+<tr>
+<td>incorrect FX conversion</td>
+<td>3</td>
+<td>SGD 4,467.53</td>
+</tr>
+<tr>
+<td>missing accounting mapping</td>
+<td>385</td>
+<td>SGD 4,387,367.89</td>
+</tr>
+<tr>
+<td>posted one accounting day late</td>
+<td>0 confirmed</td>
+<td>SGD 0.00</td>
+</tr>
+<tr>
+<td>incorrect legal-entity allocation</td>
+<td>6</td>
+<td>SGD 60,697.50</td>
+</tr>
+<tr>
+<td>incorrect GL-account assignment</td>
+<td>6</td>
+<td>SGD 53,687.44</td>
+</tr>
+<tr>
+<td>incorrect cost-center assignment</td>
+<td>3</td>
+<td>SGD 40,036.00</td>
+</tr>
+<tr>
+<td>incorrect GL-account + cost-center</td>
+<td>1</td>
+<td>SGD 9,706.73</td>
+</tr>
+</tbody>
+</table>
+<p>The last four rows - 16 transactions in total - are the categories that move the dimensional layer's figure; reverting exactly these 16 to their actual, as-posted classification and re-running the dimensional comparison closes it to 0 keys / SGD 0.00. The framework's daily exception list would name these 16 transactions directly. The first five rows are real, independently-verified findings the assignment names as candidate causes; none of them moves the dimensional or total layer's own arithmetic.</p>
 <h2 id="tolerance-rules">Tolerance rules</h2>
 <p>Configurable tolerance is expressed as a lookup keyed on dimension, currency, and GL account:</p>
 <pre><code>tolerance_rules(dimension, currency NULL=all, gl_account NULL=all,
@@ -208,7 +325,7 @@
 <td><code>FAIL</code></td>
 </tr>
 <tr>
-<td>2026-09-11</td>
+<td>2026-09-13</td>
 <td><code>FAIL</code></td>
 </tr>
 <tr>
@@ -217,7 +334,7 @@
 </tr>
 </tbody>
 </table>
-<p>Overall batch status carries the worst status across the batch's own measured dimensions - <code>FAIL</code> here reflects the count-grain mismatch discussed above, while the amount basis reconciles clean at <code>PASS</code> on every run shown. Historical trend analysis is a single query away, filtered to this assessment's own batches and ordered by date.</p></div>
+<p>Overall batch status carries the worst status across the batch's own measured dimensions - <code>FAIL</code> here reflects the total layer's count-grain mismatch, while the total layer's amount metric reconciles clean at <code>PASS</code> on every run shown; the dimensional and category layers above are the ones a daily run would actually rely on to know why. Historical trend analysis is a single query away, filtered to this assessment's own batches and ordered by date.</p></div>
             </div>
         </div>
 

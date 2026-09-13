@@ -710,6 +710,11 @@ _09.02-09.04 run (prerequisites, context write-up, task 1 profiling - all ten ch
 | 09.IS.01 | 01  | closed | gh-pages `git push` had no credentials configured |
 | 09.IS.02 | 02  | closed | deliverable status marker convention conflict     |
 | 09.IS.03 | 03  | closed | exception dataset showed identical source/bronze values |
+| 09.IS.04 | 04  | closed | deliverables referenced internal tracker check ids [01] |
+| 09.IS.05 | 05  | closed | deliverables used negation-contrast phrasing [02] |
+
+01. **09.IS.04** full title: `assessment-1-profiling-summary.md`, `assessment-1-reconciliation-results.md`, and `assessment-1-exception-dataset.md` used `09.CK.xx` tracker ids as table row labels and inline citations - tracker apparatus [10](10-as02-financial-accounting-gl.md#presentation-boundary--blind-analyst-results)'s rule bars from a deliverable, retrofitted onto AS02 during 10.05/10.07 review but never applied here.
+02. **09.IS.05** full title: every AS01 deliverable used "X, not Y" / "rather than Y" / "instead of Y" comparative phrasing to state a finding by contrast with a rejected alternative, the same anti-pattern removed from every AS02 deliverable in the current session's review pass - AS01 predates that cleanup and was never brought into line with it.
 
 _09.IS.01 (closed) gh-pages `git push` had no credentials configured_
 
@@ -847,6 +852,76 @@ Confirmed via SQL that all 9 `amount_mismatch` rows differ on `transaction_amoun
 **validation evidence**
 
 Rerun sample rows show real, differing `source_value`/`bronze_value` pairs (e.g. `6990.12` / `6992.03`, `variance=1.91`); `exception_dataset.groupBy("mismatched_field")` confirms all 9 are `transaction_amount`.
+
+_09.IS.04 (closed) deliverables referenced internal tracker check ids_
+
+**problem description**
+
+A content/formatting review of the published deliverables found `09.CK.xx` tracker check ids used as table row labels and inline citations throughout `assessment-1-profiling-summary.md`, `assessment-1-reconciliation-results.md`, and `assessment-1-exception-dataset.md`. [10](10-as02-financial-accounting-gl.md#presentation-boundary--blind-analyst-results)'s presentation-boundary rule - a deliverable never references this tracker's own ids - was established and retrofitted onto every AS02 deliverable during 10.05/10.07 review, but AS01's earlier deliverables predate that rule and were never brought into line with it.
+
+**exception**
+
+```log
+<no runtime error - a content/formatting review finding, not a script failure>
+```
+
+**triggering actions**
+
+user-directed review of AS01 and AS02 deliverables for content and formatting compliance.
+
+**hypothesis**
+
+Not left as a hypothesis - confirmed directly by inspection: all three files' finding tables carry `09.CK.NN` as their id column, several footnotes cite `09.CK.NN` inline, and the notebook's own Task 1/Level 3 markdown cells carry the same pattern - a tracker-internal id meaningless to a reader holding only the assignment brief, and exactly the tracker apparatus [10](10-as02-financial-accounting-gl.md#presentation-boundary--blind-analyst-results) already bars.
+
+**diagnostic steps**
+
+| id          | seq | status | step                                                              |
+| ----------- | --- | ------ | ---------------------------------------------------------------- |
+| 09.IS.04.01 | 01  | closed | grep-scanned all AS01/AS02 deliverables for tracker id patterns   |
+| 09.IS.04.02 | 02  | closed | dropped the id column/inline citations, kept the plain descriptions |
+
+**diagnostic details**
+
+Step 02: each table's id column (`09.CK.NN`) is removed outright rather than replaced with a substitute numbering - the plain check/dimension/record-class name already in the next column carries the same information without an id a reader cannot resolve, matching the style [10](10-as02-financial-accounting-gl.md#assessment-task-to-deliverable-map)'s own retrofitted deliverables already use (no id column on their finding tables either). Footnote markers (`[01]`, `[02]`, ...) are kept since they are ordinary footnote references, not tracker ids.
+
+**validation evidence**
+
+`grep -RE '\b09\.(CK|PR|WS|EL|TC|DM)\.[0-9]' results/assessment-1/*.md` (excluding `assessment-1-audit.md`, which is allowed to reference the tracker) returns no matches; a Python regex scan of every notebook markdown cell for the same pattern returns no matches; `awk` row-length check and `scripts/07-deliverables-scaffold.sh --check` both still pass. Notebook edits were markdown-only (no code/output changed), so no rerun was required.
+
+_09.IS.05 (closed) deliverables used negation-contrast phrasing_
+
+**problem description**
+
+The same content/formatting review found "X, not Y" / "rather than Y" / "instead of Y" comparative phrasing throughout every AS01 deliverable and the notebook's markdown cells, including `assessment-1-audit.md` - stating a finding by contrast with a rejected alternative rather than directly.
+
+**exception**
+
+```log
+<no runtime error - a content/formatting review finding, not a script failure>
+```
+
+**triggering actions**
+
+user-directed review of AS01 and AS02 deliverables for content and formatting compliance, immediately following the same finding and fix already applied to every AS02 deliverable in the current session.
+
+**hypothesis**
+
+Not left as a hypothesis - confirmed directly by inspection and grep: every one of AS01's six results deliverables carried at least one instance of the pattern.
+
+**diagnostic steps**
+
+| id          | seq | status | step                                                           |
+| ----------- | --- | ------ | --------------------------------------------------------------- |
+| 09.IS.05.01 | 01  | closed | grepped all AS01 deliverables for the three phrasing patterns   |
+| 09.IS.05.02 | 02  | closed | rewrote each instance to state the point directly               |
+
+**diagnostic details**
+
+Step 02: each rewrite states the point on its own terms rather than substituting a synonym for the same contrast structure - e.g. "upsert, not append" became "upsert on load," "rather than only being caught after the fact" was dropped outright since the preceding clause already states the positive outcome in full.
+
+**validation evidence**
+
+`grep -RE '\brather than\b|\binstead of\b|,\s*not\b' results/assessment-1/*.md` returns no matches; a Python regex scan of every notebook markdown cell for the same three patterns returns no matches; `scripts/07-deliverables-scaffold.sh --check` still passes.
 
 **user actions**
 

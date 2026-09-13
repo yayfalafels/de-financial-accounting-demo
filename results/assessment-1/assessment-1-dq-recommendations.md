@@ -2,7 +2,7 @@
 
 **Task 3 - Permanent DQ-Control Recommendations**
 
-See [overview](assessment-1-overview.md) for the scenario, source/Bronze table shapes, and the seeded-vs-production scale statement. Every control below closes a specific gap named in [assessment-1-root-cause-analysis.md](assessment-1-root-cause-analysis.md); each is written so it maps onto the existing `reconciliation.rc_*` control-table framework rather than as a standalone process ask.
+See [overview](assessment-1-overview.md) for the scenario, source/Bronze table shapes, and the seeded-vs-production scale statement. Every control below closes a specific gap named in [assessment-1-root-cause-analysis.md](assessment-1-root-cause-analysis.md); each is written to map onto the existing `reconciliation.rc_*` control-table framework.
 
 ## Sources
 
@@ -12,22 +12,22 @@ See [overview](assessment-1-overview.md) for the scenario, source/Bronze table s
 
 ## Remediation
 
-Remediation repairs the root cause for this specific case, so the two confirmed hypotheses stop recurring rather than only being caught after the fact.
+Remediation repairs the root cause for this specific case, so the two confirmed hypotheses stop recurring.
 
 | id  | control                                                                  | addresses    |
 | --- | ------------------------------------------------------------------------ | ------------ |
 | P01 | derive business date from `transaction_date` before file-bucketing       | hypothesis 1 |
-| P02 | make Bronze ingestion idempotent on `transaction_id` upsert, not append  | hypothesis 2 |
+| P02 | make Bronze ingestion idempotent on `transaction_id`, upsert on load     | hypothesis 2 |
 | P03 | require a load `reason_code` (`INITIAL`/`REPROCESS`), reject if absent   | hypothesis 2 |
 | P04 | gate Bronze publish on the batch's `rc_*` status                         | both         |
 
 01. **P01** convert `source_extract_ts` to business timezone (or derive business date directly) before assigning a record to a daily ingestion file - closes the UTC/SGT midnight boundary from hypothesis 1.
-02. **P03** the `-R` suffix already present in this data shows the signal exists; this makes it a required, validated field instead of an informal file-naming convention.
-03. **P04** publish blocked while `rc_reconciliation_results.reconciliation_status = 'FAIL'` for the batch, so a bad batch stops before reaching Finance rather than being caught after.
+02. **P03** the `-R` suffix already present in this data shows the signal exists; this recommendation makes it a required, validated field.
+03. **P04** publish blocked while `rc_reconciliation_results.reconciliation_status = 'FAIL'` for the batch, so a bad batch stops before reaching Finance.
 
 ## Preventative controls
 
-Ongoing checks, each expressed against the `rc_*` schema already in place so a recommendation is something the framework can run, not a new tool.
+Ongoing checks, each expressed against the `rc_*` schema already in place so a recommendation is something the framework can run.
 
 | id  | check                       | grain        | rc_\* mapping [04]               | 
 | --- | --------------------------- | ------------ | -------------------------------- |
@@ -37,10 +37,10 @@ Ongoing checks, each expressed against the `rc_*` schema already in place so a r
 | D04 | reprocess row-count check   | per batch    | `audit_trail.action = NOTIFY`    | 
 | D05 | recurring dim. variance     | per batch    | recurring level-2 pass           | 
 
-01. **D01** is the check task 2 already runs each batch (`batch_id = 9` above) - carried forward here as the baseline detective control, not a new recommendation.
+01. **D01** is the check task 2 already runs each batch (`batch_id = 9` above) - carried forward here as the baseline detective control.
 02. **D02** is the single highest-value new check: task 3 confirmed both `*_MIDNIGHT.dat` files as 100% absent from Bronze (20/20 rows) - a per-file row-count check would have caught this the same day, before Finance noticed the batch-level gap.
-03. **D05** reruns task 2's one-off dimensional pass on every batch instead of only when investigating a reported mismatch, so an `ingestion_file`-concentrated variance is caught the day it occurs.
-04. all four new rows (`D02`-`D05`) fit inside `rc_reconciliation_results`/`rc_audit_trail` as additional `dimension`/`action` values, not new tables - the schema extension is additive.
+03. **D05** reruns task 2's dimensional pass on every batch, so an `ingestion_file`-concentrated variance is caught the day it occurs.
+04. all four new rows (`D02`-`D05`) fit inside `rc_reconciliation_results`/`rc_audit_trail` as additional `dimension`/`action` values - the schema extension is additive.
 
 ## Prioritisation
 
@@ -61,6 +61,6 @@ Severity reflects the dollar/row impact confirmed in the root-cause analysis; ef
 **Reading the list**: 
 
 - **P0** items close the two confirmed hypotheses at the source (P01, P02) and give the earliest possible detection of the specific failure mode already observed (D02).
-- **P1** items catch the same failure modes one layer later - after a bad batch lands rather than before. 
+- **P1** items catch the same failure modes one layer later, after a bad batch lands.
 - **P2** formalizes a check task 2 already proved useful but only ran once. None of these controls resolve the [5-row unexplained residual](assessment-1-root-cause-analysis.md#unexplained-residual) 
 - **D02 and D05** raise the odds a similar future occurrence is caught even if its mechanism is never fully explained.

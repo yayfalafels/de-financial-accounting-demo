@@ -22,25 +22,25 @@ Caveat: a `transaction_id` unique in source but duplicated in Bronze is excluded
 
 ## Record classes
 
-| id       | record class          | count            | materialisation    |
-| -------- | ---------------------- | ---------------- | ------------------- |
-| 09.CK.23 | exact match            | 1940             | -                   |
-| 09.CK.24 | missing in Bronze      | 33 [01]          | see exception rows  |
-| 09.CK.25 | unexpected in Bronze   | 0                | -                   |
-| 09.CK.26 | amount mismatch        | 9 [02]           | see exception rows  |
-| 09.CK.27 | currency mismatch      | 4                | see exception rows  |
-| 09.CK.28 | posting-date mismatch  | 4                | see exception rows  |
-| 09.CK.29 | duplicate in source    | 20 rows / 10 ids | see exception rows  |
-| 09.CK.30 | duplicate in Bronze    | 36 rows / 18 ids | see exception rows  |
+| record class          | count            | materialisation    |
+| ---------------------- | ---------------- | ------------------- |
+| exact match            | 1940             | -                   |
+| missing in Bronze      | 33 [01]          | see exception rows  |
+| unexpected in Bronze   | 0                | -                   |
+| amount mismatch        | 9 [02]           | see exception rows  |
+| currency mismatch      | 4                | see exception rows  |
+| posting-date mismatch  | 4                | see exception rows  |
+| duplicate in source    | 20 rows / 10 ids | see exception rows  |
+| duplicate in Bronze    | 36 rows / 18 ids | see exception rows  |
 
-01. **09.CK.24** 8 of these 33 are the "excluded because Bronze-duplicated" case the caveat above describes - see the notebook section for the exact `transaction_id` overlap with `09.CK.30`. The remaining 25 have no Bronze row under any classification.
-02. **09.CK.26** all 9 differ on `transaction_amount`, none on `local_currency_amount` alone - the two fields disagree with each other for these rows on the Bronze side, worth carrying into task 3.
+01. 8 of these 33 are the "excluded because Bronze-duplicated" case the caveat above describes - see the notebook section for the exact `transaction_id` overlap with the duplicate-in-Bronze class. The remaining 25 have no Bronze row under any classification.
+02. all 9 differ on `transaction_amount`, none on `local_currency_amount` alone - the two fields disagree with each other for these rows on the Bronze side, worth carrying into task 3.
 
 ## Exception dataset schema
 
 Minimum columns per the assignment: `transaction_id`, `issue_type`, `source_value`, `bronze_value`, `variance`, `batch_id`. `issue_type` uses the eight record-class names above (snake_case). `source_value`/`bronze_value` hold whichever field the classification rule actually compared (the amount, currency code, or posting date); `variance` is populated only for `amount_mismatch`.
 
-**Materialisation**: the full 106-row exception dataset lives in the notebook's own cell output (`exception_dataset`, cached and printed in full by class), git-tracked as part of the committed, executed notebook. This deliverable embeds only representative rows below, grouped by class - see the notebook section cited above for every row.
+**Materialisation**: the full 106-row exception dataset lives in the notebook's own cell output (`exception_dataset`, cached and printed in full by class), git-tracked as part of the committed, executed notebook. This deliverable embeds representative rows below, grouped by class - see the notebook section cited above for every row.
 
 | transaction_id | issue_type            | source_value | bronze_value | variance |
 | -------------- | ---------------------- | ------------- | ------------- | -------- |
@@ -51,4 +51,4 @@ Minimum columns per the assignment: `transaction_id`, `issue_type`, `source_valu
 | TXN-0000068    | duplicate in Bronze     | -              | 48039.77       | -        |
 | TXN-0000090    | duplicate in Bronze     | -              | 33260.17       | -        |
 
-Full per-class counts and the remaining rows (25 genuinely absent, 32 more duplicates, 2 more currency mismatches, 4 posting-date mismatches, and 20 duplicate-in-source rows) are in the notebook output, not reproduced here.
+The remaining rows (25 genuinely absent, 32 more duplicates, 2 more currency mismatches, 4 posting-date mismatches, and 20 duplicate-in-source rows) are in the notebook output.

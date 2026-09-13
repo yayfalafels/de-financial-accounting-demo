@@ -6,7 +6,7 @@ A bank is migrating transaction and accounting data from multiple source systems
 
 >DISCLAIMER: Scaled down mock demo
 
-The assignment scenario states the Core Banking extract runs at approximately **25 million records per day** in production. This demo's seeded volume budget is far smaller by design (`MOCK_DATA_DAYS=5`, `MOCK_DATA_TXN_PER_DAY=400`), producing 2,010 `src_transaction_daily` rows against 1,993 `bronze.transaction_daily` rows for the most recent seed run - a 17-row / 0.85% gap engineered to be traceable, not a scaled-down replica of the production symptom's absolute size. Every measurement published in this assessment's deliverables is a finding against that seeded volume, with the production figure cited here only as the scenario framing that motivated the check - never mistaken for a production-scale result.
+The assignment scenario states the Core Banking extract runs at approximately **25 million records per day** in production. This demo's seeded volume budget is far smaller by design (`MOCK_DATA_DAYS=5`, `MOCK_DATA_TXN_PER_DAY=400`), producing 2,010 `src_transaction_daily` rows against 1,993 `bronze.transaction_daily` rows for the most recent seed run - a 17-row / 0.85% gap engineered to be traceable at a size independent of the production symptom's absolute scale. Every measurement published in this assessment's deliverables is a finding against that seeded volume, with the production figure cited here only as the scenario framing that motivated the check - never mistaken for a production-scale result.
 
 ## Source table - `src_transaction_daily`
 

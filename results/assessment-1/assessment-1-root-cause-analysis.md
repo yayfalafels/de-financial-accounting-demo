@@ -39,7 +39,7 @@ Of the 18 `transaction_id`s duplicated in Bronze, 10 are also duplicated in sour
 | 04 | 2026-08-20      | 400                 | 0                   |
 | 05 | 2026-08-21      | 395                 | 1                   |
 
-A `-R` batch exists for 4 of the 5 business dates, each reloading only a handful of rows (1-4) rather than the whole day's file. **Confirmed**: a small partial reprocessing event recurs on nearly every business date.
+A `-R` batch exists for 4 of the 5 business dates, each reloading only a handful of rows (1-4) out of the whole day's file. **Confirmed**: a small partial reprocessing event recurs on nearly every business date.
 
 ## Financial impact
 
@@ -63,11 +63,11 @@ No further mechanism is needed to explain task 2's level 1 local-currency varian
 | 01 | genuinely missing (25 rows)       | 14       | 4        | 5          | 5     |
 | 02 | reprocessing-batch extra (8 rows) | 6        | 3        | n/a [01]   | 4     |
 
-01. reprocessing-batch rows were not broken out by currency; both populations otherwise span nearly every branch, product, and business date rather than concentrating in one - the near-UTC-midnight timing and the `-R` batch tag are the only dimensions found to correlate.
+01. reprocessing-batch rows carry no currency breakout; both populations otherwise span nearly every branch, product, and business date - the near-UTC-midnight timing and the `-R` batch tag are the only dimensions found to correlate.
 
 ## Unexplained residual
 
-5 of the 33 "missing in Bronze" rows fit neither hypothesis: not near-UTC-midnight (extracted between 00:42 and 10:51 UTC), not in a `*_MIDNIGHT.dat` file, and spread across 5 different branches, dates, and ingestion files with no value shared by more than one row. Their combined `local_currency_amount` is 192,165.88 - remains open, not resolved by this investigation.
+5 of the 33 "missing in Bronze" rows fit neither hypothesis: extracted between 00:42 and 10:51 UTC, outside any `*_MIDNIGHT.dat` file, and spread across 5 different branches, dates, and ingestion files with no value shared by more than one row. Their combined `local_currency_amount` is 192,165.88 - this population stays open.
 
 ## Remediation
 
@@ -77,5 +77,5 @@ Reload the 25 genuinely-missing rows into Bronze from source, keyed by `transact
 
 - convert `source_extract_ts` to the ingestion business timezone (or derive the business date from `transaction_date` directly) before assigning a record to a daily ingestion file, so a UTC timestamp in the last minutes of the day is no longer bucketed under the wrong Singapore business date
 - add a same-day source-file-to-Bronze row-count check per `ingestion_file`, alerting when Bronze's count for a file is lower than source's - this would have caught both `*_MIDNIGHT.dat` files immediately
-- make Bronze ingestion idempotent on `transaction_id` (upsert rather than append) so a reprocessing run cannot introduce a second row for an already-loaded id
+- make Bronze ingestion idempotent on `transaction_id` (upsert on load) so a reprocessing run cannot introduce a second row for an already-loaded id
 - tag every Bronze batch load with a reason code (initial vs. reprocess), and alert when a reprocess batch's row count for a file doesn't match the original - the `-R` suffix already present in this data shows the signal exists, it just isn't monitored

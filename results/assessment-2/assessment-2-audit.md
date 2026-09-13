@@ -5,7 +5,7 @@ Cross-checks every measured count published in this assessment's deliverables ag
 ## Sources
 
 - notebook: [assessment2_gl_reconciliation.ipynb](https://github.com/yayfalafels/de-financial-accounting-demo/blob/main/notebooks/assessment2_gl_reconciliation.ipynb)
-- deliverables audited: [assessment-2-reconciliation-results.md](assessment-2-reconciliation-results.md), [assessment-2-mapping-validation.md](assessment-2-mapping-validation.md), [assessment-2-exception-dataset.md](assessment-2-exception-dataset.md), [assessment-2-root-cause-analysis.md](assessment-2-root-cause-analysis.md)
+- deliverables audited: [assessment-2-reconciliation-results.md](assessment-2-reconciliation-results.md), [assessment-2-mapping-validation.md](assessment-2-mapping-validation.md), [assessment-2-exception-dataset.md](assessment-2-exception-dataset.md), [assessment-2-root-cause-analysis.md](assessment-2-root-cause-analysis.md), [assessment-2-framework-design.md](assessment-2-framework-design.md)
 
 ## Task 1 - GL Integrity and Reconciliation
 
@@ -52,5 +52,14 @@ Cross-checks every measured count published in this assessment's deliverables ag
 07. **exception dataset consistency** - the exception dataset's `WRONG_GL_ACCOUNT`/`WRONG_COST_CENTER` queries were first written independently of Task 1/Task 3's own indicator-corrected mapping lookup, so 2 of `03.03`'s 9 flip-candidate transactions (`FTX-0000158`, `FTX-0000660`) were double-counted there as GL-account/cost-center mismatches on top of `WRONG_DR_CR_INDICATOR` (`WRONG_GL_ACCOUNT`=9, `WRONG_COST_CENTER`=6, exception dataset total 1227) - caught by cross-checking the exception dataset's printed counts against `classification_movers`' 6/3/1 split in the same notebook run, diagnosed and fixed as [10.IS.07](#validate), re-executed clean at the counts above (total 1223).
 
 **bridge check** - Task 1's SGD recomputation (30 keys, 297,137.40) substitutes an expected value for exactly 16 transactions across three dimensions: `03.07`'s 6 legal-entity transactions (60,697.50), 6 GL-account-only transactions (53,687.44, footnote 06), 3 cost-center-only transactions (40,036.00, the corrected `03.08` population per footnote 05), and 1 transaction wrong on both GL account and cost center (`FTX-0001358`, 9,706.73). Confirmed zero overlap between all four groups and `03.03`'s indicator population. Re-running the recomputation with exactly these 16 transactions' classification reverted to actual and every other transaction unchanged returns **0 keys exceeding tolerance, 0.00 total variance** - the full 297,137.40 is exactly and completely explained by this set, verified directly rather than by summing twice-face-value estimates (which, applied to all four groups, totals 328,255.34 - 31,117.94 more than the true figure, because two groups' transactions can share every other dimension of the same five-key bucket and partly net out there rather than add). Two further real misclassifications - `FTX-0001297` (`03.03`, 11,453.83) and `FTX-0000080` (`03.08`, footnote 05, 5,773.16) - post under product/transaction-type combinations with more than one currently-active, conflicting mapping row, so `single_match` never substitutes either and they move zero dollars of Task 1's variance regardless; both are correctly excluded from the 16-transaction bridge above, not force-fit into it.
+
+## Task 4 - Create a Reconciliation Framework
+
+| task ref | check           | expected (issue-log) | measured | match |
+| -------- | ----------------- | ----------------------- | -------- | ----- |
+| 04.01    | framework metrics    | n/a [01]                   | 16999151.01 / 16999151.01, `PASS` [02] | n/a |
+
+01. **04.01** is a design/metrics deliverable with no injected-issue tag of its own - it reuses Task 1's already-verified `gl_amount` expression (`SUM(local_sgd_debit_movement + local_sgd_credit_movement)`), the same movement-flow basis Task 1's own write-back and Task 3's bridge use. A first-pass check against the design's originally-specified `gl_amount` expression (`SUM(local_sgd_closing_balance)`) returned 14,826,335.19 against a source amount of 16,999,151.01 - the same chained-ledger stock-vs-flow mismatch `01.02-08`'s footnote already diagnosed once for Task 1, reproduced here because the design's `gl_amount` definition had not been corrected to match. Corrected before any notebook cell was written; the published metric reconciles exactly.
+02. **measured** column reads source amount / GL amount, both SGD, then the resulting status.
 
 All measured values are read live via Spark SQL/PySpark against postgres in the notebook section cited above, not hand-typed against the ground truth.

@@ -43,8 +43,8 @@
 | 10.05 | 06  | closed  | task 2 - accounting mapping validation    |
 | 10.06 | 07  | closed  | exception dataset                         |
 | 10.07 | 08  | closed  | task 3 - finance variance investigation   |
-| 10.08 | 09  | pending | task 4 - reconciliation framework design  |
-| 10.09 | 10  | pending | business-facing summary                   |
+| 10.08 | 09  | closed  | task 4 - reconciliation framework design  |
+| 10.09 | 10  | open    | business-facing summary                   |
 | 10.10 | 11  | pending | notebook consolidation and clean rerun    |
 | 10.11 | 12  | pending | deliverable review and status promotion   |
 | 10.12 | 13  | pending | publish assessment site                   |
@@ -665,13 +665,14 @@ This is a design deliverable, not new code - the framework it specifies already 
 | `gl_transaction_count`| `SELECT COUNT(*) FROM finance.gl_balance`                             |
 | `source_amount`       | `SELECT SUM(local_amount) FROM bronze.finance_transactions`           |
 | `bronze_amount`       | same query as `source_amount`                                         |
-| `gl_amount`           | `SELECT SUM(local_sgd_closing_balance) FROM finance.gl_balance` [02]  |
+| `gl_amount`           | `SUM(local_sgd_debit_movement + local_sgd_credit_movement)` [02][03]  |
 | `absolute_variance`   | `gl_amount - source_amount`                                           |
 | `percentage_variance` | `ABS(gl_amount - source_amount) / NULLIF(ABS(source_amount), 0)`      |
 | `exception_count`     | `COUNT(*)` across the unioned [exception dataset](#exception-dataset) |
 | `reconciliation_status` | `PASS`/`WARNING`/`FAIL` per the thresholds below                    |
 
 02. **10.IS.05** owns the schema/data update that adds and populates the GL-side local-SGD amount fields this metric requires.
+03. **`gl_amount`** reads `FROM finance.gl_balance`, summed across all rows - a flow total (movements), matching `source_amount`'s own flow basis. `finance.gl_balance` chains `opening_balance` on day N to `closing_balance` on day N-1 for the same key, so a closing-balance sum across the 5 seeded accounting dates is a cumulative stock value.
 
 Each row lands in `reconciliation.rc_reconciliation_results` with `dimension` carrying the metric name and `source_value`/`target_value`/`variance`/`variance_pct`/`reconciliation_status` populated from the table above:
 
@@ -687,7 +688,7 @@ SELECT :batch_id, 'gl_amount', s.source_amount, g.gl_amount,
          ELSE 'FAIL'
        END
 FROM (SELECT SUM(local_amount) AS source_amount FROM bronze.finance_transactions) s
-CROSS JOIN (SELECT SUM(local_sgd_closing_balance) AS gl_amount FROM finance.gl_balance) g
+CROSS JOIN (SELECT SUM(local_sgd_debit_movement + local_sgd_credit_movement) AS gl_amount FROM finance.gl_balance) g
 ```
 
 **tolerance rules** - absolute, percentage, currency-specific, and account-specific tolerance, expressed as a design proposal for a `rc_tolerance_rules`-shaped lookup, not a table this tracker adds (doing so is a [05](../features/05-ai-closed-loop-validation.md) change if adopted):
@@ -992,9 +993,13 @@ Wrote [`results/assessment-2/assessment-2-root-cause-analysis.md`](../../results
 
 ### 7. Task 4 - reconciliation framework design
 
-edit locations: `10.EL.06`
+edit locations: `10.EL.01, 10.EL.06`
 
-Write the framework design deliverable from [reconciliation framework design](#reconciliation-framework-design--task-4) directly: the metrics table (**10.CK.23**), the `rc_tolerance_rules` proposal, the status-assignment thresholds, and the persistence design - this step is a narrative write-up of an already-fully-specified design, not new query development.
+_closed 10.08_ - front-loaded **10.CK.23**'s metrics SQL against the live seeded database before writing any notebook cell, per the front-loaded-verification instruction for this task: this surfaced **10.IS.09** (`gl_amount`'s design expression summed a stock instead of a flow, a 2,172,815.82 variance), diagnosed and fixed in the design section before proceeding. With the corrected expression, the front-loaded check reconciled cleanly - source/GL amount both 16,999,151.01, 0.00 variance, `PASS` - matching Task 1's own already-published batch exactly, since both read the same underlying flow.
+
+Added a "Task 4 - Reconciliation Framework" section to `notebooks/assessment2_gl_reconciliation.ipynb`: one cell computing **10.CK.23**'s full metric set fresh from the database (reusing the exception dataset's own row count for `exception_count` rather than restating it), one markdown cell narrating the tolerance-rule lookup and status thresholds, and one cell querying `rc_batch_control`'s existing history for this assessment to demonstrate the persistence design - no new table, no new batch write, since the schema's `dimension` column is a closed enum (`row_count`, `amount`) Task 1's own write-back already populates for this run. Executed headlessly end to end, no cell errors: `gl_amount` landed at 16,999,151.009999983 against `source_amount`'s 16,999,151.01, an 1.86e-08 floating-point residual from double-precision summation, invisible after formatting to four decimal places and orders of magnitude under the 0.1% `PASS` threshold - not logged as an issue, a print-formatting fix in the same cell that produced it.
+
+Wrote [`results/assessment-2/assessment-2-framework-design.md`](../../results/assessment-2/assessment-2-framework-design.md) (metrics, tolerance rules, status assignment, persistence, all narrated against the corrected `gl_amount` basis) and added the task 4 row to [`assessment-2-audit.md`](../../results/assessment-2/assessment-2-audit.md).
 
 ### 8. Business-facing summary
 
@@ -1037,9 +1042,11 @@ Commit the reviewed work, run `scripts/08-assessment-site.sh build` for the stri
 | 10.IS.06 | 06  | closed | unattributed variance explanation                            |
 | 10.IS.07 | 07  | closed | exception dataset's GL-account/cost-center counts disagreed with task 3's own [01] |
 | 10.IS.08 | 08  | closed | root-cause-analysis Findings table re-opened the balance 10.IS.06/07 had closed [02] |
+| 10.IS.09 | 09  | closed | task 4's gl_amount metric repeats 10.IS.02's stock-vs-flow defect [03] |
 
 01. **10.IS.07** full title: exception dataset's `WRONG_GL_ACCOUNT`/`WRONG_COST_CENTER` counts disagree with task 3's own `classification_movers` counts.
 02. **10.IS.08** full title: the Findings table's own "complete accounting" rows reported a nonzero residual on the same page **10.IS.06**/**10.IS.07** already closed to 0.00.
+03. **10.IS.09** full title: task 4's `gl_amount` metric (`SUM(local_sgd_closing_balance)`) reproduces **10.IS.02**'s chained-ledger stock-vs-flow defect, already fixed once in Task 1's own write-back.
 
 _10.IS.01 (closed) notebook connectivity check timed out under host contention_
 
@@ -1426,6 +1433,43 @@ The new rows computed a **different quantity** than the one **10.IS.06**/**10.IS
 
 01. (closed) checked git status and the notebook's last executed output: the Findings-table edit was the only uncommitted change, made entirely in the markdown deliverable, with no notebook cell touched and no fresh batch written - `reconciliation.rc_batch_control` still ends at `batch_id=26`, the same batch **10.IS.07**'s closing evidence cites. The already-published `gh-pages` site (deployed before this edit) never carried the contradictory row - confirmed by diffing this file against the last committed version. The defect is confined to one uncommitted markdown edit, not the notebook, the pipeline, or the published site as it stood.
 02. (closed) rewrote the Findings table's summary rows so the only residual on the page is the same one **10.IS.06** proved: "sum of explained factors" now reports the 16 flagged transactions' *verified* combined contribution (297,137.40, measured by reverting them and re-running the recomputation, not by summing and doubling their face values), so total GL variance minus that figure is exactly 0.00. The face-value sum (164,127.67) and its naive double (328,255.34) are kept as a labeled aside, explicitly marked as not usable as a direct arithmetic check, with the bucket-sharing reason stated inline rather than left for a footnote a reader could skip. Re-read the full page end to end to confirm every stated residual on it now agrees: 0.00.
+
+_10.IS.09 (closed) task 4's gl_amount metric repeats 10.IS.02's stock-vs-flow defect_
+
+**problem description**
+
+Before implementing **10.08** (task 4's reconciliation framework), the design's own `gl_amount` metric SQL was run directly against the live seeded database as a front-loaded first-pass check. `gl_amount` is specified as `SUM(local_sgd_closing_balance) FROM finance.gl_balance`, compared against `source_amount = SUM(local_amount) FROM bronze.finance_transactions`. The two do not reconcile: `source_amount` = 16,999,151.01, `gl_amount` (as designed) = 14,826,335.19 - a 2,172,815.82 variance (12.78%), well past the `FAIL` threshold.
+
+**exception**
+
+```log
+<no runtime error - a first-pass SQL check run before implementation, per design:
+ source_amount = 16999151.01
+ gl_amount (SUM(local_sgd_closing_balance)) = 14826335.19
+ gl_amount (SUM(local_sgd_debit_movement + local_sgd_credit_movement)) = 16999151.01>
+```
+
+**triggering actions**
+
+Ran task 4's own `gl_amount`/`source_amount` metric SQL directly against the live seeded database before writing any notebook cell or deliverable content, per the front-loaded-verification instruction for this task.
+
+**hypothesis**
+
+Not left as a hypothesis - the cause is already on record. **10.IS.02** diagnosed exactly this shape of break in Task 1: `finance.gl_balance` is a chained daily ledger, `opening_balance` on day N equal to `closing_balance` on day N-1 for the same key, so summing `closing_balance` across the 5 seeded accounting dates sums a cumulative stock value against a flat flow (`source_amount`) - not a comparable pair. Task 1's own write-back was corrected for this at the time (it now compares `local_sgd_debit_movement + local_sgd_credit_movement` against `local_amount`, both flows), but that correction was never carried into task 4's design section, which still names `local_sgd_closing_balance` for `gl_amount`. Confirmed directly: substituting the movement-sum expression for the closing-balance sum in the same query returns 16,999,151.01, an exact match.
+
+**diagnostic steps**
+
+| id          | seq | status  | step                                                            |
+| ----------- | --- | ------- | ------------------------------------------------------------------ |
+| 10.IS.09.01 | 01  | closed  | ran the design's own gl_amount SQL against the live database [01]  |
+| 10.IS.09.02 | 02  | closed  | corrected the design's gl_amount expression [02]                    |
+| 10.IS.09.03 | 03  | closed  | re-ran the corrected metric and confirmed it reconciles [03]         |
+
+**diagnostic details**
+
+01. (closed) ran `SUM(local_sgd_closing_balance)` and, for comparison, `SUM(local_sgd_debit_movement + local_sgd_credit_movement)` against the live seeded `finance.gl_balance`, alongside `SUM(local_amount)` against `bronze.finance_transactions`: 14,826,335.19 vs 16,999,151.01 vs 16,999,151.01. The closing-balance sum is the only one of the three that disagrees, isolating the same stock-vs-flow mismatch **10.IS.02** already named, not a new class of defect.
+02. (closed) updated the `gl_amount` row in **10.CK.23**'s metrics table and the write-back `INSERT` statement's `gl_amount` sub-select from `SUM(local_sgd_closing_balance)` to `SUM(local_sgd_debit_movement + local_sgd_credit_movement)` - the same flow expression Task 1's own write-back and Task 3's bridge already use.
+03. (closed) re-ran all five 10.CK.23 count/amount metrics against the live seeded database: `source_count`=1523, `gl_transaction_count`=589, `source_amount`=16,999,151.01, `gl_amount`=16,999,151.01 - `absolute_variance`=0.00, `percentage_variance`=0.0000%, `reconciliation_status`=`PASS`. `exception_count` (the exception dataset's own union) totals 1223, matching its own deliverable exactly. Front-loaded verification for **10.08** complete before any notebook cell was written.
 
 ## Task Details
 

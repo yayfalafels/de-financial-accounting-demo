@@ -57,9 +57,12 @@ Cross-checks every measured count published in this assessment's deliverables ag
 
 | task ref | check           | expected (issue-log) | measured | match |
 | -------- | ----------------- | ----------------------- | -------- | ----- |
-| 04.01    | framework metrics    | n/a [01]                   | 16999151.01 / 16999151.01, `PASS` [02] | n/a |
+| 04.01    | total-layer metrics  | n/a [01]                   | 16999151.01 / 16999151.01, `PASS` [02] | n/a |
+| 04.01    | dimensional layer    | n/a [03]                   | 30 keys, 297,137.40         | yes [03] |
+| 04.01    | category layer       | n/a [03]                   | 1,223 rows, 16-txn bridge to 0.00 | yes [03] |
 
 01. **04.01** is a design/metrics deliverable with no injected-issue tag of its own - it reuses Task 1's already-verified `gl_amount` expression (`SUM(local_sgd_debit_movement + local_sgd_credit_movement)`), the same movement-flow basis Task 1's own write-back and Task 3's bridge use. A first-pass check against the design's originally-specified `gl_amount` expression (`SUM(local_sgd_closing_balance)`) returned 14,826,335.19 against a source amount of 16,999,151.01 - the same chained-ledger stock-vs-flow mismatch `01.02-08`'s footnote already diagnosed once for Task 1, reproduced here because the design's `gl_amount` definition had not been corrected to match. Corrected before any notebook cell was written; the published metric reconciles exactly.
 02. **measured** column reads source amount / GL amount, both SGD, then the resulting status.
+03. **dimensional/category layer** rows have no injected-issue tag of their own - they reuse Task 1's own `dimension_summaries` and Task 3's own `findings`/bridge outputs directly rather than recomputing them, so "match" here means these two rows reproduce `01.02-08` and the Task 3 bridge check below exactly, not that they were checked against a separate ground truth.
 
 All measured values are read live via Spark SQL/PySpark against postgres in the notebook section cited above, not hand-typed against the ground truth.

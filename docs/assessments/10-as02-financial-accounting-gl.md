@@ -1045,10 +1045,14 @@ Commit the reviewed work, run `scripts/08-assessment-site.sh build` for the stri
 | 10.IS.07 | 07  | closed | exception dataset's GL-account/cost-center counts disagreed with task 3's own [01] |
 | 10.IS.08 | 08  | closed | root-cause-analysis Findings table re-opened the balance 10.IS.06/07 had closed [02] |
 | 10.IS.09 | 09  | closed | task 4's gl_amount metric repeats 10.IS.02's stock-vs-flow defect [03] |
+| 10.IS.10 | 10  | closed | task 4's framework only ran the total-layer check, disconnected from tasks 1-3 [04] |
+| 10.IS.11 | 11  | closed | reconciliation-results.md's gl_account/cost_center distinct counts are stale [05] |
 
 01. **10.IS.07** full title: exception dataset's `WRONG_GL_ACCOUNT`/`WRONG_COST_CENTER` counts disagree with task 3's own `classification_movers` counts.
 02. **10.IS.08** full title: the Findings table's own "complete accounting" rows reported a nonzero residual on the same page **10.IS.06**/**10.IS.07** already closed to 0.00.
 03. **10.IS.09** full title: task 4's `gl_amount` metric (`SUM(local_sgd_closing_balance)`) reproduces **10.IS.02**'s chained-ledger stock-vs-flow defect, already fixed once in Task 1's own write-back.
+04. **10.IS.10** full title: task 4's framework only ran the total-layer count/amount check, structurally incapable of detecting the classification-driven variance tasks 1-3 diagnosed, and never demonstrated the dimensional/category layers that actually catch it.
+05. **10.IS.11** full title: `assessment-2-reconciliation-results.md`'s dimensional-reconciliation table understates `gl_account` (15, actually 16) and `cost_center` (10, actually 11) distinct-value counts by one each.
 
 _10.IS.01 (closed) notebook connectivity check timed out under host contention_
 
@@ -1472,6 +1476,78 @@ Not left as a hypothesis - the cause is already on record. **10.IS.02** diagnose
 01. (closed) ran `SUM(local_sgd_closing_balance)` and, for comparison, `SUM(local_sgd_debit_movement + local_sgd_credit_movement)` against the live seeded `finance.gl_balance`, alongside `SUM(local_amount)` against `bronze.finance_transactions`: 14,826,335.19 vs 16,999,151.01 vs 16,999,151.01. The closing-balance sum is the only one of the three that disagrees, isolating the same stock-vs-flow mismatch **10.IS.02** already named, not a new class of defect.
 02. (closed) updated the `gl_amount` row in **10.CK.23**'s metrics table and the write-back `INSERT` statement's `gl_amount` sub-select from `SUM(local_sgd_closing_balance)` to `SUM(local_sgd_debit_movement + local_sgd_credit_movement)` - the same flow expression Task 1's own write-back and Task 3's bridge already use.
 03. (closed) re-ran all five 10.CK.23 count/amount metrics against the live seeded database: `source_count`=1523, `gl_transaction_count`=589, `source_amount`=16,999,151.01, `gl_amount`=16,999,151.01 - `absolute_variance`=0.00, `percentage_variance`=0.0000%, `reconciliation_status`=`PASS`. `exception_count` (the exception dataset's own union) totals 1223, matching its own deliverable exactly. Front-loaded verification for **10.08** complete before any notebook cell was written.
+
+_10.IS.10 (closed) task 4's framework only ran the total-layer check, disconnected from tasks 1-3_
+
+**problem description**
+
+User review of the published `assessment-2-framework-design.md` and its notebook section raised two questions: how does the total-layer `source_amount`/`gl_amount` check reconcile exactly (`PASS`) when tasks 1-3's entire finding is a real, material variance between source and GL; and why does the framework section only show that one aggregate check rather than the fuller set of checks tasks 1-3 already run, reproducing how they found and narrowed the variance. Both point at the same gap: **10.08** as implemented only computes the total-flow metric **10.CK.23** names, and never connects the framework to the dimensional recomputation or the named-category checks that are the actual mechanism by which tasks 1-3 detected and explained the variance.
+
+**exception**
+
+```log
+<no runtime error - a design/scope gap raised by user review of the published deliverable, not a
+diagnostic finding from the data itself>
+```
+
+**triggering actions**
+
+User asked, after reviewing the published Task 4 page: "how is it that the source and gl match on amount if the whole point of exercise 01-03 was to diagnose a variance between these two?" and "this page should show the FULL set of checks, and show how and why they fail on the current set, how they would reproduce the issue from 01-03."
+
+**hypothesis**
+
+Not left as a hypothesis - both parts are already answered by design decisions already on record elsewhere in this tracker, just never carried into task 4's own scope:
+
+The total-layer check is genuinely apples-to-apples (same SGD flow basis on both sides) but structurally blind to misclassification: a transaction posted under the wrong legal entity, GL account, or cost center moves a dollar between buckets without changing how much money exists overall, so the grand total reconciles regardless of how much misclassification exists - the same reasoning [GL integrity design](#gl-integrity-design--task-1)'s detectability analysis already applied to `currency`/`accounting_date` (pass-through dimensions the recomputation doesn't substitute). Task 1 only found the real variance by rolling the comparison up to one classification dimension at a time; Task 3 only explained it by checking the named categories against that dimensional break. Task 4's own implementation computed the total-layer metric **10.CK.23** names, but never added the dimensional or category layer, so the published page shows a clean `PASS` with nothing to connect it back to tasks 1-3's own findings.
+
+**diagnostic steps**
+
+| id          | seq | status  | step                                                              |
+| ----------- | --- | ------- | ---------------------------------------------------------------- |
+| 10.IS.10.01 | 01  | closed | added the dimensional layer to task 4, reusing task 1's own summary |
+| 10.IS.10.02 | 02  | closed | added the category layer to task 4, reusing task 3's own findings |
+| 10.IS.10.03 | 03  | closed | re-executed the notebook and confirmed all three layers reproduce tasks 1-3 |
+
+**diagnostic details**
+
+01. (closed) added a dimensional-layer cell to task 4 that iterates `dimension_summaries` - the same dict Task 1's own cell already builds via `.collect()`, a plain Python structure that survives past that session's `spark.stop()` - and prints one line per dimension: worst variance% and status. No new Spark session or recomputation needed for this layer; it reuses the identical numbers Task 1 already produced.
+02. (closed) added a category-layer cell that iterates `findings` - the list Task 3's own cell already builds - and prints the eight named categories, then the bridge outcome (`known_movers_count`, `bridge_keys_failing`, `bridge_residual`). Captured `known_movers_count`/`bridge_keys_failing` as named variables in Task 3's bridge cell (previously computed only inline inside an f-string) so Task 4 could reuse them without re-deriving anything.
+03. (closed) re-executed the notebook headlessly end to end, no cell errors: dimensional layer reproduces `[WARNING] legal_entity 0.7482%`, `[FAIL] gl_account 4.6907%`, `[FAIL] cost_center 2.2957%`, `[PASS] currency 0.0%`, `[PASS] accounting_date 0.0%`, movement variance total 297,137.40 - exactly Task 1's own findings. Category layer reproduces the same nine rows Task 3's own findings list already reports, and the bridge closes to 16 transactions / 0 keys / 0.00 residual - exactly **10.IS.06**'s already-proven result. Task 4's page now demonstrates, on live data, how a daily run of the framework would surface and narrow the same variance tasks 1-3 diagnosed by hand.
+
+_10.IS.11 (closed) reconciliation-results.md's gl_account/cost_center distinct-value counts are stale_
+
+**problem description**
+
+While building **10.IS.10**'s dimensional-layer cell, its live count of distinct values per dimension (`len(dimension_summaries[dim])`) disagreed with the published `assessment-2-reconciliation-results.md` dimensional-reconciliation table: the notebook computed 16 distinct `gl_account` values and 11 distinct `cost_center` values, while the published table states 15 and 10 respectively.
+
+**exception**
+
+```log
+<no runtime error - a cross-check between a newly-added notebook cell's live count and an existing
+published deliverable's table, surfaced while building 10.IS.10:
+ dimension_summaries: gl_account=16 distinct, cost_center=11 distinct
+ assessment-2-reconciliation-results.md: gl_account=15, cost_center=10>
+```
+
+**triggering actions**
+
+Added task 4's dimensional-layer cell (**10.IS.10**), which prints `len(rows)` per dimension from the same `dimension_summaries` dict Task 1's own cell builds, and noticed its printed counts did not match the already-published Task 1 deliverable for the same two dimensions.
+
+**hypothesis**
+
+Not left as a hypothesis - confirmed directly, not inferred. Task 1's own dimensional-reconciliation cell already prints a "top 5 worst variance groups" list per dimension (not a full distinct-value count), and that list already includes a `gl_account=GL9999`/`cost_center=CC99` row (`FTX-0001358`'s sentinel classification, `WARNING`, 0.2232%/0.2247% variance) - visible in the notebook's own output today. Ran `SELECT COUNT(DISTINCT gl_account), COUNT(DISTINCT cost_center) FROM finance.gl_balance` directly against the live seeded database: 16 and 11, matching the new cell exactly, confirming the published 15/10 undercounts both by one - the `GL9999`/`CC99` sentinel key was never counted into either total when that table was authored, even though the Ledger row it belongs to was always included in the variance total itself (297,137.40 is unaffected).
+
+**diagnostic steps**
+
+| id          | seq | status  | step                                                                |
+| ----------- | --- | ------- | -------------------------------------------------------------------- |
+| 10.IS.11.01 | 01  | closed | confirmed the live distinct counts directly against the database     |
+| 10.IS.11.02 | 02  | closed | corrected the published distinct-value counts                         |
+
+**diagnostic details**
+
+01. (closed) ran `SELECT COUNT(DISTINCT gl_account), COUNT(DISTINCT cost_center) FROM finance.gl_balance` directly against the live seeded database: 16 and 11 - matching task 4's new cell exactly, confirming the published 15/10 undercounts both by one.
+02. (closed) corrected `assessment-2-reconciliation-results.md`'s dimensional-reconciliation table to 16/11; no other deliverable restates these two counts. `worst variance %`/`status` for both dimensions were already correct and unaffected - only the distinct-value column was stale.
 
 ## Task Details
 

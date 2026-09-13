@@ -34,8 +34,8 @@ The same recomputation rolled up to one dimension at a time. Status: `PASS` if `
 | dimension       | distinct values | worst variance %      | status |
 | ----------------- | ---------------- | ------------------------ | ------ |
 | legal entity        | 4                 | 0.7482% (LE1)              | WARNING |
-| GL account           | 15                | 4.6907% (GL1005)           | FAIL   |
-| cost center          | 10                | 2.2957% (CC09)             | FAIL   |
+| GL account           | 16                | 4.6907% (GL1005)           | FAIL   |
+| cost center          | 11                | 2.2957% (CC09)             | FAIL   |
 | currency             | 3                 | 0.0%                       | PASS   |
 | accounting date       | 5                 | 0.0%                       | PASS   |
 

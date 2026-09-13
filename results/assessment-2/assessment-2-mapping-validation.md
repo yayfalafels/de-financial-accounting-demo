@@ -24,7 +24,7 @@ See [overview](assessment-2-overview.md) for the scenario, table shapes, and the
 
 01. **02.06** `P1/DEBIT`=3 accounts, `P1/CREDIT`=2, `P9/CREDIT`=2, `P5/DEBIT`=2.
 
-## GL_MISMATCH - traces mostly to mapping conflicts, not transaction data
+## GL_MISMATCH traces mostly to mapping conflicts
 
 Breaking the 403 `GL_MISMATCH` rows down by product and transaction type:
 

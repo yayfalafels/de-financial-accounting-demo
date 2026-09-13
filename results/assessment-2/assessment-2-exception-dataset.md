@@ -41,4 +41,4 @@ Minimum columns: `transaction_id`, `issue_type`, `source_value`, `comparison_val
 | FTX-0000072       | FX_CONVERSION_ERROR     | 27475.7        | 24977.91              | 2497.79  |
 | FTX-DUP001503     | DUPLICATE_ENTRY         | 12574.31       | -                     | 12574.31 |
 
-Full per-category rows are in the notebook output, not reproduced here.
+Full per-category rows are in the notebook output.

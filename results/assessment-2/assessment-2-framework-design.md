@@ -11,7 +11,7 @@ See [overview](assessment-2-overview.md) for the scenario, table shapes, and the
 - notebook: [assessment2_gl_reconciliation.ipynb](https://github.com/yayfalafels/de-financial-accounting-demo/blob/main/notebooks/assessment2_gl_reconciliation.ipynb) -> "Task 4 - Reconciliation Framework" section
 - batch: `reconciliation.rc_batch_control.batch_id = 30`
 
-## Design: three layers, not one
+## Design: three layers
 
 A single flow-total comparison - source SGD amount against GL SGD amount - reconciles even when every dollar is filed under the wrong legal entity, GL account, or cost center: misclassification moves a dollar between buckets without changing how much money exists in total, so a total-only check shows a clean pass on exactly the kind of error this dataset carries. A reusable, daily-run framework needs two further layers to catch that: a dimensional layer, rolling the same source-vs-GL comparison up to one classification dimension at a time, and a category layer, checking the named exception categories that explain why a dimension disagrees. All three run on the same SGD basis and the same daily cadence; each is demonstrated below on today's data.
 
@@ -28,7 +28,7 @@ A single flow-total comparison - source SGD amount against GL SGD amount - recon
 | `exception_count`           | 1,223                        |
 | `reconciliation_status`     | `PASS`                       |
 
-Bronze has no separate ingestion tier for this dataset, so `bronze_count`/`bronze_amount` read the same figures `source_count`/`source_amount` do; the two names stay in the framework's vocabulary for consistency across assessments. `source_count`/`gl_transaction_count` compare two different grains - 1,523 individual transactions against 589 unique `(accounting_date, legal_entity, gl_account, cost_center, currency)` Ledger keys - a structural fact of the data model reported for completeness; `PASS`/`FAIL` assignment applies to the amount-basis metrics, where source and GL sit on the same SGD flow basis and reconcile exactly, because the total layer only tracks how much money exists, not which bucket it landed in.
+Bronze has no separate ingestion tier for this dataset, so `bronze_count`/`bronze_amount` read the same figures `source_count`/`source_amount` do; the two names stay in the framework's vocabulary for consistency across assessments. `source_count`/`gl_transaction_count` compare two different grains - 1,523 individual transactions against 589 unique `(accounting_date, legal_entity, gl_account, cost_center, currency)` Ledger keys - a structural fact of the data model reported for completeness; `PASS`/`FAIL` assignment applies to the amount-basis metrics, where source and GL sit on the same SGD flow basis and reconcile exactly, because the total layer tracks how much money exists overall.
 
 ## Dimensional layer
 

@@ -78,7 +78,7 @@
               <ul class="nav flex-column">
               </ul>
             </li>
-            <li class="nav-item" data-bs-level="2"><a href="#design-three-layers-not-one" class="nav-link">Design: three layers, not one</a>
+            <li class="nav-item" data-bs-level="2"><a href="#design-three-layers" class="nav-link">Design: three layers</a>
               <ul class="nav flex-column">
               </ul>
             </li>
@@ -122,7 +122,7 @@
 <li>notebook: <a href="https://github.com/yayfalafels/de-financial-accounting-demo/blob/main/notebooks/assessment2_gl_reconciliation.ipynb">assessment2_gl_reconciliation.ipynb</a> -&gt; "Task 4 - Reconciliation Framework" section</li>
 <li>batch: <code>reconciliation.rc_batch_control.batch_id = 30</code></li>
 </ul>
-<h2 id="design-three-layers-not-one">Design: three layers, not one</h2>
+<h2 id="design-three-layers">Design: three layers</h2>
 <p>A single flow-total comparison - source SGD amount against GL SGD amount - reconciles even when every dollar is filed under the wrong legal entity, GL account, or cost center: misclassification moves a dollar between buckets without changing how much money exists in total, so a total-only check shows a clean pass on exactly the kind of error this dataset carries. A reusable, daily-run framework needs two further layers to catch that: a dimensional layer, rolling the same source-vs-GL comparison up to one classification dimension at a time, and a category layer, checking the named exception categories that explain why a dimension disagrees. All three run on the same SGD basis and the same daily cadence; each is demonstrated below on today's data.</p>
 <h2 id="total-layer">Total layer</h2>
 <table>
@@ -167,7 +167,7 @@
 </tr>
 </tbody>
 </table>
-<p>Bronze has no separate ingestion tier for this dataset, so <code>bronze_count</code>/<code>bronze_amount</code> read the same figures <code>source_count</code>/<code>source_amount</code> do; the two names stay in the framework's vocabulary for consistency across assessments. <code>source_count</code>/<code>gl_transaction_count</code> compare two different grains - 1,523 individual transactions against 589 unique <code>(accounting_date, legal_entity, gl_account, cost_center, currency)</code> Ledger keys - a structural fact of the data model reported for completeness; <code>PASS</code>/<code>FAIL</code> assignment applies to the amount-basis metrics, where source and GL sit on the same SGD flow basis and reconcile exactly, because the total layer only tracks how much money exists, not which bucket it landed in.</p>
+<p>Bronze has no separate ingestion tier for this dataset, so <code>bronze_count</code>/<code>bronze_amount</code> read the same figures <code>source_count</code>/<code>source_amount</code> do; the two names stay in the framework's vocabulary for consistency across assessments. <code>source_count</code>/<code>gl_transaction_count</code> compare two different grains - 1,523 individual transactions against 589 unique <code>(accounting_date, legal_entity, gl_account, cost_center, currency)</code> Ledger keys - a structural fact of the data model reported for completeness; <code>PASS</code>/<code>FAIL</code> assignment applies to the amount-basis metrics, where source and GL sit on the same SGD flow basis and reconcile exactly, because the total layer tracks how much money exists overall.</p>
 <h2 id="dimensional-layer">Dimensional layer</h2>
 <p>The same source-vs-GL comparison, rolled up to one classification dimension at a time:</p>
 <table>

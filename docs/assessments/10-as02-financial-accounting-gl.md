@@ -1048,6 +1048,7 @@ Commit the reviewed work, run `scripts/08-assessment-site.sh build` for the stri
 | 10.IS.10 | 10  | closed | task 4's framework only ran the total-layer check, disconnected from tasks 1-3 [04] |
 | 10.IS.11 | 11  | closed | reconciliation-results.md's gl_account/cost_center distinct counts are stale [05] |
 | 10.IS.12 | 12  | closed | task 4's total layer is structurally incapable of ever failing on this dataset [06] |
+| 10.IS.13 | 13  | open | closed-world model gap - no independent "expected" source [07] |
 
 01. **10.IS.07** full title: exception dataset's `WRONG_GL_ACCOUNT`/`WRONG_COST_CENTER` counts disagree with task 3's own `classification_movers` counts.
 02. **10.IS.08** full title: the Findings table's own "complete accounting" rows reported a nonzero residual on the same page **10.IS.06**/**10.IS.07** already closed to 0.00.
@@ -1055,6 +1056,7 @@ Commit the reviewed work, run `scripts/08-assessment-site.sh build` for the stri
 04. **10.IS.10** full title: task 4's framework only ran the total-layer count/amount check, structurally incapable of detecting the classification-driven variance tasks 1-3 diagnosed, and never demonstrated the dimensional/category layers that actually catch it.
 05. **10.IS.11** full title: `assessment-2-reconciliation-results.md`'s dimensional-reconciliation table understates `gl_account` (15, actually 16) and `cost_center` (10, actually 11) distinct-value counts by one each.
 06. **10.IS.12** full title: task 4's total layer (source/GL amount) is structurally incapable of ever failing on this dataset, for any of the assignment's seven candidate causes, because `finance.gl_balance` is a lossless direct aggregation of `bronze.finance_transactions` - the framework-design deliverable presented its `PASS` as an informative first check rather than stating this as a hard limitation of the data model.
+07. **10.IS.13** full title: this assessment's closed-world model has no data source independent of `bronze.finance_transactions` for Finance's own reported figure, and separately, the recomputation itself only substitutes an expected value for classification (legal-entity/GL-account/cost-center), never for the debit/credit indicator, though an equally valid expected value for the indicator already exists (`10.CK.17`'s own swap-match) and substituting it would move a real, non-dimensional total.
 
 _10.IS.01 (closed) notebook connectivity check timed out under host contention_
 
@@ -1589,6 +1591,46 @@ The assignment's own literal "Expected Closing Balance vs Platform Closing Balan
 
 01. (closed) ran `SUM(GL.debit_movement) - SUM(GL.credit_movement)` against the live seeded `finance.gl_balance` and `SUM(source.local_amount, signed by its own actual debit/credit indicator)` against `bronze.finance_transactions`: -127,183.63 both sides, exact. Reproduced the same result inside the notebook's own PySpark session (Task 4's cell), confirming the identity holds through the same engine the framework itself runs on, not only via a separate psql check.
 02. (closed) rewrote `assessment-2-framework-design.md`'s "Design" and "Total layer" sections and the notebook's Task 4 introduction to lead with this proof and state plainly that the total layer's `PASS` carries no diagnostic weight in this data model - it returns `PASS` regardless of which, if any, of the seven candidate causes are present, because `finance.gl_balance` is a direct aggregation of `bronze.finance_transactions` with no independent source to disagree with it. Re-executed the notebook headlessly end to end, no cell errors; the proof numbers match the psql check exactly.
+
+_10.IS.13 (open) closed-world model gap - no independent "expected" source, and the recomputation itself only half-corrects "expected"_
+
+**problem description**
+
+User pushed back on **10.IS.12**'s framing: the total layer's structural blindness is not merely an incidental property of a well-built simulation - it is evidence the assessment's own closed-world model is incomplete relative to the scenario it is meant to simulate. If Finance reports a variance between an expected figure (X) and the platform's own figure (Y), a faithful simulation needs to model X, Y, and the relationship between them well enough to diagnose exactly where they diverge. This assessment's schema and seed generator model only Y (`finance.gl_balance`, built from `bronze.finance_transactions`) and Y's own inputs - there is no X anywhere in the schema, independent of Y's own source.
+
+**exception**
+
+```log
+<no runtime error - a scope/design critique, tested directly rather than accepted or dismissed on
+its face>
+```
+
+**triggering actions**
+
+User: "this gap of an independent source is a methodological gap in the scope for assignment 10... if finance reports a variance between X and Y, then your system model needs to include X, Y, and be able to understand the model of how X and Y are related... if you completely neglect half of the problem statement (X, but not Y) then you do not have a completely observable simulation environment."
+
+**hypothesis**
+
+Confirmed correct on the first half, and confirmed to run deeper than first stated:
+
+**No X exists in the schema.** `finance.gl_balance` is Y; `bronze.finance_transactions` is Y's own input. There is no independent, separately-seeded "Finance's own books" table anywhere in this assessment's design. Every "expected" figure this notebook computes is manufactured by re-deriving from Y's own input, never compared against a genuinely independent figure - confirmed correct, not a hypothesis.
+
+**A second, previously unstated gap, found while testing the first**: even granting that "expected" must be re-derived from `bronze.finance_transactions` (the assignment's own task 1 instruction says exactly this: "independently calculate expected debit and credit movements from transaction-level data"), the recomputation's own definition of "expected" is itself incomplete. It substitutes an expected value for legal-entity, GL-account, and cost-center (three classification dimensions) but never for the debit/credit indicator - even though `10.CK.17`'s own swap-match already derives a fully independent "expected" indicator for 9 transactions, and that check runs today without ever feeding its correction back into the recomputation's own debit/credit bucket assignment. Proved directly: if the recomputation's `recomputed_debit`/`recomputed_credit` used the *corrected* indicator for those 9 transactions instead of their actual one - the same swap `10.CK.17` already computes, just applied to the aggregation step rather than left to the side - the recomputed grand total (no dimensional grouping at all) would move by SGD 37,083.68 relative to GL's own total (6 transactions net +97,022.16 from CREDIT-corrected-to-DEBIT, 3 transactions net -59,938.48 from DEBIT-corrected-to-CREDIT). This is a real, non-dimensional, top-level number - the design's own repeated claim that "the indicator stays pass-through to the Ledger's movement figures regardless" is true of the *current* recomputation's specific choice not to correct it there, not a property of the data itself.
+
+**diagnostic steps**
+
+| id          | seq | status  | step                                                                 |
+| ----------- | --- | ------- | ------------------------------------------------------------------- |
+| 10.IS.13.01 | 01  | closed  | tested whether correcting the indicator moves the grand total [01] |
+| 10.IS.13.02 | 02  | pending | user decision on remediation scope                                   |
+
+**diagnostic details**
+
+01. (closed) computed the 9 flip-candidate transactions' signed contribution under actual vs. corrected indicator directly against the live database: 6 transactions (SGD 48,511.08 face value) actually `CREDIT`, corrected `DEBIT`; 3 transactions (SGD 29,969.24 face value) actually `DEBIT`, corrected `CREDIT`. Net signed delta if the recomputation used the corrected indicator for these 9: +SGD 37,083.68 - confirming the indicator category can be made visible without any dimensional grouping, contradicting the standing "pass-through regardless" claim as a statement about the data (it is only true of the recomputation's current, correctable, choice).
+
+**user actions**
+
+- decide remediation scope: (a) extend the existing recomputation to also correct the debit/credit indicator (no schema change, revises Task 1/3/4's own numbers and bridge), (b) add a genuinely independent "expected ledger" data source to the schema and seed generator (a materially larger change, touching feature 04 and this tracker's design section, closer to the assignment's literal "Expected Closing Balance" concept and able to expose duplicate/FX/missing-transaction categories at the top level too), or (c) document the current design's boundary explicitly as an accepted scope limitation and proceed no further. This tracker does not act on this issue until that direction is given.
 
 ## Task Details
 

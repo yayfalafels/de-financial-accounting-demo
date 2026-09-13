@@ -44,7 +44,7 @@
 | 10.06 | 07  | closed  | exception dataset                         |
 | 10.07 | 08  | closed  | task 3 - finance variance investigation   |
 | 10.08 | 09  | closed  | task 4 - reconciliation framework design  |
-| 10.09 | 10  | open    | business-facing summary                   |
+| 10.09 | 10  | closed  | business-facing summary                   |
 | 10.10 | 11  | pending | notebook consolidation and clean rerun    |
 | 10.11 | 12  | pending | deliverable review and status promotion   |
 | 10.12 | 13  | pending | publish assessment site                   |
@@ -1006,6 +1006,8 @@ Wrote [`results/assessment-2/assessment-2-framework-design.md`](../../results/as
 edit locations: `10.EL.07`
 
 Write a short, non-technical summary of the variance findings and recommended controls aimed at a Finance stakeholder, distinct from the technical root-cause write-up.
+
+_closed 10.09_ - rewrote the pre-existing draft in plain terms: leads with the reassurance the technical pages bury (the platform's total balance already agrees with the Ledger to the cent), states the SGD 297,137.40 classification-driven variance and its 16-transaction closure in accessible language, restates the three smaller findings (duplicate entries, wrong debit/credit side, FX conversion) without the tracker's check-level detail, and flags the 385-transaction missing-mapping population as an open coverage gap rather than a confirmed error - matching the blind-analyst boundary's own caution against overstating confidence. Recommended-controls section carries the same six standing controls as the root-cause write-up's own prevention list, phrased for a Finance audience, plus the daily-run case from the framework design. Added the banner + overview/root-cause/framework-design context line and the linked-notebook `Sources` format every other deliverable uses, and refreshed `batch_id` from the stale 26 to the current 29. `status` stays `draft`, promoted alongside every other deliverable at the 10.11 review step.
 
 ### 9. Notebook consolidation and clean rerun
 

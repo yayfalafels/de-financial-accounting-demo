@@ -138,24 +138,48 @@ write_manifest() {
         done <"$readme"
     fi
     temporary="$(mktemp)"
-    {
-        echo "# Assessment $(assessment_number "$assessment_id") Deliverables"
-        echo
-        echo "Current assessment deliverables and their submission status."
-        echo
-        echo "| id | deliverable | status |"
-        echo "| -- | ----------- | ------ |"
-        for entry in "${deliverables[@]}"; do
-            IFS='|' read -r parsed_assessment slug title <<<"$entry"
-            [[ "$parsed_assessment" == "$assessment_id" ]] || continue
-            path="$assessment_id-$slug.md"
-            status="${existing_status[$path]:-draft}"
-            printf '| %02d | [%s](%s) | %s |\n' "$row" "$title" "$path" "$status"
-            row=$((row + 1))
-        done
-        echo "| 90 | notebook [07] | reference |"
-        echo "| 91 | dashboard [06] | reference |"
-    } >"$temporary"
+    if [[ "$assessment_id" == "assessment-2" ]]; then
+        # assessment-2's manifest carries no status column and no reference
+        # rows, per user direction - this assessment's own deliverables are
+        # tracked as done/not-done by the tracker doc, not restated here.
+        {
+            echo "# Assessment $(assessment_number "$assessment_id") Deliverables"
+            echo
+            echo "Current assessment deliverables and their submission status."
+            echo
+            echo "| id | deliverable |"
+            echo "| -- | ----------- |"
+            for entry in "${deliverables[@]}"; do
+                IFS='|' read -r parsed_assessment slug title <<<"$entry"
+                [[ "$parsed_assessment" == "$assessment_id" ]] || continue
+                path="$assessment_id-$slug.md"
+                printf '| %02d | [%s](%s) |\n' "$row" "$title" "$path"
+                row=$((row + 1))
+            done
+            echo "| 90 | notebook [01] |"
+            echo
+            printf '01. [%s](%s)\n' "$(basename "$(notebook_path "$assessment_id")")" "$GITHUB_BLOB_BASE/$(notebook_path "$assessment_id")"
+        } >"$temporary"
+    else
+        {
+            echo "# Assessment $(assessment_number "$assessment_id") Deliverables"
+            echo
+            echo "Current assessment deliverables and their submission status."
+            echo
+            echo "| id | deliverable | status |"
+            echo "| -- | ----------- | ------ |"
+            for entry in "${deliverables[@]}"; do
+                IFS='|' read -r parsed_assessment slug title <<<"$entry"
+                [[ "$parsed_assessment" == "$assessment_id" ]] || continue
+                path="$assessment_id-$slug.md"
+                status="${existing_status[$path]:-draft}"
+                printf '| %02d | [%s](%s) | %s |\n' "$row" "$title" "$path" "$status"
+                row=$((row + 1))
+            done
+            echo "| 90 | notebook [07] | reference |"
+            echo "| 91 | dashboard [06] | reference |"
+        } >"$temporary"
+    fi
     if [[ "$MODE" == "check" ]]; then
         if [[ -f "$readme" ]] && cmp -s "$temporary" "$readme"; then
             log "[PASS] [$FEATURE_ID] current manifest $readme"

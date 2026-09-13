@@ -43,8 +43,8 @@
 | 10.05 | 06  | closed  | task 2 - accounting mapping validation    |
 | 10.06 | 07  | closed  | exception dataset                         |
 | 10.07 | 08  | closed  | task 3 - finance variance investigation   |
-| 10.08 | 09  | closed  | task 4 - reconciliation framework design  |
-| 10.09 | 10  | closed  | business-facing summary                   |
+| 10.09 | 09  | closed  | business-facing summary                   |
+| 10.08 | 10  | open    | task 4 - reconciliation framework design  |
 | 10.10 | 11  | pending | notebook consolidation and clean rerun    |
 | 10.11 | 12  | pending | deliverable review and status promotion   |
 | 10.12 | 13  | pending | publish assessment site                   |
@@ -1047,12 +1047,14 @@ Commit the reviewed work, run `scripts/08-assessment-site.sh build` for the stri
 | 10.IS.09 | 09  | closed | task 4's gl_amount metric repeats 10.IS.02's stock-vs-flow defect [03] |
 | 10.IS.10 | 10  | closed | task 4's framework only ran the total-layer check, disconnected from tasks 1-3 [04] |
 | 10.IS.11 | 11  | closed | reconciliation-results.md's gl_account/cost_center distinct counts are stale [05] |
+| 10.IS.12 | 12  | closed | task 4's total layer is structurally incapable of ever failing on this dataset [06] |
 
 01. **10.IS.07** full title: exception dataset's `WRONG_GL_ACCOUNT`/`WRONG_COST_CENTER` counts disagree with task 3's own `classification_movers` counts.
 02. **10.IS.08** full title: the Findings table's own "complete accounting" rows reported a nonzero residual on the same page **10.IS.06**/**10.IS.07** already closed to 0.00.
 03. **10.IS.09** full title: task 4's `gl_amount` metric (`SUM(local_sgd_closing_balance)`) reproduces **10.IS.02**'s chained-ledger stock-vs-flow defect, already fixed once in Task 1's own write-back.
 04. **10.IS.10** full title: task 4's framework only ran the total-layer count/amount check, structurally incapable of detecting the classification-driven variance tasks 1-3 diagnosed, and never demonstrated the dimensional/category layers that actually catch it.
 05. **10.IS.11** full title: `assessment-2-reconciliation-results.md`'s dimensional-reconciliation table understates `gl_account` (15, actually 16) and `cost_center` (10, actually 11) distinct-value counts by one each.
+06. **10.IS.12** full title: task 4's total layer (source/GL amount) is structurally incapable of ever failing on this dataset, for any of the assignment's seven candidate causes, because `finance.gl_balance` is a lossless direct aggregation of `bronze.finance_transactions` - the framework-design deliverable presented its `PASS` as an informative first check rather than stating this as a hard limitation of the data model.
 
 _10.IS.01 (closed) notebook connectivity check timed out under host contention_
 
@@ -1548,6 +1550,45 @@ Not left as a hypothesis - confirmed directly, not inferred. Task 1's own dimens
 
 01. (closed) ran `SELECT COUNT(DISTINCT gl_account), COUNT(DISTINCT cost_center) FROM finance.gl_balance` directly against the live seeded database: 16 and 11 - matching task 4's new cell exactly, confirming the published 15/10 undercounts both by one.
 02. (closed) corrected `assessment-2-reconciliation-results.md`'s dimensional-reconciliation table to 16/11; no other deliverable restates these two counts. `worst variance %`/`status` for both dimensions were already correct and unaffected - only the distinct-value column was stale.
+
+_10.IS.12 (closed) task 4's total layer is structurally incapable of ever failing on this dataset_
+
+**problem description**
+
+User review asked why task 4's total layer reports zero variance (source SGD 16,999,151.01 = GL SGD 16,999,151.01) when the assignment's own scenario reports a top-level "Expected Closing Balance vs Platform Closing Balance" variance as the headline problem statement (SGD 3,222,215.72 in the assignment's own production-scale framing). The question: why does the total layer fail to reproduce, at the top level, the same class of discrepancy the assignment's own scenario states before any dimensional or category work begins.
+
+**exception**
+
+```log
+<no runtime error - a design/framing question raised by user review, resolved by direct proof against
+the live database rather than by inspection alone>
+```
+
+**triggering actions**
+
+User asked directly: "your top layer assessment does not reproduce the main top level discrepancy of the problem statement... explain this glaring inconsistency and why your reconcile check fails to reproduce and catch the high level problem reported by finance at the top level."
+
+**hypothesis**
+
+Not left as a hypothesis - proved directly against the live database, not inferred:
+
+`finance.gl_balance` is generated as a direct, lossless aggregation of `bronze.finance_transactions` (`scripts/utils/data-generators.py`'s `gen_assessment2()` builds every GL row's movement fields straight from the same, already-mutated transaction rows). Proved directly: `SUM(gl.local_sgd_debit_movement) - SUM(gl.local_sgd_credit_movement)` = -127,183.63, exactly equal to `SUM(source.local_amount signed by its own actual debit/credit indicator)` = -127,183.63, across the entire table. Any comparison where *both* sides read actual/platform values - gross or signed, one number or many - is comparing the same underlying total to itself; it is mathematically guaranteed to return zero, for every one of the assignment's seven candidate causes, not only classification errors. This has been true since the very first version of Task 1's own recomputation (`10.IS.02`/`10.IS.03`'s own diagnostic trail): before expected-classification substitution was introduced, that recomputation - functionally equivalent to a total-layer check - always found 0 of 589 keys exceeding tolerance, regardless of which defects were present in the data.
+
+Reclassification (the only category detectable in this dataset at all) cannot move a grand total either, once expected classification is substituted: proved directly - `SUM` of the source's own signed total is identical whether or not any `GROUP BY` is applied, because grouping only partitions one fixed total among buckets; it never changes the sum across all buckets combined. `10.IS.06` already reached exactly this figure the hard way (297,137.40 exists only as a sum of *per-key* variances, never as one subtracted pair of totals) - `10.IS.12` is the same fact, now stated as a structural property of the total layer rather than left implicit.
+
+The assignment's own literal "Expected Closing Balance vs Platform Closing Balance" framing is a real top-level pair of numbers at production scale, but nothing in this dataset supplies an *independent* "expected" figure the way a real bank's separate sub-ledger would - "expected" can only be manufactured here by re-deriving from the same `bronze.finance_transactions` rows the platform itself used, which is exactly why only classification-type causes are detectable at all, and only once expected classification is substituted at the dimensional grain. The framework-design deliverable's "Total layer... `PASS`" was true and correctly computed, but presented as if it were an informative first checkpoint rather than a result this data model guarantees regardless of what is wrong.
+
+**diagnostic steps**
+
+| id          | seq | status  | step                                                                  |
+| ----------- | --- | ------- | ------------------------------------------------------------------------ |
+| 10.IS.12.01 | 01  | closed | proved GL-vs-source identity directly against the live database          |
+| 10.IS.12.02 | 02  | closed | rewrote the total layer's documentation to state the limitation directly |
+
+**diagnostic details**
+
+01. (closed) ran `SUM(GL.debit_movement) - SUM(GL.credit_movement)` against the live seeded `finance.gl_balance` and `SUM(source.local_amount, signed by its own actual debit/credit indicator)` against `bronze.finance_transactions`: -127,183.63 both sides, exact. Reproduced the same result inside the notebook's own PySpark session (Task 4's cell), confirming the identity holds through the same engine the framework itself runs on, not only via a separate psql check.
+02. (closed) rewrote `assessment-2-framework-design.md`'s "Design" and "Total layer" sections and the notebook's Task 4 introduction to lead with this proof and state plainly that the total layer's `PASS` carries no diagnostic weight in this data model - it returns `PASS` regardless of which, if any, of the seven candidate causes are present, because `finance.gl_balance` is a direct aggregation of `bronze.finance_transactions` with no independent source to disagree with it. Re-executed the notebook headlessly end to end, no cell errors; the proof numbers match the psql check exactly.
 
 ## Task Details
 

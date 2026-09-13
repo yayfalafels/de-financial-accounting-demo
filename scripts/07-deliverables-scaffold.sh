@@ -138,10 +138,13 @@ write_manifest() {
         done <"$readme"
     fi
     temporary="$(mktemp)"
-    if [[ "$assessment_id" == "assessment-2" ]]; then
-        # assessment-2's manifest carries no status column and no reference
-        # rows, per user direction - this assessment's own deliverables are
-        # tracked as done/not-done by the tracker doc, not restated here.
+    if [[ "$assessment_id" == "assessment-1" || "$assessment_id" == "assessment-2" ]]; then
+        # assessment-1 and assessment-2 are complete and dropped their
+        # dashboard deliverable, per user direction - their manifests carry
+        # no status column (nothing left to track as done/not-done - that's
+        # the tracker doc's job) and no dashboard reference row; the
+        # notebook link goes to a real GitHub URL via a footnote instead of
+        # a bare "[NN]" marker with no corresponding note on the page.
         {
             echo "# Assessment $(assessment_number "$assessment_id") Deliverables"
             echo

@@ -108,7 +108,7 @@
 <h2 id="sources">Sources</h2>
 <ul>
 <li>notebook: <a href="https://github.com/yayfalafels/de-financial-accounting-demo/blob/main/notebooks/assessment2_gl_reconciliation.ipynb">assessment2_gl_reconciliation.ipynb</a> -&gt; "Task 1 - GL Integrity and Reconciliation" section</li>
-<li>batch: <code>reconciliation.rc_batch_control.batch_id = 26</code></li>
+<li>batch: <code>reconciliation.rc_batch_control.batch_id = 29</code></li>
 </ul>
 <h2 id="arithmetic-integrity">Arithmetic integrity</h2>
 <p><code>opening_balance + debit_movement - credit_movement = closing_balance</code> checked on every <code>finance.gl_balance</code> row, exact equality (no rounding tolerance - all four columns are <code>decimal(20,2)</code> and the expression is pure addition/subtraction).</p>

@@ -78,6 +78,22 @@
               <ul class="nav flex-column">
               </ul>
             </li>
+            <li class="nav-item" data-bs-level="2"><a href="#metrics" class="nav-link">Metrics</a>
+              <ul class="nav flex-column">
+              </ul>
+            </li>
+            <li class="nav-item" data-bs-level="2"><a href="#tolerance-rules" class="nav-link">Tolerance rules</a>
+              <ul class="nav flex-column">
+              </ul>
+            </li>
+            <li class="nav-item" data-bs-level="2"><a href="#status-assignment" class="nav-link">Status assignment</a>
+              <ul class="nav flex-column">
+              </ul>
+            </li>
+            <li class="nav-item" data-bs-level="2"><a href="#persistence-for-audit-and-historical-analysis" class="nav-link">Persistence for audit and historical analysis</a>
+              <ul class="nav flex-column">
+              </ul>
+            </li>
               </ul>
             </li>
         </ul>
@@ -87,12 +103,121 @@
 
 <h1 id="assessment-2-reconciliation-framework-design">Assessment 2 - Reconciliation Framework Design</h1>
 <p>status: draft</p>
+<p><strong>Task 4 - Create a Reconciliation Framework</strong></p>
+<p>See <a href="../assessment-2-overview/">overview</a> for the scenario, table shapes, and the seeded-vs-production scale statement.</p>
 <h2 id="sources">Sources</h2>
 <ul>
-<li>notebook: <code>notebooks/assessment2_gl_reconciliation.ipynb</code></li>
-<li>batch: <code>reconciliation.rc_batch_control.batch_id = 24</code></li>
+<li>notebook: <a href="https://github.com/yayfalafels/de-financial-accounting-demo/blob/main/notebooks/assessment2_gl_reconciliation.ipynb">assessment2_gl_reconciliation.ipynb</a> -&gt; "Task 4 - Reconciliation Framework" section</li>
+<li>batch: <code>reconciliation.rc_batch_control.batch_id = 29</code></li>
 </ul>
-<p>This framework uses common-currency SGD amounts for aggregate amount reconciliation: source value is <code>SUM(bronze.finance_transactions.local_amount)</code> and GL value is <code>SUM(finance.gl_balance.local_sgd_debit_movement + finance.gl_balance.local_sgd_credit_movement)</code> for movement checks. Native-currency GL fields stay available for per-currency diagnostics only.</p></div>
+<h2 id="metrics">Metrics</h2>
+<p>A daily run measures source, Bronze, and GL counts and amounts on a common SGD basis, then derives variance, exception count, and status from them. Bronze has no separate ingestion tier for this dataset, so <code>bronze_count</code>/<code>bronze_amount</code> read the same source figures <code>source_count</code>/<code>source_amount</code> do; the two names stay in the framework's vocabulary for consistency across assessments.</p>
+<table>
+<thead>
+<tr>
+<th>metric</th>
+<th>value</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>source_count</code> / <code>bronze_count</code></td>
+<td>1,523</td>
+</tr>
+<tr>
+<td><code>gl_transaction_count</code></td>
+<td>589</td>
+</tr>
+<tr>
+<td><code>source_amount</code> / <code>bronze_amount</code></td>
+<td>SGD 16,999,151.01</td>
+</tr>
+<tr>
+<td><code>gl_amount</code></td>
+<td>SGD 16,999,151.01</td>
+</tr>
+<tr>
+<td><code>absolute_variance</code></td>
+<td>SGD 0.00</td>
+</tr>
+<tr>
+<td><code>percentage_variance</code></td>
+<td>0.0000%</td>
+</tr>
+<tr>
+<td><code>exception_count</code></td>
+<td>1,223</td>
+</tr>
+<tr>
+<td><code>reconciliation_status</code></td>
+<td><code>PASS</code></td>
+</tr>
+</tbody>
+</table>
+<p><code>source_count</code>/<code>gl_transaction_count</code> compare two different grains - 1,523 individual transactions against 589 unique <code>(accounting_date, legal_entity, gl_account, cost_center, currency)</code> Ledger keys - so a row-count check on this pair states a structural fact of the data model. The framework's count metric is reported for completeness; <code>PASS</code>/<code>FAIL</code> assignment applies to the amount-basis metrics above, where source and GL sit on the same SGD flow basis and reconcile exactly.</p>
+<h2 id="tolerance-rules">Tolerance rules</h2>
+<p>Configurable tolerance is expressed as a lookup keyed on dimension, currency, and GL account:</p>
+<pre><code>tolerance_rules(dimension, currency NULL=all, gl_account NULL=all,
+                abs_tolerance, pct_warning, pct_fail)
+</code></pre>
+<p><code>currency</code> and <code>gl_account</code> are nullable wildcard columns; the most specific non-null match wins, in the order <code>(currency, gl_account)</code> &gt; <code>currency only</code> &gt; the <code>(NULL, NULL)</code> default row. A currency or account with its own volatility profile - a thinly-traded currency pair, a suspense account under active remediation - takes a tighter or looser pair of thresholds without changing the default for every other combination.</p>
+<h2 id="status-assignment">Status assignment</h2>
+<p><code>PASS</code>/<code>WARNING</code>/<code>FAIL</code> default to 0.1% and 1% percentage-variance thresholds, overridable per currency/GL account by the tolerance-rule lookup above:</p>
+<table>
+<thead>
+<tr>
+<th>status</th>
+<th>condition</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>PASS</code></td>
+<td><code>percentage_variance &lt; 0.1%</code></td>
+</tr>
+<tr>
+<td><code>WARNING</code></td>
+<td><code>0.1% &lt;= percentage_variance &lt; 1%</code></td>
+</tr>
+<tr>
+<td><code>FAIL</code></td>
+<td><code>percentage_variance &gt;= 1%</code></td>
+</tr>
+</tbody>
+</table>
+<h2 id="persistence-for-audit-and-historical-analysis">Persistence for audit and historical analysis</h2>
+<p>Every daily run inserts a new batch, keeping a batch's measurements available for trend and audit review indefinitely:</p>
+<table>
+<thead>
+<tr>
+<th>batch date</th>
+<th>status</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>2026-09-13</td>
+<td><code>FAIL</code></td>
+</tr>
+<tr>
+<td>2026-09-13</td>
+<td><code>FAIL</code></td>
+</tr>
+<tr>
+<td>2026-09-13</td>
+<td><code>FAIL</code></td>
+</tr>
+<tr>
+<td>2026-09-11</td>
+<td><code>FAIL</code></td>
+</tr>
+<tr>
+<td>2026-09-11</td>
+<td><code>FAIL</code></td>
+</tr>
+</tbody>
+</table>
+<p>Overall batch status carries the worst status across the batch's own measured dimensions - <code>FAIL</code> here reflects the count-grain mismatch discussed above, while the amount basis reconciles clean at <code>PASS</code> on every run shown. Historical trend analysis is a single query away, filtered to this assessment's own batches and ordered by date.</p></div>
             </div>
         </div>
 

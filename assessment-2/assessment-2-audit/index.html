@@ -90,6 +90,10 @@
               <ul class="nav flex-column">
               </ul>
             </li>
+            <li class="nav-item" data-bs-level="2"><a href="#task-4-create-a-reconciliation-framework" class="nav-link">Task 4 - Create a Reconciliation Framework</a>
+              <ul class="nav flex-column">
+              </ul>
+            </li>
               </ul>
             </li>
         </ul>
@@ -102,7 +106,7 @@
 <h2 id="sources">Sources</h2>
 <ul>
 <li>notebook: <a href="https://github.com/yayfalafels/de-financial-accounting-demo/blob/main/notebooks/assessment2_gl_reconciliation.ipynb">assessment2_gl_reconciliation.ipynb</a></li>
-<li>deliverables audited: <a href="../assessment-2-reconciliation-results/">assessment-2-reconciliation-results.md</a>, <a href="../assessment-2-mapping-validation/">assessment-2-mapping-validation.md</a>, <a href="../assessment-2-exception-dataset/">assessment-2-exception-dataset.md</a>, <a href="../assessment-2-root-cause-analysis/">assessment-2-root-cause-analysis.md</a></li>
+<li>deliverables audited: <a href="../assessment-2-reconciliation-results/">assessment-2-reconciliation-results.md</a>, <a href="../assessment-2-mapping-validation/">assessment-2-mapping-validation.md</a>, <a href="../assessment-2-exception-dataset/">assessment-2-exception-dataset.md</a>, <a href="../assessment-2-root-cause-analysis/">assessment-2-root-cause-analysis.md</a>, <a href="../assessment-2-framework-design/">assessment-2-framework-design.md</a></li>
 </ul>
 <h2 id="task-1-gl-integrity-and-reconciliation">Task 1 - GL Integrity and Reconciliation</h2>
 <table>
@@ -263,6 +267,31 @@
 <li><strong>exception dataset consistency</strong> - the exception dataset's <code>WRONG_GL_ACCOUNT</code>/<code>WRONG_COST_CENTER</code> queries were first written independently of Task 1/Task 3's own indicator-corrected mapping lookup, so 2 of <code>03.03</code>'s 9 flip-candidate transactions (<code>FTX-0000158</code>, <code>FTX-0000660</code>) were double-counted there as GL-account/cost-center mismatches on top of <code>WRONG_DR_CR_INDICATOR</code> (<code>WRONG_GL_ACCOUNT</code>=9, <code>WRONG_COST_CENTER</code>=6, exception dataset total 1227) - caught by cross-checking the exception dataset's printed counts against <code>classification_movers</code>' 6/3/1 split in the same notebook run, diagnosed and fixed as <a href="#validate">10.IS.07</a>, re-executed clean at the counts above (total 1223).</li>
 </ol>
 <p><strong>bridge check</strong> - Task 1's SGD recomputation (30 keys, 297,137.40) substitutes an expected value for exactly 16 transactions across three dimensions: <code>03.07</code>'s 6 legal-entity transactions (60,697.50), 6 GL-account-only transactions (53,687.44, footnote 06), 3 cost-center-only transactions (40,036.00, the corrected <code>03.08</code> population per footnote 05), and 1 transaction wrong on both GL account and cost center (<code>FTX-0001358</code>, 9,706.73). Confirmed zero overlap between all four groups and <code>03.03</code>'s indicator population. Re-running the recomputation with exactly these 16 transactions' classification reverted to actual and every other transaction unchanged returns <strong>0 keys exceeding tolerance, 0.00 total variance</strong> - the full 297,137.40 is exactly and completely explained by this set, verified directly rather than by summing twice-face-value estimates (which, applied to all four groups, totals 328,255.34 - 31,117.94 more than the true figure, because two groups' transactions can share every other dimension of the same five-key bucket and partly net out there rather than add). Two further real misclassifications - <code>FTX-0001297</code> (<code>03.03</code>, 11,453.83) and <code>FTX-0000080</code> (<code>03.08</code>, footnote 05, 5,773.16) - post under product/transaction-type combinations with more than one currently-active, conflicting mapping row, so <code>single_match</code> never substitutes either and they move zero dollars of Task 1's variance regardless; both are correctly excluded from the 16-transaction bridge above, not force-fit into it.</p>
+<h2 id="task-4-create-a-reconciliation-framework">Task 4 - Create a Reconciliation Framework</h2>
+<table>
+<thead>
+<tr>
+<th>task ref</th>
+<th>check</th>
+<th>expected (issue-log)</th>
+<th>measured</th>
+<th>match</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>04.01</td>
+<td>framework metrics</td>
+<td>n/a [01]</td>
+<td>16999151.01 / 16999151.01, <code>PASS</code> [02]</td>
+<td>n/a</td>
+</tr>
+</tbody>
+</table>
+<ol>
+<li><strong>04.01</strong> is a design/metrics deliverable with no injected-issue tag of its own - it reuses Task 1's already-verified <code>gl_amount</code> expression (<code>SUM(local_sgd_debit_movement + local_sgd_credit_movement)</code>), the same movement-flow basis Task 1's own write-back and Task 3's bridge use. A first-pass check against the design's originally-specified <code>gl_amount</code> expression (<code>SUM(local_sgd_closing_balance)</code>) returned 14,826,335.19 against a source amount of 16,999,151.01 - the same chained-ledger stock-vs-flow mismatch <code>01.02-08</code>'s footnote already diagnosed once for Task 1, reproduced here because the design's <code>gl_amount</code> definition had not been corrected to match. Corrected before any notebook cell was written; the published metric reconciles exactly.</li>
+<li><strong>measured</strong> column reads source amount / GL amount, both SGD, then the resulting status.</li>
+</ol>
 <p>All measured values are read live via Spark SQL/PySpark against postgres in the notebook section cited above, not hand-typed against the ground truth.</p></div>
             </div>
         </div>

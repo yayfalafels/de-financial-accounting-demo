@@ -36,7 +36,7 @@
 | id    | seq | status  | milestone                               |
 | ----- | --- | ------- | --------------------------------------- |
 | 11.01 | 01  | closed  | design                                  |
-| 11.02 | 02  | pending | prerequisites and seed data readiness   |
+| 11.02 | 02  | open    | prerequisites and seed data readiness   |
 | 11.03 | 03  | pending | assessment scope and context write-up   |
 | 11.04 | 04  | pending | task 1 - transaction banking profiling  |
 | 11.05 | 05  | pending | task 2 - end-to-end reconciliation      |

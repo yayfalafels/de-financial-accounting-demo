@@ -617,6 +617,9 @@ def gen_assessment3(out_dir: Path) -> None:
     active_customers = list(CUSTOMER_IDS)
 
     missing_customers = set(rng.sample(active_customers, 5))  # issue 06
+    for cid in sorted(missing_customers):
+        log_issue("bronze.customer_master", cid, "missing_customer_reference",
+                   "a customer_master row exists", "no row for this customer_id")
     remaining = [c for c in active_customers if c not in missing_customers]
     inactive_customers = set(rng.sample(remaining, 5))  # issue 07
     fanout_customers = set(rng.sample([c for c in remaining if c not in inactive_customers], 20))  # issue 08

@@ -13,6 +13,7 @@
   - [assessment task to deliverable map](#assessment-task-to-deliverable-map)
   - [workflow cycle](#workflow-cycle)
   - [assessment context documentation](#assessment-context-documentation)
+  - [presentation boundary](#presentation-boundary)
   - [profiling design - task 1](#profiling-design--task-1)
   - [end-to-end reconciliation design - task 2](#end-to-end-reconciliation-design--task-2)
   - [complex issue detection - task 3](#complex-issue-detection--task-3)
@@ -38,7 +39,7 @@
 | 11.01 | 01  | closed  | design                                  |
 | 11.02 | 02  | closed  | prerequisites and seed data readiness   |
 | 11.03 | 03  | closed  | assessment scope and context write-up   |
-| 11.04 | 04  | pending | task 1 - transaction banking profiling  |
+| 11.04 | 04  | closed  | task 1 - transaction banking profiling  |
 | 11.05 | 05  | pending | task 2 - end-to-end reconciliation      |
 | 11.06 | 06  | pending | exception dataset                       |
 | 11.07 | 07  | pending | task 3 - complex issue detection        |
@@ -217,10 +218,12 @@ One row per assignment task, naming the deliverable file it lands in and the exe
 | 11.DM.11 | five-minute presentation summary          | `presentation-summary`      | narrative           |
 | 11.DM.12 | notebook                                  | manifest reference row      | notebook            |
 | 11.DM.13 | scenario and task context                 | `overview`                  | assignment doc      |
+| 11.DM.14 | ground-truth cross-check                  | `audit`                      | notebook + issue-log |
 
 01. file names are `results/assessment-3/assessment-3-<slug>.md` per [08](../features/08-assessment-deliverables-conventions.md#directory-and-naming-convention).
 02. **11.DM.13** is the authored context page introduced by this tracker, outside feature 08's generated taxonomy - see [assessment context documentation](#assessment-context-documentation).
 03. task 3's four defects split across `exception-dataset` (row-level detail, **11.DM.04**) and `root-cause-analysis` (the explanation of each defect's mechanism and impact, **11.DM.05**-**11.DM.07**), the same division [10](10-as02-financial-accounting-gl.md#assessment-task-to-deliverable-map) draws for Assessment 2's task 3.
+04. **11.DM.14** audits every other row's measured counts against `data/mock/issue-log.csv`, organized by assignment task/subtask, per [10](10-as02-financial-accounting-gl.md#assessment-task-to-deliverable-map)'s **10.DM.12** and the [presentation boundary](#presentation-boundary) rule below.
 
 ### workflow cycle
 
@@ -250,9 +253,18 @@ Same gap and same fix as [09](09-as01-data-profiling-reconciliation.md#assessmen
 
 - **overview page** - `results/assessment-3/assessment-3-overview.md` restates the Assessment 3 scenario, the four dataset shapes, Tasks 1-5, the technical optimization question, and the expected deliverable list in the assignment's own framing
 - **scale statement** - one paragraph naming the assignment's stated production volumes (the reconciliation-matrix example figures, and the 5-billion-row/40-minute performance scenario) alongside this demo's seeded volume budget, so every number published elsewhere is read against the right scale rather than mistaken for a production figure
-- **per-deliverable context** - each deliverable opens with a single line, directly under its `status:` marker, naming the assignment task it answers and linking the overview page
+- **per-deliverable context** - each deliverable opens with a single line naming the assignment task it answers and linking the overview page
 - **linkage** - the overview is authored content outside feature 08's generated taxonomy, so it is linked from `results/index.md` and from each deliverable rather than from the generated manifest
 - **no restatement of findings** - the overview carries assignment context only; measured results stay in their own deliverables so there is one place a number can change
+
+### presentation boundary
+
+Same rule [10](10-as02-financial-accounting-gl.md#implement) established for Assessment 2, restated here rather than left implicit:
+
+- **audit is one-directional** - `assessment-3-audit.md` sits above the main analysis and is the only page allowed to know the ground truth (`data/mock/issue-log.csv`, the seed generator, injected-issue tags) or reference this tracker directly; every other deliverable never links to or cites it. The main analysis is written as if the audit page does not exist.
+- **blind, non-omnipotent analyst** - every deliverable except the audit reads as an analyst with the assignment brief in hand (referencing a later task by its assignment name is fine) but no knowledge of which findings were deliberately injected, how, or what a later task's investigation will reveal. A finding is stated as what this level of analysis shows, not as confirmation of a known answer.
+- **no status marker on the page** - per [08](../features/08-assessment-deliverables-conventions.md#deliverable-markdown-template), status lives only in `results/assessment-3/README.md`'s manifest column, never as a line inside the deliverable itself.
+- these three rules and the four numbered rules under [documentation content and style](#documentation-content-and-style) govern every deliverable and notebook cell written under this tracker.
 
 ### profiling design - task 1
 
@@ -685,11 +697,13 @@ awk '/^\|/ && length($0) >= 115 { print FILENAME ":" FNR ": row too long"; bad =
 | 11.EL.13 | `results/assessment-3/assessment-3-overview.md`                 | assessment scope context      |
 | 11.EL.14 | `results/index.md`                                               | link to the overview page     |
 | 11.EL.15 | `mkdocs.yml`                                                     | overview in site nav          |
+| 11.EL.16 | `results/assessment-3/assessment-3-audit.md`                     | ground-truth audit            |
 
 01. **11.EL.09** is generated by `scripts/07-deliverables-scaffold.sh`; never hand-edited.
 02. **11.EL.11** is optional - used only where a query is worth extracting from the notebook for reuse, following the existing `src/pyspark/` naming pattern.
 03. **11.EL.13** is authored content outside feature 08's generated taxonomy, so the scaffold neither creates nor validates it; it is created by hand in 11.03.
 04. **11.EL.15** is only required if the strict build cannot reach the overview through `11.EL.14`'s link alone.
+05. **11.EL.16** is updated in the same cycle as the task deliverable it audits, per [presentation boundary](#presentation-boundary), not as a separate closing step.
 
 No `.env`, `.env.sample`, schema JSON, DDL, or seed-script change is expected. A required change to any of those is a defect in the owning feature and is raised there rather than patched from this tracker.
 
@@ -727,9 +741,26 @@ This step is done before any analysis write-up so each later deliverable can be 
 
 ### 3. Task 1 - transaction banking profiling
 
-edit locations: `11.EL.01, 11.EL.02`
+edit locations: `11.EL.01, 11.EL.02, 11.EL.16`
 
-Implement **11.CK.01**-**11.CK.12** exactly as specified in [profiling design](#profiling-design--task-1), against `source.payment_transactions`, `bronze.payment_transactions`, and `bronze.customer_master`, plus the Spark-scale handling narrative. Write the profiling summary deliverable citing the notebook section and referencing the overview page for scenario and scale.
+_closed 11.04_ - implemented **11.CK.01**-**11.CK.12** exactly as specified in [profiling design](#profiling-design--task-1), against `source.payment_transactions`, `bronze.payment_transactions`, and `bronze.customer_master`, plus the Spark-scale handling narrative, in a new "Task 1 - Profile Transaction Banking Data" section of `notebooks/assessment3_regulatory_dashboard.ipynb`. Executed headlessly against a freshly reseeded database, confirmed no cell error, copied back over the tracked notebook.
+
+| check                                       | result                                 |
+| ---------------------------------------------- | ------------------------------------------ |
+| duplicate `payment_id`                         | 5 groups                                    |
+| missing `customer_id`                           | 4 rows                                      |
+| invalid payment status                          | 0 rows                                      |
+| missing currency                                | 0 rows                                      |
+| invalid beneficiary country (shape check)       | 2 rows                                      |
+| negative or zero payment amount                 | 6 rows                                      |
+| missing customer reference record               | 27 rows / 5 customers                       |
+| payment linked to inactive customer record      | 33 rows / 5 customers                       |
+| multiple active customer records                | 20 customers                                |
+| daily transaction-volume spikes                 | 0 of 5 days                                 |
+| payment-channel distribution                    | no channel/day combination beyond threshold |
+| cross-border classification anomalies           | 60 rows                                     |
+
+Wrote [`results/assessment-3/assessment-3-profiling-summary.md`](../../results/assessment-3/assessment-3-profiling-summary.md) citing that notebook section and the overview page, and added the task 1 section to [`assessment-3-audit.md`](../../results/assessment-3/assessment-3-audit.md) (**11.EL.16**, see [11.IS.01](#validate)). Diagnosing the audit cross-check surfaced [11.IS.03](#validate) - a deliberately-injected population the seed generator had never logged - fixed at the source per [04.IS.04](../features/04-seed-mock-data.md#validate) and reseeded; every row count reproduced identically to [11.PR.04](#1-prerequisites-and-seed-data-readiness)'s baseline, so no notebook rerun was needed for that fix. [11.IS.02](#validate) also stripped the stale `status: draft` line from both deliverable files ahead of authoring their content.
 
 ### 4. Task 2 - end-to-end reconciliation
 
@@ -798,37 +829,107 @@ Commit the reviewed work, run `scripts/08-assessment-site.sh build` for the stri
 - inventory all first out exceptions and issues encountered in this table
 - for each issue, create an issue section and use this section to document diagnostics and resolution steps
 
-| id       | seq | status  | issue                                    |
-| -------- | --- | ------- | ----------------------------------------- |
-| 11.IS.01 | 01  | pending | \<first out exception\>                  |
+| id       | seq | status | issue                                                                    |
+| -------- | --- | ------ | --------------------------------------------------------------------------- |
+| 11.IS.01 | 01  | closed | `assessment-3-audit.md` missing from the DM/EL tables and presentation-boundary rule |
+| 11.IS.02 | 02  | closed | AS03 deliverable stubs carry a stale `status: draft` line pre-dating the 08 convention amendment |
+| 11.IS.03 | 03  | closed | "missing customer reference" population has no ground-truth tag in `issue-log.csv` |
 
-_11.IS.01 (pending) \<first out exception\>_
+_11.IS.01 (closed) `assessment-3-audit.md` missing from the DM/EL tables and presentation-boundary rule_
 
 **problem description**
+
+`results/assessment-3/README.md` lists `assessment-3-audit.md` as deliverable 08 (ground-truth audit), and test case **11.TC.06** requires a ground-truth comparison, but neither [assessment task to deliverable map](#assessment-task-to-deliverable-map) nor [Edit locations](#edit-locations) names the file - there is no row telling an implementer when it gets written or which task it answers. [10](10-as02-financial-accounting-gl.md#implement) established `assessment-2-audit.md` as the one deliverable allowed to know the ground truth (`issue-log.csv`), updated in the same cycle as each task's main deliverable, with an explicit "presentation boundary" rule stating the main analysis is written as if the audit page does not exist. This tracker carries the equivalent blind-analyst/non-revision guideline text at the bottom but never states the audit page's one-directional rule or gives it a DM/EL anchor.
 
 **exception**
 
 ```log
+<no runtime error - a documentation-structure gap found on design review, before any implementation>
 ```
 
 **triggering actions**
 
+Reviewing `docs/assessments/11-as03-transaction-banking-data-quality.md` against [09](09-as01-data-profiling-reconciliation.md) and [10](10-as02-financial-accounting-gl.md) as formatting references before starting task 1 implementation.
+
 **hypothesis**
 
-- use hypothesis framing until a validated fix is applied
+- the audit page and its one-directional rule were never ported into this tracker when 10 established the pattern, since 11.01's design predates that retrofit (10's own presentation-boundary section states it was added "per user direction during 10.05/10.07 review")
 
 **diagnostic steps**
 
-- first out exception is NOT a diagnostic step
-- diagnostic steps reveal information or apply a fix
-- assume re-run and validation, these are not diagnostic steps
-- keep the step description brief, use the diagnostics details section to elaborate actions and learnings for each step
-
-| id          | seq | status  | step                                 |
-| ----------- | --- | ------- | ------------------------------------- |
-| 11.IS.01.01 | 01  | pending | \<diagnostic step 01\>               |
+| id          | seq | status | step                                                        |
+| ----------- | --- | ------ | ---------------------------------------------------------- |
+| 11.IS.01.01 | 01  | closed | diff 11's DM/EL tables against 10's audit-inclusive equivalent |
+| 11.IS.01.02 | 02  | closed | add the missing DM/EL rows and presentation-boundary text  |
 
 **diagnostic details**
+
+01. (closed) `grep -n "audit"` against `10-as02-financial-accounting-gl.md` shows `10.DM` naming `assessment-2-audit.md` as the ground-truth-cross-check deliverable and a dedicated "presentation boundary" subsection stating the audit page is the only one allowed to reference the tracker or the seed generator; the same `grep` against `11-as03-transaction-banking-data-quality.md` returns nothing - confirms the gap is a missing retrofit, not an intentional difference.
+02. (closed) added **11.DM.14** (ground-truth cross-check -> `audit`) to [assessment task to deliverable map](#assessment-task-to-deliverable-map), **11.EL.16** (`results/assessment-3/assessment-3-audit.md`) to [Edit locations](#edit-locations), and a **presentation boundary** note under [documentation content and style](#documentation-content-and-style) stating `assessment-3-audit.md` is the one deliverable allowed to reference this tracker or the injected-issue catalog, updated in the same cycle as the task it audits.
+
+_11.IS.02 (closed) AS03 deliverable stubs carry a stale `status: draft` line pre-dating the 08 convention amendment_
+
+**problem description**
+
+`results/assessment-3/assessment-3-profiling-summary.md` and `assessment-3-audit.md` (scaffold-created stubs) open with a `status: draft` line directly under the title. [08](../features/08-assessment-deliverables-conventions.md#deliverable-markdown-template) footnote 02 records that this was removed from the per-deliverable template during AS01 task 1 - status now lives only in `results/<assessment>/README.md`'s manifest column, never on the page itself, specifically because the two copies drifted out of sync in practice.
+
+**exception**
+
+```log
+<no runtime error - stale content found on design review, before any implementation>
+```
+
+**triggering actions**
+
+Reading `results/assessment-3/assessment-3-profiling-summary.md` and comparing it against `08`'s current deliverable-markdown-template section before authoring the task 1 write-up.
+
+**hypothesis**
+
+- these two files were scaffold-created before the 08 amendment landed and, per the feature's own verify-or-create idempotency rule (never touch an already-started file), were never rewritten to match
+
+**diagnostic steps**
+
+| id          | seq | status | step                                                             |
+| ----------- | --- | ------ | ------------------------------------------------------------------- |
+| 11.IS.02.01 | 01  | closed | confirm `scripts/07-deliverables-scaffold.sh` no longer writes the line |
+| 11.IS.02.02 | 02  | closed | strip the stale line from the files this task edits              |
+
+**diagnostic details**
+
+01. (closed) `grep -n status scripts/07-deliverables-scaffold.sh` shows the manifest-generation code only, no per-deliverable-file status line - confirms the script itself already matches the amended convention and the stray lines are leftover content, not a regression the script would reintroduce.
+02. (closed) removed the `status: draft` line from `assessment-3-profiling-summary.md` and `assessment-3-audit.md` while authoring their task 1 content in this step; AS02's own already-closed deliverables carrying the same stale line are out of scope for this tracker.
+
+_11.IS.03 (closed) "missing customer reference" population has no ground-truth tag in `issue-log.csv`_
+
+**problem description**
+
+Profiling `bronze.payment_transactions` against `bronze.customer_master` for a missing customer reference record measured 27 rows / 5 distinct `customer_id`s with no `customer_master` row at all. Cross-checking that population against `data/mock/issue-log.csv` while drafting the ground-truth audit found no row tagged for it at all, unlike the neighboring "inactive customer reference" (5 customers, tagged `inactive_but_referenced`) and "multiple active customer records" (20 customers, tagged `multiple_active_records`) populations, both of which reconcile exactly.
+
+**exception**
+
+```log
+<no runtime error - a ground-truth catalog gap found while auditing a profiling result>
+```
+
+**triggering actions**
+
+Comparing the profiling notebook's "missing customer reference record" count against `data/mock/issue-log.csv` while drafting the ground-truth audit for this task.
+
+**hypothesis**
+
+- the 5-customer gap (300 `customer_id`s referenced in payments against `bronze.customer_master`'s 295) is deliberately injected by the seed generator but never logged, the same class of defect [04.IS.03](../features/04-seed-mock-data.md#validate) already found and fixed once for a different table
+
+**diagnostic steps**
+
+| id          | seq | status | step                                                          |
+| ----------- | --- | ------ | -------------------------------------------------------------- |
+| 11.IS.03.01 | 01  | closed | read `gen_assessment3()` in `scripts/utils/data-generators.py` |
+| 11.IS.03.02 | 02  | closed | fix at the source, reseed, confirm row counts unchanged        |
+
+**diagnostic details**
+
+01. (closed) `gen_assessment3()`'s `missing_customers = set(rng.sample(active_customers, 5))  # issue 06` excludes exactly 5 customers from `customer_rows` - a real, deliberate injection - but has no `log_issue()` call, unlike `inactive_customers` and `fanout_customers` sampled in the same block, each logged immediately after selection. Confirms the hypothesis exactly: same defect class as `04.IS.03`, different table.
+02. (closed) fixed and reseeded at the source - see [04.IS.04](../features/04-seed-mock-data.md#validate) for the full diagnosis and fix. `./scripts/04-mock-data-validate.sh` passes; `source.payment_transactions`=2005, `bronze.payment_transactions`=2025, `bronze.customer_master`=315, `regulatory.payment_reporting`=2021 rows, identical to this tracker's [11.PR.04](#3-prerequisites-and-seed-data-readiness) baseline - a logging-only fix, no seeded row changed. The profiling notebook's measured counts are unaffected (same underlying data) and needed no rerun.
 
 **validation evidence**
 
@@ -850,3 +951,10 @@ feature implementation and working with this document
 - feature-implementation-guide
 - jupyter-notebook-workspace
 - powerbi-dashboard-workspace
+
+## documentation content and style
+
+1. blind, non-ompipotent analyst, no knowledge of what will be revealed in task 02 at the time of task 02, no prior knowledge of injected defects, etc..
+2. non-revision language in the target deliverables jupyter notebook, results markdowns. contain all revision language in the tracker task detail section. target results written only with current version as though it is the first and only version, with no reference to prior versions.
+3. do not use the negation comparison "this, not that" -> instead direct concise "this". 
+4. do not reference tracker ids, tracker tasks or status in target deliverables, but reverse is valid -> tracker document can and should reference content in the results deliverabales

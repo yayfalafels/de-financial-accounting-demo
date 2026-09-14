@@ -539,6 +539,7 @@ If any check disagrees with its expected result, the most likely cause is a rese
 | 04.IS.01 | 01  | closed | schema-inspect.py regression from constraint relaxation | 
 | 04.IS.02 | 02  | closed | unrealistic fx rates                                    | 
 | 04.IS.03 | 03  | closed | missing accounting mapping never logged to issue-log.csv | 
+| 04.IS.04 | 04  | closed | missing customer reference (assessment 3) never logged to issue-log.csv | 
 
 _04.IS.01 (closed) schema-inspect.py regression from constraint relaxation_
 
@@ -633,6 +634,25 @@ for product, ttype in sorted(missing_combos):
 ```
 
 Reseeded and confirmed: `issue-log.csv` now carries 5 `missing_accounting_mapping` rows (`P2|DEBIT`, `P4|CREDIT`, `P6|CREDIT`, `P7|CREDIT`, `P10|CREDIT` under the fixed `MOCK_DATA_SEED=42`), and every table's row count is unchanged from before the fix (a logging-only change - `missing_combos`'s selection and every downstream RNG draw were untouched). Assessment 2's audit deliverable updated to match against the new tag instead of reporting "n/a".
+
+_04.IS.04 (closed) missing customer reference (assessment 3) never logged to issue-log.csv_
+
+**problem description**
+
+Found during Assessment 3's task 1 (11.04) profiling: `gen_assessment3()`'s catalog id 06 ("customer with no reference record in `customer_master`", documented as 5 customers in the [assessment 3 catalog](#injected-issue-catalog--assessment-3)) has always been deliberately injected - `missing_customers = set(rng.sample(active_customers, 5))` is excluded from `customer_rows` entirely - but unlike its two siblings in the same function (`inactive_customers` -> `inactive_but_referenced`, `fanout_customers` -> `multiple_active_records`, each with its own `log_issue()` call immediately below the sampling line), this one never called `log_issue()`. `issue-log.csv` had no row for it at all, even though the catalog table above already documented "5 customers" as the expected count. The downstream symptom: Assessment 3's profiling would have measured a real, correctly-sized "missing customer reference record" population with no ground-truth row to check it against.
+
+**resolution**
+
+added the missing `log_issue()` call, tagged `missing_customer_reference`, one row per excluded customer:
+
+```python
+missing_customers = set(rng.sample(active_customers, 5))  # issue 06
+for cid in sorted(missing_customers):
+    log_issue("bronze.customer_master", cid, "missing_customer_reference",
+               "a customer_master row exists", "no row for this customer_id")
+```
+
+Reseeded and confirmed: `issue-log.csv` now carries 5 `missing_customer_reference` rows (`CUST-000042`, `CUST-000052`, `CUST-000144`, `CUST-000255`, `CUST-000275` under the fixed `MOCK_DATA_SEED=42`), every table's row count is unchanged from before the fix (a logging-only change - `missing_customers`'s selection and every downstream RNG draw were untouched), and `scripts/04-mock-data-validate.sh` passes. See [11.IS.03](../assessments/11-as03-transaction-banking-data-quality.md#validate) for the profiling-side discovery.
 
 ## Guideline
 

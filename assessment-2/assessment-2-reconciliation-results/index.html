@@ -108,7 +108,7 @@
 <h2 id="sources">Sources</h2>
 <ul>
 <li>notebook: <a href="https://github.com/yayfalafels/de-financial-accounting-demo/blob/main/notebooks/assessment2_gl_reconciliation.ipynb">assessment2_gl_reconciliation.ipynb</a> -&gt; "Task 1 - GL Integrity and Reconciliation" section</li>
-<li>batch: <code>reconciliation.rc_batch_control.batch_id = 29</code></li>
+<li>batch: <code>reconciliation.rc_batch_control.batch_id = 36</code></li>
 </ul>
 <h2 id="arithmetic-integrity">Arithmetic integrity</h2>
 <p><code>opening_balance + debit_movement - credit_movement = closing_balance</code> checked on every <code>finance.gl_balance</code> row, exact equality (no rounding tolerance - all four columns are <code>decimal(20,2)</code> and the expression is pure addition/subtraction).</p>
@@ -194,7 +194,7 @@
 </table>
 <p><strong>findings</strong> - currency and accounting date reconcile exactly; legal entity, GL account, and cost center each show a real, material variance once transactions are classified against their expected value. Decomposing which named issue drives each is the subject of Task 3 - Investigate a Finance Variance.</p>
 <h2 id="write-back-to-reconciliationrc_">write-back to <code>reconciliation.rc_*</code></h2>
-<p><code>reconciliation.rc_reconciliation_results.dimension</code> is a closed set (<code>row_count</code>, <code>amount</code>); the fine-grained per-dimension detail above is reported in the notebook and this deliverable only. <code>amount</code> compares source SGD transaction value (<code>local_amount</code>) against GL SGD movement value (<code>local_sgd_debit_movement + local_sgd_credit_movement</code>) - a common-currency movement total, unaffected by which dimensional bucket a transaction's value is classified into, so this dimension stays a clean match even where the dimensional reconciliation above finds real, classification-driven variance.</p>
+<p><code>reconciliation.rc_reconciliation_results.dimension</code> is a closed set (<code>row_count</code>, <code>amount</code>). This batch persists <code>amount</code>, carrying the movement variance above against a zero baseline, as a percentage of GL SGD movement value (<code>local_sgd_debit_movement + local_sgd_credit_movement</code>); the fine-grained per-dimension detail is reported in the notebook and this deliverable only.</p>
 <table>
 <thead>
 <tr>
@@ -208,29 +208,20 @@
 </thead>
 <tbody>
 <tr>
-<td>row_count</td>
-<td>1523</td>
-<td>589</td>
-<td>-934</td>
-<td>-61.3263%</td>
-<td>FAIL [03]</td>
-</tr>
-<tr>
 <td>amount</td>
-<td>16999151.01</td>
-<td>16999151.01</td>
 <td>0.00</td>
-<td>0.0000%</td>
-<td>PASS</td>
+<td>297137.40</td>
+<td>297137.40</td>
+<td>1.7480%</td>
+<td>FAIL</td>
 </tr>
 </tbody>
 </table>
 <ol>
-<li><code>source</code> = <code>bronze.finance_transactions</code> (<code>COUNT(*)</code> / <code>SUM(local_amount)</code>).</li>
-<li><code>target</code> = <code>finance.gl_balance</code> (<code>COUNT(*)</code> / <code>SUM(local_sgd_debit_movement + local_sgd_credit_movement)</code>).</li>
-<li><strong>row_count</strong> compares two different grains by construction - 1523 individual transactions against 589 unique <code>(accounting_date, legal_entity, gl_account, cost_center, currency)</code> Ledger keys.</li>
+<li><code>source</code> = the zero baseline (no per-key movement mismatch).</li>
+<li><code>target</code> = the movement recomputation's own total variance, from the table above.</li>
 </ol>
-<p>Overall batch status: <code>FAIL</code> (<code>row_count</code> structurally, <code>amount</code> a clean <code>PASS</code>) - the classification-driven variance surfaces at the dimensional level above.</p></div>
+<p>Overall batch status: <code>FAIL</code> - the same classification-driven variance the dimensional reconciliation above traces by dimension.</p></div>
             </div>
         </div>
 

@@ -8,7 +8,7 @@
         
         
         <link rel="shortcut icon" href="../../img/favicon.ico">
-        <title>Assessment 1 - Overview - Financial Accounting Assessments</title>
+        <title>Assessment 3 - Overview - Financial Accounting Assessments</title>
         <link href="../../css/bootstrap.min.css" rel="stylesheet">
         <link href="../../css/fontawesome.min.css" rel="stylesheet">
         <link href="../../css/brands.min.css" rel="stylesheet">
@@ -38,13 +38,13 @@
                                 <a href="../.." class="nav-link">Home</a>
                             </li>
                             <li class="nav-item">
-                                <a href="../" class="nav-link">Assessment 1</a>
+                                <a href="../../assessment-1/" class="nav-link">Assessment 1</a>
                             </li>
                             <li class="nav-item">
                                 <a href="../../assessment-2/" class="nav-link">Assessment 2</a>
                             </li>
                             <li class="nav-item">
-                                <a href="../../assessment-3/" class="nav-link">Assessment 3</a>
+                                <a href="../" class="nav-link">Assessment 3</a>
                             </li>
                         </ul>
 
@@ -72,17 +72,25 @@
     <div id="toc-collapse" class="navbar-collapse collapse card bg-body-tertiary">
         <ul class="nav flex-column">
             
-            <li class="nav-item" data-bs-level="1"><a href="#assessment-1-overview" class="nav-link">Assessment 1 - Overview</a>
+            <li class="nav-item" data-bs-level="1"><a href="#assessment-3-overview" class="nav-link">Assessment 3 - Overview</a>
               <ul class="nav flex-column">
             <li class="nav-item" data-bs-level="2"><a href="#scenario" class="nav-link">Scenario</a>
               <ul class="nav flex-column">
               </ul>
             </li>
-            <li class="nav-item" data-bs-level="2"><a href="#source-table-src_transaction_daily" class="nav-link">Source table - src_transaction_daily</a>
+            <li class="nav-item" data-bs-level="2"><a href="#source-payments-dataset-sourcepayment_transactions" class="nav-link">Source Payments dataset - source.payment_transactions</a>
               <ul class="nav flex-column">
               </ul>
             </li>
-            <li class="nav-item" data-bs-level="2"><a href="#bronze-table-bronzetransaction_daily" class="nav-link">Bronze table - bronze.transaction_daily</a>
+            <li class="nav-item" data-bs-level="2"><a href="#bronze-payments-dataset-bronzepayment_transactions" class="nav-link">Bronze Payments dataset - bronze.payment_transactions</a>
+              <ul class="nav flex-column">
+              </ul>
+            </li>
+            <li class="nav-item" data-bs-level="2"><a href="#customer-reference-dataset-bronzecustomer_master" class="nav-link">Customer Reference dataset - bronze.customer_master</a>
+              <ul class="nav flex-column">
+              </ul>
+            </li>
+            <li class="nav-item" data-bs-level="2"><a href="#regulatory-reporting-dataset-regulatorypayment_reporting" class="nav-link">Regulatory Reporting dataset - regulatory.payment_reporting</a>
               <ul class="nav flex-column">
               </ul>
             </li>
@@ -101,14 +109,14 @@
 </div></div>
                     <div class="col-md-9" role="main">
 
-<h1 id="assessment-1-overview">Assessment 1 - Overview</h1>
+<h1 id="assessment-3-overview">Assessment 3 - Overview</h1>
 <h2 id="scenario">Scenario</h2>
-<p>A bank is migrating transaction and accounting data from multiple source systems into a Databricks-based lakehouse. The daily ingestion under test moves a Core Banking transaction extract into the Bronze layer. Finance reports that the Bronze total local-currency balance does not match source - the reconciliation gap this assessment traces to a record-level cause.</p>
+<p>A bank is preparing a regulatory submission based on customer transaction data. Regulatory Reporting identifies that transaction volumes shown in the regulatory reporting mart do not match Transaction Banking records. Management requires an investigation demonstrating Source -&gt; Bronze -&gt; Reporting dataset lineage and reconciliation. Four datasets are available: a payment-transaction source feed, its Bronze copy, a customer reference table, and the regulatory reporting mart itself.</p>
 <blockquote>
 <p>DISCLAIMER: Scaled down mock demo</p>
 </blockquote>
-<p>The assignment scenario states the Core Banking extract runs at approximately <strong>25 million records per day</strong> in production. This demo's seeded volume budget is far smaller by design (<code>MOCK_DATA_DAYS=5</code>, <code>MOCK_DATA_TXN_PER_DAY=400</code>), producing 2,010 <code>src_transaction_daily</code> rows against 1,993 <code>bronze.transaction_daily</code> rows for the most recent seed run - a 17-row / 0.85% gap engineered to be traceable at a size independent of the production symptom's absolute scale. Every measurement published in this assessment's deliverables is a finding against that seeded volume, with the production figure cited here only as the scenario framing that motivated the check - never mistaken for a production-scale result.</p>
-<h2 id="source-table-src_transaction_daily">Source table - <code>src_transaction_daily</code></h2>
+<p>The assignment's reconciliation matrix example states production-scale row counts in the low millions per dimension (e.g. 2,510,442 SG Payments), and its performance question poses a 5-billion-row Bronze table against a 40-minute reconciliation-query baseline. This demo's seeded volume budget is far smaller by design (<code>MOCK_DATA_PAYMENTS_PER_DAY=400</code>, <code>MOCK_DATA_CUSTOMERS=300</code>, <code>MOCK_DATA_DAYS=5</code>), producing 2,005 <code>source.payment_transactions</code> rows, 2,025 <code>bronze.payment_transactions</code> rows, 315 <code>bronze.customer_master</code> rows, and 2,021 <code>regulatory.payment_reporting</code> rows for the most recent seed run. Every measurement published in this assessment's deliverables is a finding against that seeded volume, with the assignment's production-scale figures cited here only as the scenario framing that motivated the check - never mistaken for a production-scale result, and never a target the seeded data is expected to reproduce exactly.</p>
+<h2 id="source-payments-dataset-sourcepayment_transactions">Source Payments dataset - <code>source.payment_transactions</code></h2>
 <table>
 <thead>
 <tr>
@@ -118,64 +126,56 @@
 </thead>
 <tbody>
 <tr>
-<td>transaction_id</td>
-<td>unique transaction identifier</td>
+<td>payment_id</td>
+<td>unique payment identifier</td>
+</tr>
+<tr>
+<td>customer_id</td>
+<td>customer identifier</td>
 </tr>
 <tr>
 <td>account_id</td>
-<td>customer/account identifier</td>
+<td>debited/credited account identifier</td>
 </tr>
 <tr>
-<td>transaction_date</td>
-<td>business transaction date</td>
+<td>payment_date</td>
+<td>business payment date</td>
 </tr>
 <tr>
-<td>posting_date</td>
-<td>accounting posting date</td>
+<td>payment_timestamp</td>
+<td>payment processing timestamp</td>
 </tr>
 <tr>
-<td>transaction_type</td>
-<td>CREDIT / DEBIT</td>
+<td>payment_type</td>
+<td>WIRE / GIRO / CARD / INTERNAL / INSTANT</td>
 </tr>
 <tr>
-<td>currency_code</td>
+<td>payment_channel</td>
+<td>BRANCH / MOBILE / INTERNET / API</td>
+</tr>
+<tr>
+<td>beneficiary_country</td>
+<td>beneficiary country, ISO 3166-1 alpha-2</td>
+</tr>
+<tr>
+<td>currency</td>
 <td>ISO currency</td>
 </tr>
 <tr>
-<td>transaction_amount</td>
-<td>transaction amount</td>
+<td>amount</td>
+<td>payment amount</td>
 </tr>
 <tr>
-<td>local_currency_amount</td>
-<td>amount converted to local currency</td>
+<td>status</td>
+<td>COMPLETED / PENDING / FAILED / REJECTED</td>
 </tr>
 <tr>
-<td>exchange_rate</td>
-<td>FX conversion rate</td>
-</tr>
-<tr>
-<td>branch_code</td>
-<td>booking branch</td>
-</tr>
-<tr>
-<td>product_code</td>
-<td>banking product</td>
-</tr>
-<tr>
-<td>source_system</td>
-<td>source application</td>
-</tr>
-<tr>
-<td>ingestion_file</td>
-<td>source file name</td>
-</tr>
-<tr>
-<td>source_extract_ts</td>
-<td>source extraction timestamp</td>
+<td>legal_entity</td>
+<td>booking legal entity</td>
 </tr>
 </tbody>
 </table>
-<h2 id="bronze-table-bronzetransaction_daily">Bronze table - <code>bronze.transaction_daily</code></h2>
+<h2 id="bronze-payments-dataset-bronzepayment_transactions">Bronze Payments dataset - <code>bronze.payment_transactions</code></h2>
 <p>Same business fields as source, plus:</p>
 <table>
 <thead>
@@ -187,7 +187,7 @@
 <tbody>
 <tr>
 <td>ingestion_timestamp</td>
-<td>when the record landed Bronze</td>
+<td>Bronze ingestion timestamp</td>
 </tr>
 <tr>
 <td>batch_id</td>
@@ -195,30 +195,122 @@
 </tr>
 <tr>
 <td>record_hash</td>
-<td>row-level hash for dedup/audit</td>
+<td>hash of the row's business fields</td>
 </tr>
 <tr>
 <td>source_file_name</td>
-<td>Bronze-side source-file name</td>
+<td>source file this row loaded from</td>
+</tr>
+</tbody>
+</table>
+<h2 id="customer-reference-dataset-bronzecustomer_master">Customer Reference dataset - <code>bronze.customer_master</code></h2>
+<table>
+<thead>
+<tr>
+<th>column</th>
+<th>description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>customer_id</td>
+<td>customer identifier</td>
+</tr>
+<tr>
+<td>customer_type</td>
+<td>INDIVIDUAL / CORPORATE</td>
+</tr>
+<tr>
+<td>residence_country</td>
+<td>residence country, ISO 3166-1 alpha-2</td>
+</tr>
+<tr>
+<td>risk_rating</td>
+<td>LOW / MEDIUM / HIGH</td>
+</tr>
+<tr>
+<td>segment</td>
+<td>RETAIL / PRIVATE / CORPORATE / SME</td>
+</tr>
+<tr>
+<td>legal_entity</td>
+<td>legal entity</td>
+</tr>
+<tr>
+<td>effective_start_date</td>
+<td>effective start date</td>
+</tr>
+<tr>
+<td>effective_end_date</td>
+<td>effective end date, null = currently active</td>
+</tr>
+</tbody>
+</table>
+<h2 id="regulatory-reporting-dataset-regulatorypayment_reporting">Regulatory Reporting dataset - <code>regulatory.payment_reporting</code></h2>
+<table>
+<thead>
+<tr>
+<th>column</th>
+<th>description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>reporting_date</td>
+<td>regulatory reporting date</td>
+</tr>
+<tr>
+<td>customer_id</td>
+<td>customer identifier</td>
+</tr>
+<tr>
+<td>payment_type</td>
+<td>WIRE / GIRO / CARD / INTERNAL / INSTANT</td>
+</tr>
+<tr>
+<td>domestic_crossborder_flag</td>
+<td>DOMESTIC / CROSSBORDER</td>
+</tr>
+<tr>
+<td>transaction_count</td>
+<td>count of payments in the group</td>
+</tr>
+<tr>
+<td>total_transaction_amount</td>
+<td>sum of payment amounts in the group</td>
+</tr>
+<tr>
+<td>reporting_currency</td>
+<td>ISO currency</td>
+</tr>
+<tr>
+<td>legal_entity</td>
+<td>legal entity</td>
 </tr>
 </tbody>
 </table>
 <h2 id="tasks">Tasks</h2>
 <ul>
-<li><strong>task 1 - data profiling</strong> - profile both datasets against the assignment's stated checks (record/distinct counts, duplicate ids, null percentages, date ranges, currency/type validity, negative/zero amounts, branch/product/source-file distributions, late arrivals, posting-date ordering, and FX tolerance), and nominate and justify the critical data elements</li>
-<li><strong>task 2 - source-to-bronze reconciliation</strong> - level 1 batch totals, level 2 dimensional reconciliation with the largest-variance combinations identified, and level 3 record-level classification into exact match, missing in Bronze, unexpected in Bronze, amount/currency/posting-date mismatch, and duplicates on either side</li>
-<li><strong>task 3 - root cause</strong> - explain, evidence, and quantify the missing-record population concentrated in near-midnight source files where UTC source timestamps meet Singapore business-date ingestion, then recommend remediation plus permanent preventive controls</li>
+<li><strong>task 1 - profile transaction banking data</strong> - profile the source and Bronze payment datasets: duplicate payment ids, missing customer ids, invalid payment status, missing currency, invalid beneficiary countries, negative or zero amounts, missing or inactive customer reference records, multiple active customer records, unusual transaction-volume spikes, unexpected payment-channel distributions, and cross-border classification anomalies, plus how these checks would run efficiently in Spark/Databricks at scale</li>
+<li><strong>task 2 - build end-to-end reconciliation</strong> - reconcile Source -&gt; Bronze -&gt; Regulatory Reporting across transaction count, payment amount, customer count, currency, legal entity, payment type, domestic vs. cross-border classification, and reporting date, producing a reconciliation matrix (<code>Dimension | Source | Bronze | Regulatory | Variance | Status</code>)</li>
+<li><strong>task 3 - detect complex data issues</strong> - determine how to distinguish a legitimate repeated payment from a duplicate file reload, detect and correct an effective-dated customer join issue that creates duplicate regulatory records, assess whether the current cross-border classification rule is sufficient, and identify and quantify the regulatory impact of transactions assigned to the wrong reporting date</li>
+<li><strong>task 4 - document data lineage</strong> - lineage documentation for at least five critical regulatory attributes, each naming source, source column, Bronze location, transformation, and the data-quality control that guards it</li>
+<li><strong>task 5 - Power BI dashboard</strong> - a data-quality and reconciliation dashboard with executive KPIs (source/Bronze/regulatory record counts, reconciliation rate, financial variance, data-quality issue count, critical exception count), the recommended visuals, and a filter set for date, legal entity, currency, and payment type</li>
+<li><strong>technical optimization question</strong> - explain, and where possible demonstrate, the techniques that keep a reconciliation query against a 5-billion-row Bronze table under a 40-minute baseline</li>
 </ul>
 <h2 id="expected-deliverables">Expected deliverables</h2>
 <ul>
 <li>notebook</li>
-<li>profiling summary</li>
-<li>reconciliation results</li>
-<li>exception dataset</li>
+<li>profiling results</li>
+<li>end-to-end reconciliation</li>
+<li>exception tables</li>
 <li>root-cause analysis</li>
-<li>data quality control recommendations</li>
+<li>data-lineage document</li>
+<li>Power BI dashboard or dashboard design</li>
+<li>performance-optimization recommendations</li>
+<li>five-minute presentation summary</li>
 </ul>
-<p>and a short reconciliation dashboard or mock-up - see <a href="../">README.md</a> for current submission status.</p></div>
+<p>see <a href="../">README.md</a> for current submission status.</p></div>
             </div>
         </div>
 

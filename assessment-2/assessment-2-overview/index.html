@@ -78,6 +78,10 @@
               <ul class="nav flex-column">
               </ul>
             </li>
+            <li class="nav-item" data-bs-level="2"><a href="#finances-expected-figure" class="nav-link">Finance's expected figure</a>
+              <ul class="nav flex-column">
+              </ul>
+            </li>
             <li class="nav-item" data-bs-level="2"><a href="#transaction-dataset-bronzefinance_transactions" class="nav-link">Transaction dataset - bronze.finance_transactions</a>
               <ul class="nav flex-column">
               </ul>
@@ -111,7 +115,10 @@
 <blockquote>
 <p>DISCLAIMER: Scaled down mock demo</p>
 </blockquote>
-<p>The assignment scenario states an <strong>Expected Closing Balance of SGD 8,428,770,121.46</strong> against a <strong>Platform Closing Balance of SGD 8,431,992,337.18</strong> - a <strong>SGD 3,222,215.72</strong> variance at production scale. This demo's seeded volume budget is far smaller by design (<code>MOCK_DATA_FINANCE_TXN_PER_DAY=300</code>, <code>MOCK_DATA_DAYS=5</code>), producing 1,523 <code>bronze.finance_transactions</code> rows against 589 <code>finance.gl_balance</code> rows for the most recent seed run. Every measurement published in this assessment's deliverables is a finding against that seeded volume, with the assignment's SGD-billion figures cited here only as the scenario framing that motivated the check - never mistaken for a production-scale result, and never a target the seeded data is expected to reproduce exactly.</p>
+<p>The assignment scenario states an <strong>Expected Closing Balance of SGD 8,428,770,121.46</strong> against a <strong>Platform Closing Balance of SGD 8,431,992,337.18</strong> - a <strong>SGD 3,222,215.72</strong> variance at production scale. This demo's seeded volume budget is far smaller by design (<code>MOCK_DATA_FINANCE_TXN_PER_DAY=300</code>, <code>MOCK_DATA_DAYS=5</code>), producing 1,523 <code>bronze.finance_transactions</code> rows against 589 <code>finance.gl_balance</code> rows for the most recent seed run, so the assignment's SGD-billion figures are cited here only as scenario framing, never as a target this seeded volume reproduces exactly.</p>
+<h2 id="finances-expected-figure">Finance's expected figure</h2>
+<p>Finance's own reconciliation control re-derives an expected movement for every Ledger key from the same transaction feed the platform posts from. For each transaction, the control looks up the GL account and cost center its product code and debit/credit indicator should post to, in the same accounting mapping reference table the platform itself is supposed to apply; the account's own most-common legal entity elsewhere in the period stands in for a legal-entity master record, since no dedicated master table for that field exists in this dataset. Every transaction is then aggregated to the Ledger's own <code>(accounting_date, legal_entity, gl_account, cost_center, currency)</code> grain and compared key by key against what the platform actually posted.</p>
+<p>Run against this dataset, that control finds SGD 297,137.40 of movement disagreeing with the platform's own General Ledger, across 30 of the 589 keys - the figure this assessment traces to its cause and reconciles against, at the same scale the sections below work at.</p>
 <h2 id="transaction-dataset-bronzefinance_transactions">Transaction dataset - <code>bronze.finance_transactions</code></h2>
 <table>
 <thead>

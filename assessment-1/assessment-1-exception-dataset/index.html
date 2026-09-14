@@ -118,7 +118,6 @@
 <table>
 <thead>
 <tr>
-<th>id</th>
 <th>record class</th>
 <th>count</th>
 <th>materialisation</th>
@@ -126,49 +125,41 @@
 </thead>
 <tbody>
 <tr>
-<td>09.CK.23</td>
 <td>exact match</td>
 <td>1940</td>
 <td>-</td>
 </tr>
 <tr>
-<td>09.CK.24</td>
 <td>missing in Bronze</td>
 <td>33 [01]</td>
 <td>see exception rows</td>
 </tr>
 <tr>
-<td>09.CK.25</td>
 <td>unexpected in Bronze</td>
 <td>0</td>
 <td>-</td>
 </tr>
 <tr>
-<td>09.CK.26</td>
 <td>amount mismatch</td>
 <td>9 [02]</td>
 <td>see exception rows</td>
 </tr>
 <tr>
-<td>09.CK.27</td>
 <td>currency mismatch</td>
 <td>4</td>
 <td>see exception rows</td>
 </tr>
 <tr>
-<td>09.CK.28</td>
 <td>posting-date mismatch</td>
 <td>4</td>
 <td>see exception rows</td>
 </tr>
 <tr>
-<td>09.CK.29</td>
 <td>duplicate in source</td>
 <td>20 rows / 10 ids</td>
 <td>see exception rows</td>
 </tr>
 <tr>
-<td>09.CK.30</td>
 <td>duplicate in Bronze</td>
 <td>36 rows / 18 ids</td>
 <td>see exception rows</td>
@@ -176,12 +167,12 @@
 </tbody>
 </table>
 <ol>
-<li><strong>09.CK.24</strong> 8 of these 33 are the "excluded because Bronze-duplicated" case the caveat above describes - see the notebook section for the exact <code>transaction_id</code> overlap with <code>09.CK.30</code>. The remaining 25 have no Bronze row under any classification.</li>
-<li><strong>09.CK.26</strong> all 9 differ on <code>transaction_amount</code>, none on <code>local_currency_amount</code> alone - the two fields disagree with each other for these rows on the Bronze side, worth carrying into task 3.</li>
+<li>8 of these 33 are the "excluded because Bronze-duplicated" case the caveat above describes - see the notebook section for the exact <code>transaction_id</code> overlap with the duplicate-in-Bronze class. The remaining 25 have no Bronze row under any classification.</li>
+<li>all 9 differ on <code>transaction_amount</code>, none on <code>local_currency_amount</code> alone - the two fields disagree with each other for these rows on the Bronze side, worth carrying into task 3.</li>
 </ol>
 <h2 id="exception-dataset-schema">Exception dataset schema</h2>
 <p>Minimum columns per the assignment: <code>transaction_id</code>, <code>issue_type</code>, <code>source_value</code>, <code>bronze_value</code>, <code>variance</code>, <code>batch_id</code>. <code>issue_type</code> uses the eight record-class names above (snake_case). <code>source_value</code>/<code>bronze_value</code> hold whichever field the classification rule actually compared (the amount, currency code, or posting date); <code>variance</code> is populated only for <code>amount_mismatch</code>.</p>
-<p><strong>Materialisation</strong>: the full 106-row exception dataset lives in the notebook's own cell output (<code>exception_dataset</code>, cached and printed in full by class), git-tracked as part of the committed, executed notebook. This deliverable embeds only representative rows below, grouped by class - see the notebook section cited above for every row.</p>
+<p><strong>Materialisation</strong>: the full 106-row exception dataset lives in the notebook's own cell output (<code>exception_dataset</code>, cached and printed in full by class), git-tracked as part of the committed, executed notebook. This deliverable embeds representative rows below, grouped by class - see the notebook section cited above for every row.</p>
 <table>
 <thead>
 <tr>
@@ -237,7 +228,7 @@
 </tr>
 </tbody>
 </table>
-<p>Full per-class counts and the remaining rows (25 genuinely absent, 32 more duplicates, 2 more currency mismatches, 4 posting-date mismatches, and 20 duplicate-in-source rows) are in the notebook output, not reproduced here.</p></div>
+<p>The remaining rows (25 genuinely absent, 32 more duplicates, 2 more currency mismatches, 4 posting-date mismatches, and 20 duplicate-in-source rows) are in the notebook output.</p></div>
             </div>
         </div>
 

@@ -10,6 +10,4 @@ Current assessment deliverables and their submission status.
 | 04 | [Root-Cause Analysis](assessment-1-root-cause-analysis.md) |
 | 05 | [DQ-Control Recommendations](assessment-1-dq-recommendations.md) |
 | 06 | [Ground-Truth Audit](assessment-1-audit.md) |
-| 90 | notebook [01] |
-
-01. [assessment1_profiling.ipynb](https://github.com/yayfalafels/de-financial-accounting-demo/blob/main/notebooks/assessment1_profiling.ipynb)
+| 90 | [notebook](https://github.com/yayfalafels/de-financial-accounting-demo/blob/main/notebooks/assessment1_profiling.ipynb) |

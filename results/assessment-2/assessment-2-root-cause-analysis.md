@@ -50,17 +50,17 @@ Each of these is a real, independently-verified finding on its own basis - see t
 
 Task 1's expected-classification recomputation substitutes a different value for exactly 16 transactions across three classification dimensions - legal-entity, GL-account, and cost-center (one transaction wrong on both fields at once). Every other transaction's actual and expected classification already agree, contributing identically to both the Ledger and the recomputation. The four categories are added back one at a time, in the order below, each measured as the exact increase in variance that category's own correction contributes on top of the ones already added. The four amounts add up to the total by construction:
 
-| step                                                | amount        |
-| ------------------------------------------------------ | --------------- |
-| total GL variance (Task 1 recomputation)                 | 297,137.40        |
-| incorrect legal-entity allocation                         | 121,395.00        |
-| incorrect GL-account assignment [01]                      | 76,256.94         |
-| incorrect cost-center assignment                           | 80,072.00         |
-| incorrect GL-account + cost-center (same transaction)       | 19,413.46         |
-| = sum of the four categories                             | 297,137.40        |
-| = residual                                              | 0.00              |
+| id | step                                                 | amount     |
+| -- | ---------------------------------------------------- | ---------- |
+| -- | total GL variance Task 1 recomputation               | 297,137.40 |
+| -- | = sum of the four categories                         | 297,137.40 |
+| -- | = residual                                           | 0.00       |
+| 01 | incorrect legal-entity allocation                    | 121,395.00 |
+| 02 | incorrect GL-account assignment                      | 76,256.94  |
+| 03 | incorrect cost-center assignment                     | 80,072.00  |
+| 04 | incorrect GL-account + cost-center same transaction  | 19,413.46  |
 
-01. **incorrect GL-account assignment** contributes 76,256.94 here: legal-entity's correction is already in place by the time GL-account's is added, and the two share some of the same five-key posting buckets, so part of GL-account's effect is already reflected in the legal-entity row above it. Cost-center and the combined transaction share no bucket with anything already added, so their rows each land on exactly twice their own face value (40,036.00 x 2 and 9,706.73 x 2).
+02. **incorrect GL-account assignment** contributes 76,256.94 here: legal-entity's correction is already in place by the time GL-account's is added, and the two share some of the same five-key posting buckets, so part of GL-account's effect is already reflected in the legal-entity row above it. Cost-center and the combined transaction share no bucket with anything already added, so their rows each land on exactly twice their own face value (40,036.00 x 2 and 9,706.73 x 2).
 
 0 of 589 keys exceed tolerance once all four corrections are in place, matching the Ledger exactly - the full SGD 297,137.40 is completely explained by these four categories. Two further transactions are confirmed, real misclassifications - one flagged by the indicator check, one by the cost-center check - excluded from this table: both post under a product/transaction-type combination with more than one currently-active, conflicting mapping row, so no expected value exists to substitute for them (see the cost-center population-split note above and the mapping validation's overlapping-mapping finding).
 

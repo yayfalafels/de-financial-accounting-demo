@@ -143,8 +143,9 @@ write_manifest() {
         # dashboard deliverable, per user direction - their manifests carry
         # no status column (nothing left to track as done/not-done - that's
         # the tracker doc's job) and no dashboard reference row; the
-        # notebook link goes to a real GitHub URL via a footnote instead of
-        # a bare "[NN]" marker with no corresponding note on the page.
+        # notebook row links straight to the real GitHub URL inline, per
+        # user direction during the as03 11.04 review - no separate
+        # footnote for a single link.
         {
             echo "# Assessment $(assessment_number "$assessment_id") Deliverables"
             echo
@@ -159,9 +160,7 @@ write_manifest() {
                 printf '| %02d | [%s](%s) |\n' "$row" "$title" "$path"
                 row=$((row + 1))
             done
-            echo "| 90 | notebook [01] |"
-            echo
-            printf '01. [%s](%s)\n' "$(basename "$(notebook_path "$assessment_id")")" "$GITHUB_BLOB_BASE/$(notebook_path "$assessment_id")"
+            printf '| 90 | [notebook](%s) |\n' "$GITHUB_BLOB_BASE/$(notebook_path "$assessment_id")"
         } >"$temporary"
     else
         {

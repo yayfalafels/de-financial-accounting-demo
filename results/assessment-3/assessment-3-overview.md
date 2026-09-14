@@ -83,4 +83,8 @@ Same business fields as source, plus:
 - performance-optimization recommendations
 - five-minute presentation summary
 
+## Submission scope
+
+This submission covers profiling (task 1) and the technical optimization question. End-to-end reconciliation, exception detection, complex issue detection, and lineage documentation (tasks 2-4) are parked in the interest of time. The Power BI executive dashboard (task 5) is dropped in the interest of time.
+
 see [README.md](README.md) for current submission status.

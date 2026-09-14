@@ -78,6 +78,10 @@ target/
 # Jupyter Notebook
 .ipynb_checkpoints
 
+# ephemeral parquet scratch written by notebook cells onto the shared
+# spark/jupyter notebooks/ mount (never committed - see 11.IS.04)
+notebooks/.perf_demo_bronze/
+
 # IPython
 profile_default/
 ipython_config.py

@@ -66,4 +66,6 @@
 
 The 5B-row performance-optimization task is answered by design, not by simulation: no billion-row dataset gets generated. the seed data volume budget stays low-thousands-of-rows across the board. Instead, the Spark SQL is written to scale to a job much larger than the seeded data — the master + 2 worker topology exists for this reason — and demonstrated against the small seeded dataset, with descriptive notes in the submission explaining the delta between this demo's scale and real-world production behavior. 
 
-**Closure**: all deliverables produced, with the performance question answered via technique explanation + small-scale demonstration per the above, not literal 5B-row execution.
+This submission covers task 1 (transaction banking profiling) and the technical optimization question above. Task 2 (end-to-end reconciliation), the exception dataset, task 3 (complex issue detection), and task 4 (lineage documentation) are parked in the interest of time - each fully designed in [11](assessments/11-as03-transaction-banking-data-quality.md), resumable without a redesign. Task 5 (the Power BI executive dashboard) is dropped for the same reason.
+
+**Closure**: the covered deliverables (profiling summary, performance-optimization notes, presentation summary) are produced, with the performance question answered via technique explanation + small-scale demonstration per the above, not literal 5B-row execution. The parked/dropped deliverables are not produced in this submission.

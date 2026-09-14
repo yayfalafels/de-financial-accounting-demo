@@ -57,11 +57,11 @@ deliverables=(
     "assessment-2|business-summary|Business-Facing Summary"
     "assessment-2|audit|Ground-Truth Audit"
     "assessment-3|profiling-summary|Data Profiling Summary"
+    "assessment-3|performance-notes|Performance-Optimization Notes"
     "assessment-3|reconciliation-results|Reconciliation Results"
     "assessment-3|exception-dataset|Exception Dataset"
     "assessment-3|root-cause-analysis|Root-Cause Analysis"
     "assessment-3|lineage-doc|Data-Lineage Document"
-    "assessment-3|performance-notes|Performance-Optimization Notes"
     "assessment-3|presentation-summary|Five-Minute Presentation Summary"
     "assessment-3|audit|Ground-Truth Audit"
 )

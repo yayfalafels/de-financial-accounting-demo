@@ -7,6 +7,7 @@
 
 - [Tasks](#tasks)
 - [Scope](#scope)
+  - [submission scope](#submission-scope)
 - [References](#references)
 - [Design](#design)
   - [prerequisites](#prerequisites)
@@ -40,21 +41,24 @@
 | 11.02 | 02  | closed  | prerequisites and seed data readiness   |
 | 11.03 | 03  | closed  | assessment scope and context write-up   |
 | 11.04 | 04  | closed  | task 1 - transaction banking profiling  |
-| 11.05 | 05  | pending | task 2 - end-to-end reconciliation      |
-| 11.06 | 06  | pending | exception dataset                       |
-| 11.07 | 07  | pending | task 3 - complex issue detection        |
-| 11.08 | 08  | pending | task 4 - data lineage documentation     |
-| 11.10 | 10  | pending | performance-optimization notes          |
-| 11.11 | 11  | pending | five-minute presentation summary        |
-| 11.12 | 12  | pending | notebook consolidation and clean rerun  |
-| 11.13 | 13  | pending | deliverable review and status promotion |
-| 11.14 | 14  | pending | publish assessment site                 |
-| 11.IS | 15  | pending | validate                                |
-| 11.09 | --  | drop    | task 5 - Power BI executive dashboard   |
+| 11.10 | 05  | closed  | performance-optimization notes          |
+| 11.05 | 06  | parked  | task 2 - end-to-end reconciliation [01]  |
+| 11.06 | 07  | parked  | exception dataset [01]                   |
+| 11.07 | 08  | parked  | task 3 - complex issue detection [01]    |
+| 11.08 | 09  | parked  | task 4 - data lineage documentation [01] |
+| 11.11 | 10  | pending | five-minute presentation summary        |
+| 11.12 | 11  | pending | notebook consolidation and clean rerun  |
+| 11.13 | 12  | pending | deliverable review and status promotion |
+| 11.14 | 13  | pending | publish assessment site                 |
+| 11.IS | 14  | pending | validate                                |
+| 11.09 | --  | drop    | task 5 - Power BI executive dashboard [02] |
+
+01. **parked** - deprioritized in the interest of time for this submission, distinct from **11.09**'s **drop**: the design work in [end-to-end reconciliation design](#end-to-end-reconciliation-design--task-2), [complex issue detection](#complex-issue-detection--task-3), [exception dataset](#exception-dataset), and [lineage documentation](#lineage-documentation--task-4) stays as the spec to resume from, not abandoned. Per user direction during **11.10**'s scoping.
+02. per user direction during **11.10**'s scoping: dropped in the interest of time, same as the parked tasks above rather than for a design/environment reason - see [dashboard design](#dashboard-design--task-5) for the design that would be resumed from if picked back up.
 
 ## Scope
 
-answer Assessment 3 of the **assignment design doc** end to end - profile `source.payment_transactions` / `bronze.payment_transactions`, reconcile Source -> Bronze -> `regulatory.payment_reporting`, detect the duplicate-processing / effective-dated-join / cross-border / late-arrival defects, document lineage for five critical regulatory attributes, extend the Power BI template with an executive dashboard, answer the 5B-row performance question by design, and publish the resulting deliverable set together with the assignment context that motivated it - see [milestones.md](../milestones.md)'s `assessment 3` entry for the milestone-level statement this tracker executes.
+answer Assessment 3 of the **assignment design doc** - profile `source.payment_transactions` / `bronze.payment_transactions`, answer the 5B-row performance question by design, and publish the resulting deliverable set together with the assignment context that motivated it - see [milestones.md](../milestones.md)'s `assessment 3` entry for the milestone-level statement this tracker executes. Reconciling Source -> Bronze -> `regulatory.payment_reporting`, detecting the four named defects, documenting lineage, and the Power BI dashboard are scoped out of this submission - see [submission scope](#submission-scope).
 
 **assessment scope**
 
@@ -142,6 +146,15 @@ condensed from the **assignment design doc**'s Assessment 3 section
 - **expected deliverables** - notebook, profiling results, end-to-end reconciliation, exception tables, root-cause analysis, data-lineage document, Power BI dashboard or dashboard design, performance-optimization recommendations, and a five-minute presentation summary
 - **assessment context** - the published results must state the assignment scenario, tasks, and scale framing they answer, so a reader is not handed measurements without the question they respond to - see [assessment context documentation](#assessment-context-documentation)
 
+**submission scope**
+
+per user direction during **11.10**'s scoping - this submission covers task 1 (profiling) and the technical optimization question only:
+
+- **covered** - task 1 profiling (**11.04**, closed) and the technical optimization question (**11.10**, this step)
+- **parked, in the interest of time** - task 2 (end-to-end reconciliation, **11.05**), the exception dataset (**11.06**), task 3 (complex issue detection, **11.07**), and task 4 (lineage documentation, **11.08**) - each already fully designed below, resumable without a redesign
+- **dropped, in the interest of time** - task 5, the Power BI executive dashboard (**11.09**) - design also stays below if picked back up later
+- this reduction is stated in [results/assessment-3/assessment-3-overview.md](../../results/assessment-3/assessment-3-overview.md) and `results/assessment-3/README.md` for a reader of the published deliverables, per [assessment context documentation](#assessment-context-documentation)
+
 **prerequisite scope**
 
 already-closed infrastructure this assessment consumes, not re-decided here
@@ -160,10 +173,11 @@ already-closed infrastructure this assessment consumes, not re-decided here
 - does not change the `reconciliation.rc_*` schema; new checks are new rows, not new columns
 - does not attempt the assignment's literal 5-billion-row Bronze table or its 40-minute baseline query - per [milestones.md](../milestones.md)'s `assessment 3` closure statement, the performance question is answered by technique explanation plus a small-scale demonstration, not literal 5B-row execution; no billion-row dataset is generated
 - does not cover Assessment 1 or Assessment 2 datasets, deliverables, or notebooks
+- does not implement task 2, task 3, task 4, or task 5 - see [submission scope](#submission-scope)
 
 **closure**
 
-Every deliverable listed in [results/assessment-3/README.md](../../results/assessment-3/README.md) carries `status: final`, the assessment context page exists and is referenced from every deliverable, each finding is traceable to a `reconciliation.rc_batch_control.batch_id` or a notebook section, `scripts/07-deliverables-scaffold.sh --check` passes, and the published site shows the Assessment 3 pages.
+Every deliverable this submission actually covers (`profiling-summary`, `performance-notes`, `overview`, `audit`, `presentation-summary`) carries `status: final` in [results/assessment-3/README.md](../../results/assessment-3/README.md), the assessment context page exists and is referenced from every deliverable, each finding is traceable to a notebook section, `scripts/07-deliverables-scaffold.sh --check` passes, and the published site shows the Assessment 3 pages. The parked/dropped deliverables (`reconciliation-results`, `exception-dataset`, `root-cause-analysis`, `lineage-doc`) stay `draft` - their absence from `final` is this submission's stated scope, not an incomplete deliverable.
 
 ## References
 
@@ -608,7 +622,7 @@ Delta optimization (`OPTIMIZE`/Z-ORDER), data skipping, and predicate pushdown a
 
 ### notebook organisation
 
-`notebooks/assessment3_regulatory_dashboard.ipynb` is the single executable artifact for this assessment, sectioned in assignment order - connectivity, task 1 profiling, task 2 reconciliation, task 3 complex issues, performance-optimization demonstration - so a deliverable's **Sources** reference can name a section rather than a cell index that shifts on edit. Output commit policy follows [07](../features/07-jupyter-notebook-workspace-setup.md); the notebook must execute cleanly top to bottom against a freshly seeded database before 11.12 closes.
+`notebooks/assessment3_regulatory_dashboard.ipynb` is the single executable artifact for this assessment, sectioned in execution order - connectivity, task 1 profiling, performance-optimization demonstration - so a deliverable's **Sources** reference can name a section rather than a cell index that shifts on edit. Task 2 reconciliation, task 3 complex issues, and task 4 lineage sections are added if/when those parked tasks resume, per [submission scope](#submission-scope). Output commit policy follows [07](../features/07-jupyter-notebook-workspace-setup.md); the notebook must execute cleanly top to bottom against a freshly seeded database before 11.12 closes.
 
 ### idempotency / rerun-safety
 
@@ -709,7 +723,7 @@ No `.env`, `.env.sample`, schema JSON, DDL, or seed-script change is expected. A
 
 ## Implement
 
-Implementation order is prerequisites -> assessment context -> profiling -> end-to-end reconciliation -> exceptions -> complex issue detection -> lineage -> dashboard -> performance notes -> presentation summary -> notebook rerun -> review -> publish. Each step runs the full [workflow cycle](#workflow-cycle) before the next begins.
+Implementation order is prerequisites -> assessment context -> profiling -> performance notes -> presentation summary -> notebook rerun -> review -> publish, per [submission scope](#submission-scope) - end-to-end reconciliation, exceptions, complex issue detection, lineage, and the dashboard are parked/dropped steps, kept below for the record but not executed in this pass. Each executed step runs the full [workflow cycle](#workflow-cycle) before the next begins.
 
 ### 1. Prerequisites and seed data readiness
 
@@ -762,59 +776,67 @@ _closed 11.04_ - implemented **11.CK.01**-**11.CK.12** exactly as specified in [
 
 Wrote [`results/assessment-3/assessment-3-profiling-summary.md`](../../results/assessment-3/assessment-3-profiling-summary.md) citing that notebook section and the overview page, and added the task 1 section to [`assessment-3-audit.md`](../../results/assessment-3/assessment-3-audit.md) (**11.EL.16**, see [11.IS.01](#validate)). Diagnosing the audit cross-check surfaced [11.IS.03](#validate) - a deliberately-injected population the seed generator had never logged - fixed at the source per [04.IS.04](../features/04-seed-mock-data.md#validate) and reseeded; every row count reproduced identically to [11.PR.04](#1-prerequisites-and-seed-data-readiness)'s baseline, so no notebook rerun was needed for that fix. [11.IS.02](#validate) also stripped the stale `status: draft` line from both deliverable files ahead of authoring their content.
 
-### 4. Task 2 - end-to-end reconciliation
-
-edit locations: `11.EL.01, 11.EL.03`
-
-Implement the `source_agg`/`bronze_agg`/`regulatory_agg` CTEs and **11.CK.13**-**11.CK.20**'s per-dimension roll-up exactly as specified in [end-to-end reconciliation design](#end-to-end-reconciliation-design--task-2), including the `customer_count` exception to the roll-up-by-summing pattern. Write into `reconciliation.rc_*` under one `batch_id` (`assessment_id = 'assessment-3'`). Write the reconciliation results deliverable citing that `batch_id`, in the assignment's matrix shape.
-
-### 5. Exception dataset
-
-edit locations: `11.EL.01, 11.EL.04`
-
-Union the row sets from **11.CK.01**-**11.CK.09**, **11.CK.21**, **11.CK.22**, and **11.CK.24** into the exception dataset's minimum columns per [exception dataset](#exception-dataset), one row per `(payment_id, issue_type)` pair, and reconcile detected rows against `issue-log.csv`. Write the exception dataset deliverable, sampling in the markdown and pointing at the full output.
-
-### 6. Task 3 - complex issue detection
-
-edit locations: `11.EL.01, 11.EL.05`
-
-Implement **11.CK.21**-**11.CK.24** exactly as specified in [complex issue detection](#complex-issue-detection--task-3): the `record_hash`-based duplicate-processing detection, the naive-vs-corrected join diff, the cross-border sufficiency narrative, and the day-pair late-arrival confirmation. Write the root-cause analysis deliverable.
-
-### 7. Task 4 - data lineage documentation
-
-edit locations: `11.EL.06`
-
-Write the lineage deliverable directly from [lineage documentation](#lineage-documentation--task-4)'s five-row table and its transformation notes - this step is a narrative write-up of an already-fully-specified design, not new query development.
-
-### 8. Task 5 - Power BI executive dashboard
-
-edit locations: `11.EL.10`
-
-Edit the tracked `.pbip` template to add the Assessment 3 view, run `scripts/05-powerbi-sync.sh` to push it to the Windows-side working copy, have the user open and save it in Power BI Desktop, then sync back and confirm with an independent `diff -rq` that the round trip lost nothing.
-
-### 9. Performance-optimization notes
+### 4. Performance-optimization notes
 
 edit locations: `11.EL.01, 11.EL.07`
 
-Write the performance-optimization deliverable per [performance-optimization design](#performance-optimization-design): the technique explanations, the small-scale demonstration's wall-clock comparison, and the explicit scale-delta caveat.
+_closed 11.10_ - implemented the [performance-optimization design](#performance-optimization-design)'s demonstration in a new "Performance-Optimization Demonstration" section of `notebooks/assessment3_regulatory_dashboard.ipynb`: a `payment_date`-partitioned parquet write with `explain()` evidence of partition pruning, three timed join variants isolating the broadcast-join and partition-pruning effects, and an incremental-filter row-count demonstration. Executed headlessly against a freshly seeded database, confirmed no cell error, copied back over the tracked notebook.
+
+| run                                    | rows scanned | wall-clock |
+| ----------------------------------------- | -------------- | ------------ |
+| naive - full scan, shuffle join            | 2,025           | 1.60s         |
+| broadcast-only - full scan, broadcast join | 2,025           | 0.47s         |
+| combined - pruned scan, broadcast join     | 442             | 0.35s         |
+
+Incremental-filter demonstration: 1,010 of 2,025 rows (50%) selected at the seeded `ingestion_timestamp` range's midpoint, standing in for a real prior-batch watermark since no batch has been written for this assessment yet. Wrote [`results/assessment-3/assessment-3-performance-notes.md`](../../results/assessment-3/assessment-3-performance-notes.md) citing that notebook section and the overview page. [11.IS.04](#validate) - a path-sharing exception between the driver and worker containers - was found and resolved while building the demonstration.
+
+### 5. Task 2 - end-to-end reconciliation (parked)
+
+edit locations: none - parked per [submission scope](#submission-scope)
+
+Not executed in this submission. If resumed: implement the `source_agg`/`bronze_agg`/`regulatory_agg` CTEs and **11.CK.13**-**11.CK.20**'s per-dimension roll-up exactly as specified in [end-to-end reconciliation design](#end-to-end-reconciliation-design--task-2), including the `customer_count` exception to the roll-up-by-summing pattern. Write into `reconciliation.rc_*` under one `batch_id` (`assessment_id = 'assessment-3'`). Write the reconciliation results deliverable citing that `batch_id`, in the assignment's matrix shape.
+
+### 6. Exception dataset (parked)
+
+edit locations: none - parked per [submission scope](#submission-scope)
+
+Not executed in this submission. If resumed: union the row sets from **11.CK.01**-**11.CK.09**, **11.CK.21**, **11.CK.22**, and **11.CK.24** into the exception dataset's minimum columns per [exception dataset](#exception-dataset), one row per `(payment_id, issue_type)` pair, and reconcile detected rows against `issue-log.csv`. Write the exception dataset deliverable, sampling in the markdown and pointing at the full output.
+
+### 7. Task 3 - complex issue detection (parked)
+
+edit locations: none - parked per [submission scope](#submission-scope)
+
+Not executed in this submission. If resumed: implement **11.CK.21**-**11.CK.24** exactly as specified in [complex issue detection](#complex-issue-detection--task-3): the `record_hash`-based duplicate-processing detection, the naive-vs-corrected join diff, the cross-border sufficiency narrative, and the day-pair late-arrival confirmation. Write the root-cause analysis deliverable.
+
+### 8. Task 4 - data lineage documentation (parked)
+
+edit locations: none - parked per [submission scope](#submission-scope)
+
+Not executed in this submission. If resumed: write the lineage deliverable directly from [lineage documentation](#lineage-documentation--task-4)'s five-row table and its transformation notes - this step is a narrative write-up of an already-fully-specified design, not new query development.
+
+### 9. Task 5 - Power BI executive dashboard (dropped)
+
+edit locations: none - dropped per [submission scope](#submission-scope)
+
+Not executed. If picked back up: edit the tracked `.pbip` template to add the Assessment 3 view, run `scripts/05-powerbi-sync.sh` to push it to the Windows-side working copy, have the user open and save it in Power BI Desktop, then sync back and confirm with an independent `diff -rq` that the round trip lost nothing.
 
 ### 10. Five-minute presentation summary
 
 edit locations: `11.EL.08`
 
-Write a concise, presentation-scoped summary (bulleted, five-minute-read length) drawing from the profiling, reconciliation, root-cause, lineage, and performance deliverables - a synthesis, not a restatement of any one of them in full.
+Write a concise, presentation-scoped summary (bulleted, five-minute-read length) drawing from the profiling and performance deliverables this submission actually covers, per [submission scope](#submission-scope) - a synthesis, not a restatement of either in full.
 
 ### 11. Notebook consolidation and clean rerun
 
 edit locations: `11.EL.01`
 
-Reorder the notebook into assignment task order, remove scratch cells, reseed the database, and execute the notebook headless with `scripts/06-notebook-validate.sh`. Confirm every number cited in a deliverable still matches the rerun output; where it does not, correct the deliverable in the same cycle.
+Reorder the notebook into the order its two covered sections execute (profiling, then performance), remove scratch cells, reseed the database, and execute the notebook headless with `scripts/06-notebook-validate.sh`. Confirm every number cited in a deliverable still matches the rerun output; where it does not, correct the deliverable in the same cycle.
 
 ### 12. Deliverable review and status promotion
 
-edit locations: `11.EL.02-11.EL.09, 11.EL.13`
+edit locations: `11.EL.02, 11.EL.07, 11.EL.08, 11.EL.13, 11.EL.16`
 
-Review each deliverable against the [task to deliverable map](#assessment-task-to-deliverable-map) for coverage, a populated **Sources** section, a context line linking the overview, and consistent numbers. Promote each `status: draft` to `status: final`, then run `scripts/07-deliverables-scaffold.sh` to regenerate the manifest with the new statuses and `--check` to confirm the result is current.
+Review each covered deliverable (`profiling-summary`, `performance-notes`, `overview`, `presentation-summary`, `audit`) against the [task to deliverable map](#assessment-task-to-deliverable-map) for coverage, a populated **Sources** section, a context line linking the overview, and consistent numbers. Promote each to `status: final`, then run `scripts/07-deliverables-scaffold.sh` to regenerate the manifest with the new statuses and `--check` to confirm the result is current. The parked/dropped deliverables stay `draft` - see [closure](#scope).
 
 ### 13. Publish
 
@@ -834,6 +856,7 @@ Commit the reviewed work, run `scripts/08-assessment-site.sh build` for the stri
 | 11.IS.01 | 01  | closed | `assessment-3-audit.md` missing from the DM/EL tables and presentation-boundary rule |
 | 11.IS.02 | 02  | closed | AS03 deliverable stubs carry a stale `status: draft` line pre-dating the 08 convention amendment |
 | 11.IS.03 | 03  | closed | "missing customer reference" population has no ground-truth tag in `issue-log.csv` |
+| 11.IS.04 | 04  | closed | partitioned parquet write for the perf demo unreadable back - `UNABLE_TO_INFER_SCHEMA` |
 
 _11.IS.01 (closed) `assessment-3-audit.md` missing from the DM/EL tables and presentation-boundary rule_
 
@@ -931,12 +954,37 @@ Comparing the profiling notebook's "missing customer reference record" count aga
 01. (closed) `gen_assessment3()`'s `missing_customers = set(rng.sample(active_customers, 5))  # issue 06` excludes exactly 5 customers from `customer_rows` - a real, deliberate injection - but has no `log_issue()` call, unlike `inactive_customers` and `fanout_customers` sampled in the same block, each logged immediately after selection. Confirms the hypothesis exactly: same defect class as `04.IS.03`, different table.
 02. (closed) fixed and reseeded at the source - see [04.IS.04](../features/04-seed-mock-data.md#validate) for the full diagnosis and fix. `./scripts/04-mock-data-validate.sh` passes; `source.payment_transactions`=2005, `bronze.payment_transactions`=2025, `bronze.customer_master`=315, `regulatory.payment_reporting`=2021 rows, identical to this tracker's [11.PR.04](#3-prerequisites-and-seed-data-readiness) baseline - a logging-only fix, no seeded row changed. The profiling notebook's measured counts are unaffected (same underlying data) and needed no rerun.
 
-**validation evidence**
+_11.IS.04 (closed) partitioned parquet write for the perf demo unreadable back - `UNABLE_TO_INFER_SCHEMA`_
 
-**user actions**
+**problem description**
 
-- Power BI Desktop open/save round trip for the dashboard deliverable (11.09)
-- GitHub authentication and the deploy confirmation for the published site (11.14)
+Prototyping the performance-optimization demonstration's partition-pruning step: writing `bronze.payment_transactions` to a local parquet path partitioned by `payment_date` from a driver-side script, then immediately reading it back with `spark.read.parquet(PART_PATH)` in the same session, fails - Spark reports it cannot infer a schema for that path at all, as if the path were empty, right after the write reported success.
+
+**exception**
+
+```log
+pyspark.errors.exceptions.captured.AnalysisException: [UNABLE_TO_INFER_SCHEMA] Unable to infer schema for Parquet. It must be specified manually.
+```
+
+**triggering actions**
+
+`docker exec jupyter-notebook python3 /tmp/perf_probe.py`, a scratch script connecting to `spark://spark-master:7077` that runs `bronze_df.write.mode("overwrite").partitionBy("payment_date").parquet("/tmp/as03_perf_demo_bronze")` followed immediately by `spark.read.parquet("/tmp/as03_perf_demo_bronze")` in the same process.
+
+**hypothesis**
+
+- the write and the read both ran as distributed jobs against the cluster (`spark://spark-master:7077`, not `local[*]`) - `/tmp/as03_perf_demo_bronze` is a path on the driver container's (`jupyter-notebook`) own local filesystem, not a shared volume, so the worker containers (`spark-worker-1`/`spark-worker-2`) that actually wrote the partition files hold them on their own separate local filesystems, invisible to whichever container serves the read
+
+**diagnostic steps**
+
+| id          | seq | status | step                                                           |
+| ----------- | --- | ------ | ---------------------------------------------------------------- |
+| 11.IS.04.01 | 01  | closed | confirm the partition directory is absent on the driver container |
+| 11.IS.04.02 | 02  | closed | switch the demonstration to a path on the workers' shared mount |
+
+**diagnostic details**
+
+01. (closed) `docker exec jupyter-notebook ls /tmp/as03_perf_demo_bronze` - empty error confirms the path does not exist on the driver container at all; the write only ever landed on whichever worker container executed each write task. Confirms the hypothesis exactly - no shared filesystem exists between the driver and the workers in this docker-compose topology.
+02. (closed) `docker/docker-compose.yml`'s spark services already bind-mount a shared host directory for exactly this reason (the same mount `notebooks/` uses for the driver) - `/notebooks` is common to all four spark containers. Re-pointed the demonstration at `/notebooks/.perf_demo_bronze` (gitignored, ephemeral, deleted at the end of the demonstration cell) instead of `/tmp/...`; the write/read round trip succeeds, `explain()` on the date-filtered read shows `PartitionFilters: [isnotnull(payment_date#79), (payment_date#79 = 2026-08-19)]` confirming pruning, and the naive/optimized join plans show `SortMergeJoin`+`Exchange` versus `BroadcastHashJoin`+`BroadcastExchange` respectively. See [performance-optimization design](#performance-optimization-design) - the notebook cell using this path is the resolved version.
 
 ## Guideline
 

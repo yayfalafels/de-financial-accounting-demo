@@ -1048,7 +1048,8 @@ Commit the reviewed work, run `scripts/08-assessment-site.sh build` for the stri
 | 10.IS.10 | 10  | closed | task 4's framework only ran the total-layer check, disconnected from tasks 1-3 [04] |
 | 10.IS.11 | 11  | closed | reconciliation-results.md's gl_account/cost_center distinct counts are stale [05] |
 | 10.IS.12 | 12  | closed | task 4's total layer is structurally incapable of ever failing on this dataset [06] |
-| 10.IS.13 | 13  | open | closed-world model gap - no independent "expected" source [07] |
+| 10.IS.13 | 13  | closed | closed-world model gap - no independent "expected" source [07] |
+| 10.IS.14 | 14  | closed | Task 4/write-back kept a second, structurally-vacuous total layer [08] |
 
 01. **10.IS.07** full title: exception dataset's `WRONG_GL_ACCOUNT`/`WRONG_COST_CENTER` counts disagree with task 3's own `classification_movers` counts.
 02. **10.IS.08** full title: the Findings table's own "complete accounting" rows reported a nonzero residual on the same page **10.IS.06**/**10.IS.07** already closed to 0.00.
@@ -1057,6 +1058,7 @@ Commit the reviewed work, run `scripts/08-assessment-site.sh build` for the stri
 05. **10.IS.11** full title: `assessment-2-reconciliation-results.md`'s dimensional-reconciliation table understates `gl_account` (15, actually 16) and `cost_center` (10, actually 11) distinct-value counts by one each.
 06. **10.IS.12** full title: task 4's total layer (source/GL amount) is structurally incapable of ever failing on this dataset, for any of the assignment's seven candidate causes, because `finance.gl_balance` is a lossless direct aggregation of `bronze.finance_transactions` - the framework-design deliverable presented its `PASS` as an informative first check rather than stating this as a hard limitation of the data model.
 07. **10.IS.13** full title: this assessment's closed-world model has no data source independent of `bronze.finance_transactions` for Finance's own reported figure, and separately, the recomputation itself only substitutes an expected value for classification (legal-entity/GL-account/cost-center), never for the debit/credit indicator, though an equally valid expected value for the indicator already exists (`10.CK.17`'s own swap-match) and substituting it would move a real, non-dimensional total.
+08. **10.IS.14** full title: `assessment-2-framework-design.md`'s Task 4 section and the `rc_reconciliation_results` write-back kept the total layer **10.IS.12** proved vacuous running alongside Task 1/3's already-correct classification recomputation, presented as two co-equal, separately-scored layers in the same reusable framework; the overview never stated Finance's own reported variance or how it would be derived.
 
 _10.IS.01 (closed) notebook connectivity check timed out under host contention_
 
@@ -1592,7 +1594,7 @@ The assignment's own literal "Expected Closing Balance vs Platform Closing Balan
 01. (closed) ran `SUM(GL.debit_movement) - SUM(GL.credit_movement)` against the live seeded `finance.gl_balance` and `SUM(source.local_amount, signed by its own actual debit/credit indicator)` against `bronze.finance_transactions`: -127,183.63 both sides, exact. Reproduced the same result inside the notebook's own PySpark session (Task 4's cell), confirming the identity holds through the same engine the framework itself runs on, not only via a separate psql check.
 02. (closed) rewrote `assessment-2-framework-design.md`'s "Design" and "Total layer" sections and the notebook's Task 4 introduction to lead with this proof and state plainly that the total layer's `PASS` carries no diagnostic weight in this data model - it returns `PASS` regardless of which, if any, of the seven candidate causes are present, because `finance.gl_balance` is a direct aggregation of `bronze.finance_transactions` with no independent source to disagree with it. Re-executed the notebook headlessly end to end, no cell errors; the proof numbers match the psql check exactly.
 
-_10.IS.13 (open) closed-world model gap - no independent "expected" source, and the recomputation itself only half-corrects "expected"_
+_10.IS.13 (closed) closed-world model gap - no independent "expected" source, and the recomputation itself only half-corrects "expected"_
 
 **problem description**
 
@@ -1622,15 +1624,51 @@ Confirmed correct on the first half, and confirmed to run deeper than first stat
 | id          | seq | status  | step                                                                 |
 | ----------- | --- | ------- | ------------------------------------------------------------------- |
 | 10.IS.13.01 | 01  | closed  | tested whether correcting the indicator moves the grand total [01] |
-| 10.IS.13.02 | 02  | pending | user decision on remediation scope                                   |
+| 10.IS.13.02 | 02  | closed  | worked out what "expected" (X) means in a real bank's own control [02] |
+| 10.IS.13.03 | 03  | closed  | live-tested an alternative total-layer model against this one [03] |
 
 **diagnostic details**
 
 01. (closed) computed the 9 flip-candidate transactions' signed contribution under actual vs. corrected indicator directly against the live database: 6 transactions (SGD 48,511.08 face value) actually `CREDIT`, corrected `DEBIT`; 3 transactions (SGD 29,969.24 face value) actually `DEBIT`, corrected `CREDIT`. Net signed delta if the recomputation used the corrected indicator for these 9: +SGD 37,083.68 - confirming the indicator category can be made visible without any dimensional grouping, contradicting the standing "pass-through regardless" claim as a statement about the data (it is only true of the recomputation's current, correctable, choice).
+02. (closed) a real bank's reconciliation control does not run a second, independently-seeded ledger able to drift from the platform's own books - it re-derives an expected figure from the same transaction-level source through an independent processing path, the control-total pattern the assignment's own task 1 instruction already specifies ("independently calculate expected debit and credit movements from transaction-level data"). Legal entity, GL account, and cost center already get exactly this treatment, via `ref.accounting_mapping` and the majority-vote legal-entity heuristic. A schema file for a genuinely independent `finance.expected_gl_balance` table was drafted against this premise, then deleted once the premise didn't hold, confirmed via `git diff` showing zero remaining change to `scripts/utils/data-generators.py` or `data/schemas/`.
+03. (closed) ran a second, alternative total-layer model directly against the live database - excluding the 21 duplicate/re-posted rows and correcting the 3 FX-mismatched rows' value, classification and indicator both left untouched - and measured a real, nonzero top-level variance: SGD 260,312.88 (1.5314%), summing to the cent from its two inputs (255,845.35 duplicate + 4,467.53 FX). This confirmed a second, live-verified model exists and produces a genuinely different number from the classification-recomputation's SGD 297,137.40 - the two measure disjoint candidate-cause sets (reclassification vs. value changes) with different arithmetic (a per-key absolute-variance sum vs. a single global sum) and do not combine into one figure. Per user direction, the assessment keeps exactly one of the two: the classification-recomputation model, SGD 297,137.40, already carrying a complete, verified, zero-residual attribution via the Task 3 bridge. Extending it to also correct the debit/credit indicator (this issue's second, originally-opened gap) is not needed to explain that figure and is not implemented - the indicator stays its own, independently-reported category (`10.CK.17`). Concrete implementation of the single-model standardization is tracked under **10.IS.14**.
 
-**user actions**
+_10.IS.14 (closed) Task 4/write-back kept a second, structurally-vacuous total layer_
 
-- decide remediation scope: (a) extend the existing recomputation to also correct the debit/credit indicator (no schema change, revises Task 1/3/4's own numbers and bridge), (b) add a genuinely independent "expected ledger" data source to the schema and seed generator (a materially larger change, touching feature 04 and this tracker's design section, closer to the assignment's literal "Expected Closing Balance" concept and able to expose duplicate/FX/missing-transaction categories at the top level too), or (c) document the current design's boundary explicitly as an accepted scope limitation and proceed no further. This tracker does not act on this issue until that direction is given.
+**problem description**
+
+`assessment-2-framework-design.md`'s Task 4 section and the `rc_reconciliation_results` write-back (Task 1's own, read back by Task 4's persistence design) both kept the total layer **10.IS.12** already proved mathematically guaranteed to `PASS` - `source_amount`/`gl_amount` and `row_count`/`gl_transaction_count` - running as a second, separately-scored layer alongside the dimensional/category layers' already-correct classification recomputation. The overview never stated Finance's own reported figure or how it would be derived, leaving the two models to coexist with no stated reason to prefer either.
+
+**exception**
+
+```log
+<no runtime error - a design-consistency gap raised by user review of the published deliverables,
+not a diagnostic finding from the data itself>
+```
+
+**triggering actions**
+
+User, after **10.IS.13** settled what "expected" (X) should mean: "dont use two different models, pick one and stick to it, if finance reports $297k, then use that model throughout the analysis... I would recommend the more comprehensive $297k, since it is more comprehensive and you have the attribution breakdown of how each defect adds up to sum to $297k, so the missing link here is your reconciliation model, and inclusion of the $297k early on in the initial problem statement."
+
+**hypothesis**
+
+Not left as a hypothesis - the fix is a direct consequence of **10.IS.13**'s own closure: standardize every layer of Task 4's framework, Task 1's write-back, and the overview's own problem statement on the classification-recomputation model (SGD 297,137.40), removing the identity-based total layer entirely rather than keeping it "for completeness."
+
+**diagnostic steps**
+
+| id          | seq | status | step                                                                |
+| ----------- | --- | ------ | -------------------------------------------------------------------- |
+| 10.IS.14.01 | 01  | closed | rewrote the overview's scenario section with Finance's own model [01] |
+| 10.IS.14.02 | 02  | closed | rewrote task 4's total layer onto the classification recomputation [02] |
+| 10.IS.14.03 | 03  | closed | repointed the `rc_reconciliation_results` write-back at the same figure [03] |
+| 10.IS.14.04 | 04  | closed | re-executed the notebook headlessly end to end, no cell errors [04]  |
+
+**diagnostic details**
+
+01. (closed) added a "Finance's expected figure" section to `assessment-2-overview.md`, describing the control re-derivation step by step (mapping-table lookup for GL account/cost center, majority-vote legal entity, aggregation to the Ledger's own grain, key-by-key comparison) and stating the resulting SGD 297,137.40/30-key figure as what the rest of the assessment traces and reconciles against.
+02. (closed) rewrote `assessment-2-framework-design.md`'s "Design" and "Total layer" sections: dropped `source_amount`/`gl_amount`/`source_count`/`gl_transaction_count` as a scored layer, replaced with `total_layer_variance` (the same `|debit_variance| + |credit_variance|` sum the dimensional layer rolls up), matching notebook cell 54's rewrite (`assessment2-task4-reconciliation-framework`, reusing Task 1's own `movement_variance_total` rather than recomputing it). Verified live against the database before editing: the unconditional sum across all 589 keys (no tolerance filter) is exactly SGD 297,137.40, identical to the 30-failing-key figure - the 559 keys under tolerance add nothing.
+03. (closed) rewrote notebook cell 11 (Task 1's write-back): drops the `row_count`/`amount` two-row insert (the identity-based `amount` row and the always-mismatched `row_count` grain check) for a single `amount` row carrying `movement_variance_total` against a zero baseline, since `reconciliation.rc_reconciliation_results.dimension`'s `CHECK` constraint (`postgresql/rc-reconciliation-results-create-table.sql`) only allows `row_count`/`amount` - reusing `amount`'s existing enum value rather than a schema migration. `assessment-2-reconciliation-results.md`'s write-back table and `assessment-2-business-summary.md`'s batch citation updated to match.
+04. (closed) re-executed the full notebook headlessly (`jupyter nbconvert --to notebook --execute`), zero cell errors, fresh `batch_id=36`: `movement variance: keys_failing=30 total=297137.40 (1.748%)`, `[FAIL] task 1 batch reconciliation`, task 4's own `total_layer_variance=297137.4000 percentage_variance=0.0175 reconciliation_status=FAIL`, category layer and bridge unchanged (16 transactions, 0 residual). Batch citations updated to `36` across `assessment-2-reconciliation-results.md`, `assessment-2-framework-design.md`, and `assessment-2-business-summary.md`. Infrastructure note, not a data/design issue: the first two execution attempts failed - a 180s cell timeout under host memory pressure, then all five containers found `Exited (255)` after a `docker compose up -d` run without `.env`/`.secrets` sourced blanked `POSTGRES_USER`/`POSTGRES_PASSWORD`/`POSTGRES_DB` on recreate (`FATAL: no PostgreSQL user name specified in startup packet`) - fixed by sourcing both files before `docker compose up -d`; no data loss, row counts (1523/589) confirmed unchanged throughout.
 
 ## Task Details
 

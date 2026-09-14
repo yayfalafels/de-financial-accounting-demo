@@ -9,7 +9,7 @@ See [overview](assessment-2-overview.md) for the scenario and scale this summary
 ## Sources
 
 - notebook: [assessment2_gl_reconciliation.ipynb](https://github.com/yayfalafels/de-financial-accounting-demo/blob/main/notebooks/assessment2_gl_reconciliation.ipynb)
-- batch: `reconciliation.rc_batch_control.batch_id = 29`
+- batch: `reconciliation.rc_batch_control.batch_id = 36`
 
 ## What we found
 

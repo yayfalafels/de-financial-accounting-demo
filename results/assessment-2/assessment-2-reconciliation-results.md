@@ -9,7 +9,7 @@ See [overview](assessment-2-overview.md) for the scenario, table shapes, and the
 ## Sources
 
 - notebook: [assessment2_gl_reconciliation.ipynb](https://github.com/yayfalafels/de-financial-accounting-demo/blob/main/notebooks/assessment2_gl_reconciliation.ipynb) -> "Task 1 - GL Integrity and Reconciliation" section
-- batch: `reconciliation.rc_batch_control.batch_id = 29`
+- batch: `reconciliation.rc_batch_control.batch_id = 36`
 
 ## Arithmetic integrity
 
@@ -43,15 +43,13 @@ The same recomputation rolled up to one dimension at a time. Status: `PASS` if `
 
 ## write-back to `reconciliation.rc_*`
 
-`reconciliation.rc_reconciliation_results.dimension` is a closed set (`row_count`, `amount`); the fine-grained per-dimension detail above is reported in the notebook and this deliverable only. `amount` compares source SGD transaction value (`local_amount`) against GL SGD movement value (`local_sgd_debit_movement + local_sgd_credit_movement`) - a common-currency movement total, unaffected by which dimensional bucket a transaction's value is classified into, so this dimension stays a clean match even where the dimensional reconciliation above finds real, classification-driven variance.
+`reconciliation.rc_reconciliation_results.dimension` is a closed set (`row_count`, `amount`). This batch persists `amount`, carrying the movement variance above against a zero baseline, as a percentage of GL SGD movement value (`local_sgd_debit_movement + local_sgd_credit_movement`); the fine-grained per-dimension detail is reported in the notebook and this deliverable only.
 
-| dimension | source [01] | target [02]  | variance    | variance % | status |
-| --------- | ----------- | ------------ | ------------- | ---------- | ------ |
-| row_count | 1523        | 589          | -934           | -61.3263%  | FAIL [03] |
-| amount    | 16999151.01 | 16999151.01  | 0.00           | 0.0000%    | PASS   |
+| dimension | source [01] | target [02] | variance   | variance % | status |
+| --------- | ----------- | ----------- | ---------- | ---------- | ------ |
+| amount    | 0.00        | 297137.40   | 297137.40  | 1.7480%    | FAIL   |
 
-01. `source` = `bronze.finance_transactions` (`COUNT(*)` / `SUM(local_amount)`).
-02. `target` = `finance.gl_balance` (`COUNT(*)` / `SUM(local_sgd_debit_movement + local_sgd_credit_movement)`).
-03. **row_count** compares two different grains by construction - 1523 individual transactions against 589 unique `(accounting_date, legal_entity, gl_account, cost_center, currency)` Ledger keys.
+01. `source` = the zero baseline (no per-key movement mismatch).
+02. `target` = the movement recomputation's own total variance, from the table above.
 
-Overall batch status: `FAIL` (`row_count` structurally, `amount` a clean `PASS`) - the classification-driven variance surfaces at the dimensional level above.
+Overall batch status: `FAIL` - the same classification-driven variance the dimensional reconciliation above traces by dimension.

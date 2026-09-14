@@ -9,28 +9,25 @@ See [overview](assessment-2-overview.md) for the scenario, table shapes, and the
 ## Sources
 
 - notebook: [assessment2_gl_reconciliation.ipynb](https://github.com/yayfalafels/de-financial-accounting-demo/blob/main/notebooks/assessment2_gl_reconciliation.ipynb) -> "Task 4 - Reconciliation Framework" section
-- batch: `reconciliation.rc_batch_control.batch_id = 30`
+- batch: `reconciliation.rc_batch_control.batch_id = 36`
 
-## Design: three layers
+## Design: one model, three layers
 
-`finance.gl_balance` is generated as a direct aggregation of `bronze.finance_transactions` - every GL movement figure is built from the same rows the source table holds, with the same values. One consequence follows directly: a comparison between a GL-side total and a source-side total, where both sides read actual, as-posted values, is comparing one total to itself. Proof, run directly against this dataset: `SUM(GL debit) - SUM(GL credit)` = SGD -127,183.63, exactly equal to `SUM(source local_amount, signed by its own posted debit/credit indicator)` = SGD -127,183.63 - the two are identical to the cent, for the whole table. A total-layer check built this way returns a clean match for every one of the assignment's seven candidate causes, because neither side ever carries a figure independent of the other to disagree with.
-
-A reusable framework needs two further layers that substitute an *expected* value for at least one side. Even then, the total layer stays fixed: reclassifying which legal entity, GL account, or cost center a transaction's value is grouped under redistributes that value among buckets, but grouping is a partition of one fixed sum - it cannot change the total across all buckets combined, at any level of substitution. A dimensional layer, rolling the same source-vs-GL comparison up to one classification dimension at a time, is where a redistribution first becomes visible, because it looks at one bucket's own sub-total. A category layer then checks the named exception categories that explain why a dimension disagrees. All three run on the same SGD basis and the same daily cadence; each is demonstrated below on today's data.
+Each transaction's expected legal entity, GL account, and cost center is substituted the same way Task 1's recomputation does - `ref.accounting_mapping` wherever a transaction matches exactly one active mapping row, the account's own majority-vote legal entity where no mapping field covers that dimension - then aggregated to the Ledger's own `(accounting_date, legal_entity, gl_account, cost_center, currency)` grain and compared against `finance.gl_balance`'s posted movements. The total layer sums that comparison's absolute variance across every key. The dimensional layer rolls the same comparison up to one classification dimension at a time, where a single bucket's own sub-total is visible. The category layer checks the named exception categories that explain why a key disagrees. All three read the same recomputation, run on the same SGD basis and the same daily cadence, and are demonstrated below on today's data.
 
 ## Total layer
 
 | metric                  | value                     |
 | -------------------------- | --------------------------- |
-| `source_count` / `bronze_count`  | 1,523                        |
-| `gl_transaction_count`      | 589                          |
-| `source_amount` / `bronze_amount` | SGD 16,999,151.01          |
+| `source_transaction_count` | 1,523                       |
+| `gl_key_count`              | 589                          |
 | `gl_amount`                 | SGD 16,999,151.01            |
-| `absolute_variance`         | SGD 0.00                     |
-| `percentage_variance`       | 0.0000%                      |
+| `total_layer_variance`      | SGD 297,137.40               |
+| `percentage_variance`       | 1.7480%                      |
 | `exception_count`           | 1,223                        |
-| `reconciliation_status`     | `PASS`                       |
+| `reconciliation_status`     | `FAIL`                       |
 
-This layer's `PASS` carries no diagnostic weight on its own: given how `finance.gl_balance` is built, it returns `PASS` regardless of which (if any) of the seven candidate causes are present in a given day's data - see the proof above. It stays in the framework because a real deployment's "expected" figure would typically come from a genuinely independent source (a separate sub-ledger, a prior reconciled balance) capable of disagreeing with the platform on more than classification; this dataset supplies no such independent source, so `source_amount` is derived from the same rows `gl_amount` is, and the two dimensions Task 4 measures at this layer - `source_count`/`gl_transaction_count` (a structural grain difference: 1,523 individual transactions against 589 unique `(accounting_date, legal_entity, gl_account, cost_center, currency)` Ledger keys) and `source_amount`/`gl_amount` - are reported for completeness.
+`total_layer_variance` sums `|debit_variance| + |credit_variance|` across all 589 Ledger keys, comparing each key's posted movement to the recomputation's expected movement for that key - the same figure the dimensional layer below rolls up by dimension and the category layer traces to specific transactions. `source_transaction_count`/`gl_key_count` record the structural grain difference between the two tables (1,523 individual transactions aggregate into 589 Ledger keys) and carry no pass/fail status of their own.
 
 ## Dimensional layer
 
@@ -44,7 +41,7 @@ The same source-vs-GL comparison, rolled up to one classification dimension at a
 | currency             | 3                 | 0.0%                       | PASS   |
 | accounting date       | 5                 | 0.0%                       | PASS   |
 
-Currency and accounting date reconcile exactly at every value; legal entity, GL account, and cost center each carry a real, material variance once transactions are checked against their expected classification. The dimensional-level movement variance totals SGD 297,137.40 across 30 of the 589 Ledger keys - the figure the total layer's clean `PASS` cannot surface.
+Currency and accounting date reconcile exactly at every value; legal entity, GL account, and cost center each carry a real, material variance once transactions are checked against their expected classification. The dimensional-level movement variance totals SGD 297,137.40 across 30 of the 589 Ledger keys, matching the total layer's own figure exactly - the 559 keys under tolerance contribute nothing to either.
 
 ## Category layer
 
@@ -91,10 +88,10 @@ Every daily run inserts a new batch, keeping a batch's measurements available fo
 
 | batch date | status |
 | ------------ | -------- |
+| 2026-09-14   | `FAIL`   |
 | 2026-09-13   | `FAIL`   |
 | 2026-09-13   | `FAIL`   |
 | 2026-09-13   | `FAIL`   |
 | 2026-09-13   | `FAIL`   |
-| 2026-09-11   | `FAIL`   |
 
-Overall batch status carries the worst status across the batch's own measured dimensions - `FAIL` here reflects the total layer's count-grain mismatch, while the total layer's amount metric reconciles clean at `PASS` on every run shown; the dimensional and category layers above are the ones a daily run would actually rely on to know why. Historical trend analysis is a single query away, filtered to this assessment's own batches and ordered by date.
+Overall batch status is the total layer's own status - `FAIL` on every run shown, since the movement variance exceeds the 1% threshold each time; the dimensional and category layers above are what a daily run relies on to know why. Historical trend analysis is a single query away, filtered to this assessment's own batches and ordered by date.

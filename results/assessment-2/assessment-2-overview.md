@@ -6,7 +6,13 @@ The Finance division reports that balances generated from the new data platform 
 
 >DISCLAIMER: Scaled down mock demo
 
-The assignment scenario states an **Expected Closing Balance of SGD 8,428,770,121.46** against a **Platform Closing Balance of SGD 8,431,992,337.18** - a **SGD 3,222,215.72** variance at production scale. This demo's seeded volume budget is far smaller by design (`MOCK_DATA_FINANCE_TXN_PER_DAY=300`, `MOCK_DATA_DAYS=5`), producing 1,523 `bronze.finance_transactions` rows against 589 `finance.gl_balance` rows for the most recent seed run. Every measurement published in this assessment's deliverables is a finding against that seeded volume, with the assignment's SGD-billion figures cited here only as the scenario framing that motivated the check - never mistaken for a production-scale result, and never a target the seeded data is expected to reproduce exactly.
+The assignment scenario states an **Expected Closing Balance of SGD 8,428,770,121.46** against a **Platform Closing Balance of SGD 8,431,992,337.18** - a **SGD 3,222,215.72** variance at production scale. This demo's seeded volume budget is far smaller by design (`MOCK_DATA_FINANCE_TXN_PER_DAY=300`, `MOCK_DATA_DAYS=5`), producing 1,523 `bronze.finance_transactions` rows against 589 `finance.gl_balance` rows for the most recent seed run, so the assignment's SGD-billion figures are cited here only as scenario framing, never as a target this seeded volume reproduces exactly.
+
+## Finance's expected figure
+
+Finance's own reconciliation control re-derives an expected movement for every Ledger key from the same transaction feed the platform posts from. For each transaction, the control looks up the GL account and cost center its product code and debit/credit indicator should post to, in the same accounting mapping reference table the platform itself is supposed to apply; the account's own most-common legal entity elsewhere in the period stands in for a legal-entity master record, since no dedicated master table for that field exists in this dataset. Every transaction is then aggregated to the Ledger's own `(accounting_date, legal_entity, gl_account, cost_center, currency)` grain and compared key by key against what the platform actually posted.
+
+Run against this dataset, that control finds SGD 297,137.40 of movement disagreeing with the platform's own General Ledger, across 30 of the 589 keys - the figure this assessment traces to its cause and reconciles against, at the same scale the sections below work at.
 
 ## Transaction dataset - `bronze.finance_transactions`
 
